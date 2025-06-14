@@ -49,8 +49,12 @@ compare_and_copy() {
     if [ ! -f "$destination_file" ] || ! diff -q "$source_file" "$destination_file" ; then
         echo "Files $source_file and $destination_file differ, checking if we should copy or not"
         # We only copy if the file is part of the PR
-        if file_changed_in_pr "$source_file"; then
-          echo "File has changed in the PR"
+        if [ ! -f "${destination_file}" ] || file_changed_in_pr "$source_file"; then
+          if [ ! -f "${destination_file}" ]; then
+            echo "File has not been copied yet ($destination_file does not exist}"
+          else
+            echo "File has changed in the PR"
+          fi
           cp "$source_file" "$destination_file"
           echo "File $source_file copied to $destination_file"
         else
@@ -100,6 +104,10 @@ POSITIONAL_ARGS=()
 
 while [[ $# -gt 0 ]]; do
   case $1 in
+    --eessi-version)
+      EESSI_VERSION="$2"
+      shift 2
+      ;;
     -p|--prefix)
       INSTALL_PREFIX="$2"
       shift 2
@@ -119,6 +127,16 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [ -z "${INSTALL_PREFIX}" ]; then
+    echo "EESSI prefix not specified, you must use --prefix" >&2
+    exit 2
+fi
+
+if [ -z "${EESSI_VERSION}" ]; then
+    echo "EESSI version not specified, you must use --eessi-version" >&2
+    exit 3
+fi
 
 set -- "${POSITIONAL_ARGS[@]}"
 
@@ -146,7 +164,7 @@ copy_files_by_list ${TOPDIR}/init/Magic_Castle ${INSTALL_PREFIX}/init/Magic_Cast
 
 # Copy for init/modules/EESSI directory
 mc_files=(
-   2023.06.lua
+   ${EESSI_VERSION}.lua
 )
 copy_files_by_list ${TOPDIR}/init/modules/EESSI ${INSTALL_PREFIX}/init/modules/EESSI "${mc_files[@]}"
 
@@ -183,3 +201,18 @@ hook_files=(
     eb_hooks.py
 )
 copy_files_by_list ${TOPDIR} ${INSTALL_PREFIX}/init/easybuild "${hook_files[@]}"
+
+
+# make sure that scripts in init/ and scripts/ use correct EESSI version
+sed -i "s/__EESSI_VERSION_DEFAULT__/${EESSI_VERSION}/g" ${INSTALL_PREFIX}/init/eessi_defaults
+
+# replace placeholder for default EESSI version in Lmod init scripts
+for shell in $(ls ${INSTALL_PREFIX}/init/lmod); do
+    sed -i "s/__EESSI_VERSION_DEFAULT__/${EESSI_VERSION}/g" ${INSTALL_PREFIX}/init/lmod/${shell}
+done
+
+# replace EESSI version used in comments in EESSI module
+sed -i "s@/<EESSI_VERSION>/@/${EESSI_VERSION}/@g" ${INSTALL_PREFIX}/init/modules/EESSI/${EESSI_VERSION}.lua
+
+# replace EESSI version used in EasyBuild hooks
+sed -i "s@/<EESSI_VERSION>/@/${EESSI_VERSION}/@g" ${INSTALL_PREFIX}/init/easybuild/eb_hooks.py

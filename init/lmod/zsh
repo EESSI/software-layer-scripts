@@ -1,7 +1,7 @@
 # Choose an EESSI CVMFS repository
 EESSI_CVMFS_REPO="${EESSI_CVMFS_REPO:-/cvmfs/software.eessi.io}"
 # Choose an EESSI version
-EESSI_VERSION="${EESSI_VERSION:-2023.06}"
+EESSI_VERSION="${EESSI_VERSION:-__EESSI_VERSION_DEFAULT__}"
 # Path to top-level module tree
 export MODULEPATH="${EESSI_CVMFS_REPO}/versions/${EESSI_VERSION}/init/modules"
 . "${EESSI_CVMFS_REPO}/versions/${EESSI_VERSION}/compat/linux/$(uname -m)/usr/share/Lmod/init/zsh"
