@@ -47,6 +47,7 @@ HTTP_PROXY_ERROR_EXITCODE=$((${ANY_ERROR_EXITCODE} << 9))
 HTTPS_PROXY_ERROR_EXITCODE=$((${ANY_ERROR_EXITCODE} << 10))
 RUN_SCRIPT_MISSING_EXITCODE=$((${ANY_ERROR_EXITCODE} << 11))
 NVIDIA_MODE_UNKNOWN_EXITCODE=$((${ANY_ERROR_EXITCODE} << 12))
+OVERLAY_TOOL_EXITCODE=$((${ANY_ERROR_EXITCODE} << 13))
 
 # CernVM-FS settings
 CVMFS_VAR_LIB="var-lib-cvmfs"
@@ -89,6 +90,9 @@ display_help() {
   echo "  -n | --nvidia MODE      - configure the container to work with NVIDIA GPUs,"
   echo "                            MODE==install for a CUDA installation, MODE==run to"
   echo "                            attach a GPU, MODE==all for both [default: false]"
+  echo "  -o | --overlay-tool ARG - tool to use to create (read-only or writable) overlay;"
+  echo "                            selected tool *must* be available in container image being used;"
+  echo "                            can be 'fuse-overlayfs' or 'unionfs' [default: fuse-overlayfs]"
   echo "  -p | --pass-through ARG - argument to pass through to the launch of the"
   echo "                            container; can be given multiple times [default: not set]"
   echo "  -r | --repository CFG   - configuration file or identifier defining the"
@@ -128,6 +132,7 @@ VERBOSE=0
 STORAGE=
 LIST_REPOS=0
 MODE="shell"
+OVERLAY_TOOL="fuse-overlayfs"
 PASS_THROUGH=()
 SETUP_NVIDIA=0
 REPOSITORIES=()
@@ -183,6 +188,10 @@ while [[ $# -gt 0 ]]; do
     -n|--nvidia)
       SETUP_NVIDIA=1
       NVIDIA_MODE="$2"
+      shift 2
+      ;;
+    -o|--overlay-tool)
+      OVERLAY_TOOL="$2"
       shift 2
       ;;
     -p|--pass-through)
@@ -779,7 +788,7 @@ do
             # below); the overlay-upper directory can only exist because it is part of
             # the ${RESUME} directory or tarball
             # to be able to see the contents of the read-write session we have to mount
-            # the fuse-overlayfs (in read-only mode) on top of the CernVM-FS repository
+            # the overlay (in read-only mode) on top of the CernVM-FS repository
 
             echo "While processing '${cvmfs_repo_name}' to be mounted 'read-only' we detected an overlay-upper"
             echo "  directory (${EESSI_TMPDIR}/${cvmfs_repo_name}/overlay-upper) likely from a previous"
@@ -791,14 +800,25 @@ do
             EESSI_FUSE_MOUNTS+=("--fusemount" "${EESSI_READONLY}")
 
             # now, put the overlay-upper read-only on top of the repo and make it available under the usual prefix /cvmfs
-            EESSI_READONLY_OVERLAY="container:fuse-overlayfs"
-            # The contents of the previous session are available under
-            #   ${EESSI_TMPDIR} which is bind mounted to ${TMP_IN_CONTAINER}.
-            #   Hence, we have to use ${TMP_IN_CONTAINER}/${cvmfs_repo_name}/overlay-upper
-            # the left-most directory given for the lowerdir argument is put on top,
-            #   and with no upperdir=... the whole overlayfs is made available read-only
-            EESSI_READONLY_OVERLAY+=" -o lowerdir=${TMP_IN_CONTAINER}/${cvmfs_repo_name}/overlay-upper:/cvmfs_ro/${cvmfs_repo_name}"
-            EESSI_READONLY_OVERLAY+=" /cvmfs/${cvmfs_repo_name}"
+            if [[ "${OVERLAY_TOOL}" == "fuse-overlayfs" ]]; then
+                EESSI_READONLY_OVERLAY="container:fuse-overlayfs"
+                # The contents of the previous session are available under
+                #   ${EESSI_TMPDIR} which is bind mounted to ${TMP_IN_CONTAINER}.
+                #   Hence, we have to use ${TMP_IN_CONTAINER}/${cvmfs_repo_name}/overlay-upper
+                # the left-most directory given for the lowerdir argument is put on top,
+                #   and with no upperdir=... the whole overlayfs is made available read-only
+                EESSI_READONLY_OVERLAY+=" -o lowerdir=${TMP_IN_CONTAINER}/${cvmfs_repo_name}/overlay-upper:/cvmfs_ro/${cvmfs_repo_name}"
+                EESSI_READONLY_OVERLAY+=" /cvmfs/${cvmfs_repo_name}"
+            elif [[ "${OVERLAY_TOOL}" == "unionfs" ]]; then
+                EESSI_READONLY_OVERLAY="container:unionfs"
+                # cow stands for 'copy-on-write'
+                EESSI_READONLY_OVERLAY+=" -o cow"
+                EESSI_READONLY_OVERLAY+=" /cvmfs_ro/software.eessi.io=RO"
+                EESSI_READONLY_OVERLAY+=" /cvmfs/${cvmfs_repo_name}"
+            else
+                echo -e "ERROR: unknown overlay tool specified: ${OVERLAY_TOOL}"
+                exit ${OVERLAY_TOOL_EXITCODE}
+            fi
             export EESSI_READONLY_OVERLAY
 
             EESSI_FUSE_MOUNTS+=("--fusemount" "${EESSI_READONLY_OVERLAY}")
@@ -824,11 +844,23 @@ do
 
         EESSI_FUSE_MOUNTS+=("--fusemount" "${EESSI_READONLY}")
 
-        EESSI_WRITABLE_OVERLAY="container:fuse-overlayfs"
-        EESSI_WRITABLE_OVERLAY+=" -o lowerdir=/cvmfs_ro/${cvmfs_repo_name}"
-        EESSI_WRITABLE_OVERLAY+=" -o upperdir=${TMP_IN_CONTAINER}/${cvmfs_repo_name}/overlay-upper"
-        EESSI_WRITABLE_OVERLAY+=" -o workdir=${TMP_IN_CONTAINER}/${cvmfs_repo_name}/overlay-work"
-        EESSI_WRITABLE_OVERLAY+=" /cvmfs/${cvmfs_repo_name}"
+        if [[ "${OVERLAY_TOOL}" == "fuse-overlayfs" ]]; then
+            EESSI_WRITABLE_OVERLAY="container:fuse-overlayfs"
+            EESSI_WRITABLE_OVERLAY+=" -o lowerdir=/cvmfs_ro/${cvmfs_repo_name}"
+            EESSI_WRITABLE_OVERLAY+=" -o upperdir=${TMP_IN_CONTAINER}/${cvmfs_repo_name}/overlay-upper"
+            EESSI_WRITABLE_OVERLAY+=" -o workdir=${TMP_IN_CONTAINER}/${cvmfs_repo_name}/overlay-work"
+            EESSI_WRITABLE_OVERLAY+=" /cvmfs/${cvmfs_repo_name}"
+        elif [[ "${OVERLAY_TOOL}" == "unionfs" ]]; then
+            # files touched are reflected under /cvmfs/<repo>/.unionfs/
+            EESSI_WRITABLE_OVERLAY="container:unionfs"
+            # cow stands for 'copy-on-write'
+            EESSI_WRITABLE_OVERLAY+=" -o cow"
+            EESSI_WRITABLE_OVERLAY+=" ${TMP_IN_CONTAINER}/${cvmfs_repo_name}/overlay-upper=RW:/cvmfs_ro/software.eessi.io=RO"
+            EESSI_WRITABLE_OVERLAY+=" /cvmfs/${cvmfs_repo_name}"
+        else
+            echo -e "ERROR: unknown overlay tool specified: ${OVERLAY_TOOL}"
+            exit ${OVERLAY_TOOL_EXITCODE}
+        fi
         export EESSI_WRITABLE_OVERLAY
 
         EESSI_FUSE_MOUNTS+=("--fusemount" "${EESSI_WRITABLE_OVERLAY}")
