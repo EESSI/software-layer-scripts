@@ -21,6 +21,7 @@ jobs:
         - shell
         - container
         - resume
+        - unionfs
         # FIXME disabled because '--access rw' is not working in CI environment
         #- readwrite
         #- save
@@ -134,6 +135,18 @@ jobs:
                 grep "/cvmfs/software.eessi.io/${fn}$" $outfile
 
                 tar tfv test-save.tar | grep "overlay-upper/${fn}"
+
+              # test use of --overlay-tool unionfs
+              elif [[ ${{matrix.SCRIPT_TEST}} == 'unionfs' ]]; then
+                outfile=out_unionfs.txt
+                container="docker://ghcr.io/eessi/build-node:debian12"
+                export SINGULARITY_BIND="$PWD:/test"
+                echo 'ls -ld /cvmfs*/software.eessi.io/*' > test_script.sh
+                chmod u+x test_script.sh
+                ./eessi_container.sh --verbose --container ${container} --access rw --overlay-tool unionfs --mode run /test/test_script.sh 2>&1 | tee ${outfile}
+                for pattern in "/cvmfs/software.eessi.io/versions" "/cvmfs_ro/software.eessi.io/versions"; do
+                  grep "${pattern}" ${outfile} || (echo "Pattern '${pattern}' not found in ${outfile}"; exit 1)
+                done
 
               else
                   echo "Unknown test case: ${{matrix.SCRIPT_TEST}}" >&2

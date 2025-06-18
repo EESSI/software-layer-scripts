@@ -29,6 +29,11 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        EESSI_VERSION:
+          - '2023.06'
     steps:
     - name: checkout
       uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
@@ -39,8 +44,8 @@ jobs:
 
     - name: test load_easybuild_module.sh script
       run: |
-        # bind current directory into container as /software-layer
-        export SINGULARITY_BIND="${PWD}:/software-layer"
+        # bind current directory into container as /software-layer-scripts
+        export SINGULARITY_BIND="${PWD}:/software-layer-scripts"
 
         # can't test with EasyBuild versions older than v4.5.2 when using EESSI 2023.06,
         # since Python in compat layer is Python 3.11.x;
@@ -58,15 +63,16 @@ jobs:
           echo 'export TMPDIR=$(mktemp -d)' >> ${test_script}
           # set up environment to have utility functions in place that load_easybuild_module.sh script relies on,
           # along with $EESSI_* environment variables, and Lmod
-          echo 'ls -l /software-layer/' >> ${test_script}
-          echo 'source /software-layer/scripts/utils.sh' >> ${test_script}
-          echo 'source /software-layer/init/eessi_environment_variables' >> ${test_script}
+          echo 'ls -l /software-layer-scripts/' >> ${test_script}
+          echo 'export EESSI_VERSION_OVERRIDE="${{matrix.EESSI_VERSION}}"' >> ${test_script}
+          echo 'source /software-layer-scripts/scripts/utils.sh' >> ${test_script}
+          echo 'source /software-layer-scripts/init/eessi_environment_variables' >> ${test_script}
           echo 'source ${EPREFIX}/usr/share/Lmod/init/bash' >> ${test_script}
           # minimal configuration for EasyBuild so we can test installation aspect of load_easybuild_module.sh script
           echo "export EASYBUILD_INSTALLPATH=/tmp/eb-${EB_VERSION}" >> ${test_script}
           echo 'module use ${EASYBUILD_INSTALLPATH}/modules/all' >> ${test_script}
           echo '' >> ${test_script}
-          echo "source /software-layer/load_easybuild_module.sh ${EB_VERSION}" >> ${test_script}
+          echo "source /software-layer-scripts/load_easybuild_module.sh ${EB_VERSION}" >> ${test_script}
           echo 'module list' >> ${test_script}
           echo 'eb --version' >> ${test_script}
 
@@ -74,48 +80,48 @@ jobs:
 
           # run wrapper script + capture & check output
           out="${PWD}/eb-${EB_VERSION}.out"
-          ./eessi_container.sh --access rw --mode run --verbose /software-layer/run_in_compat_layer_env.sh /software-layer/eb-${EB_VERSION}.sh 2>&1 | tee ${out}
+          ./eessi_container.sh --access rw --mode run --verbose /software-layer-scripts/run_in_compat_layer_env.sh /software-layer-scripts/eb-${EB_VERSION}.sh 2>&1 | tee ${out}
           pattern="^This is EasyBuild ${EB_VERSION} "
           grep "${pattern}" ${out} || (echo "Pattern '${pattern}' not found in output!" && exit 1)
         done
 
     - name: test install_software_layer.sh script
       run: |
-          # bind current directory into container as /software-layer
-          export SINGULARITY_BIND="${PWD}:/software-layer"
+          # bind current directory into container as /software-layer-scripts
+          export SINGULARITY_BIND="${PWD}:/software-layer-scripts"
           # force using x86_64/generic, to avoid triggering an installation from scratch
           sed -i "s@./EESSI-install-software.sh@\"export EESSI_SOFTWARE_SUBDIR_OVERRIDE='x86_64/generic'; ./EESSI-install-software.sh\"@g" install_software_layer.sh
           # skip installation of CUDA SDKs, since this is too heavy for CI
           sed -i "s@./EESSI-install-software.sh@./EESSI-install-software.sh --skip-cuda-install@g" install_software_layer.sh
-          ./eessi_container.sh --mode run --verbose /software-layer/install_software_layer.sh
+          ./eessi_container.sh --mode run --verbose /software-layer-scripts/install_software_layer.sh
 
     - name: test create_directory_tarballs.sh script
       run: |
-          # bind current directory into container as /software-layer
-          export SINGULARITY_BIND="${PWD}:/software-layer"
+          # bind current directory into container as /software-layer-scripts
+          export SINGULARITY_BIND="${PWD}:/software-layer-scripts"
           # scripts need to be copied to /tmp,
           # since create_directory_tarballs.sh must be accessible from within build container
-          ./eessi_container.sh --mode run --verbose /software-layer/create_directory_tarballs.sh 2023.06
+          ./eessi_container.sh --mode run --verbose /software-layer-scripts/create_directory_tarballs.sh 2023.06
           # check if tarballs have been produced
           ls -l *.tar.gz
 
     - name: test create_lmodsitepackage.py script
       run: |
-          # bind current directory into container as /software-layer
-          export SINGULARITY_BIND="${PWD}:/software-layer"
+          # bind current directory into container as /software-layer-scripts
+          export SINGULARITY_BIND="${PWD}:/software-layer-scripts"
 
-          # Creates .lmod/SitePackage.lua in current dir, which then gets bind-mounted into /software-layer
+          # Creates .lmod/SitePackage.lua in current dir, which then gets bind-mounted into /software-layer-scripts
           python3 create_lmodsitepackage.py .
           # run some commands to make sure that generated Lmod SitePackage file works
           test_script="${PWD}/test_lmod_sitepackage.sh"
           echo '#!/bin/bash' > ${test_script}
-          echo 'export LMOD_PACKAGE_PATH="/software-layer/.lmod"' > ${test_script}
+          echo 'export LMOD_PACKAGE_PATH="/software-layer-scripts/.lmod"' > ${test_script}
           echo 'ml --config' >> ${test_script}
 
           chmod u+x ${test_script}
 
           out="${PWD}/test_create_lmodsitepackage.out"
-          ./eessi_container.sh --mode run --verbose /software-layer/run_in_compat_layer_env.sh /software-layer/test_lmod_sitepackage.sh 2>&1 | tee ${out}
-          for pattern in "^Site Pkg location.*/software-layer/.lmod/SitePackage.lua" "LMOD_SITEPACKAGE_LOCATION.*/software-layer/.lmod/SitePackage.lua"; do
+          ./eessi_container.sh --mode run --verbose /software-layer-scripts/run_in_compat_layer_env.sh /software-layer-scripts/test_lmod_sitepackage.sh 2>&1 | tee ${out}
+          for pattern in "^Site Pkg location.*/software-layer-scripts/.lmod/SitePackage.lua" "LMOD_SITEPACKAGE_LOCATION.*/software-layer-scripts/.lmod/SitePackage.lua"; do
             grep "${pattern}" ${out} || (echo "Pattern '${pattern}' not found in output!" && exit 1)
           done
