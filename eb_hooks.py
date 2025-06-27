@@ -1,5 +1,6 @@
 # Hooks to customize how EasyBuild installs software in EESSI
 # see https://docs.easybuild.io/en/latest/Hooks.html
+import datetime
 import glob
 import os
 import re
@@ -7,9 +8,10 @@ import re
 import easybuild.tools.environment as env
 from easybuild.easyblocks.generic.configuremake import obtain_config_guess
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
+from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError, print_msg
-from easybuild.tools.config import build_option, update_build_option
-from easybuild.tools.filetools import apply_regex_substitutions, copy_file, remove_file, symlink, which
+from easybuild.tools.config import build_option, install_path, update_build_option
+from easybuild.tools.filetools import apply_regex_substitutions, copy_dir, copy_file, remove_file, symlink, which
 from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import AARCH64, POWER, X86_64, get_cpu_architecture, get_cpu_features
 from easybuild.tools.toolchain.compiler import OPTARCH_GENERIC
@@ -45,6 +47,8 @@ HOST_INJECTIONS_LOCATION = "/cvmfs/software.eessi.io/host_injections/"
 
 # Make sure a single environment variable name is used for this throughout the hooks
 EESSI_IGNORE_ZEN4_GCC1220_ENVVAR="EESSI_IGNORE_LMOD_ERROR_ZEN4_GCC1220"
+
+STACK_REPROD_SUBDIR = 'reprod'
 
 def is_gcccore_1220_based(**kwargs):
 # ecname, ecversion, tcname, tcversion):
@@ -514,6 +518,20 @@ def post_module_hook_zen4_gcccore1220(self, *args, **kwargs):
             if self.initial_environ.get(EESSI_IGNORE_ZEN4_GCC1220_ENVVAR, False):
                 print_msg(f"Removing {EESSI_IGNORE_ZEN4_GCC1220_ENVVAR} in initial environment")
                 del self.initial_environ[EESSI_IGNORE_ZEN4_GCC1220_ENVVAR]
+
+
+def post_easyblock_hook_copy_easybuild_subdir(self, *args, **kwargs):
+    """
+    Post easyblock hook that copies the easybuild subdirectory of every installed application
+    to a central and timestamped location in the root of the software stack, e.g.:
+    /path/to/stack/reprod/20250102T12:34:56Z/MyApp/1.2-foss-2025a
+    """
+
+    stack_reprod_dir = os.path.join(os.path.dirname(install_path()), STACK_REPROD_SUBDIR)
+    now_utc_timestamp = datetime.datetime.now(datetime.UTC).isoformat('T', 'seconds').replace('+00:00', 'Z')
+    app_easybuild_dir = os.path.join(self.installdir, config.log_path(ec=self.cfg))
+    app_reprod_dir = os.path.join(stack_reprod_dir, self.install_subdir, now_utc_timestamp, 'easybuild')
+    copy_dir(app_easybuild_dir, app_reprod_dir)
 
 
 # Modules for dependencies are loaded in the prepare step. Thus, that's where we need this variable to be set
@@ -1297,6 +1315,15 @@ def post_module_hook(self, *args, **kwargs):
         post_module_hook_zen4_gcccore1220(self, *args, **kwargs)
 
 
+def post_easyblock_hook(self, *args, **kwargs):
+    """Main post easyblock hook: trigger custom functions based on software name."""
+    if self.name in POST_EASYBLOCK_HOOKS:
+        POST_EASYBLOCK_HOOKS[self.name](self, *args, **kwargs)
+
+    # Always trigger this one, regardless of self.name
+    post_easyblock_hook_copy_easybuild_subdir(self, *args, **kwargs)
+
+
 PARSE_HOOKS = {
     'casacore': parse_hook_casacore_disable_vectorize,
     'CGAL': parse_hook_cgal_toolchainopts_precise,
@@ -1364,6 +1391,8 @@ POST_POSTPROC_HOOKS = {
 PRE_MODULE_HOOKS = {}
 
 POST_MODULE_HOOKS = {}
+
+POST_EASYBLOCK_HOOKS = {}
 
 # Define parallelism limit operations
 def divide_by_factor(parallel, factor):
