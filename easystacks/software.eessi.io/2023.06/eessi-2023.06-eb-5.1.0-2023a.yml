@@ -2,4 +2,4 @@ easyconfigs:
   - jax-0.4.25-gfbf-2023a.eb:
       options:
         # see https://github.com/easybuilders/easybuild-easyblocks/pull/3486
-        include-easyblocks-from-commit: 9266abcd6c5668c5aca5815ea6c04ccf43112555
+        include-easyblocks-from-commit: 59fd120c0e5330ff7266ca7aacd105d09be4389a
