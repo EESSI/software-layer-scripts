@@ -45,8 +45,8 @@ if __name__ == "__main__":
             check_env_equals("EESSI_ACCELERATOR_TARGET_OVERRIDE", "EESSI_ACCEL_SUBDIR")
             # special case is where EESSI_ACCELERATOR_TARGET_OVERRIDE may not match the final
             # accelerator architecture chosen.
-            # In CI we set FINAL_ACCELERATOR_PATH_EXPECTED to allow us to compare against an expected value.
-            check_env_equals("EESSI_ACCELERATOR_TARGET", "FINAL_ACCELERATOR_PATH_EXPECTED")
+            # In CI we set FINAL_ACCELERATOR_TARGET_EXPECTED to allow us to compare against an expected value.
+            check_env_equals("EESSI_ACCELERATOR_TARGET", "FINAL_ACCELERATOR_TARGET_EXPECTED")
         # verify the software paths that should exist
         check_env_endswith("EESSI_SOFTWARE_PATH", "EESSI_SOFTWARE_SUBDIR")
         check_env_endswith("EESSI_SITE_SOFTWARE_PATH", "EESSI_SOFTWARE_SUBDIR")

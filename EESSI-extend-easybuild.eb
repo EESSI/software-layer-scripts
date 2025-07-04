@@ -35,6 +35,11 @@ description = """
  If both EESSI_USER_INSTALL and EESSI_PROJECT_INSTALL are defined, both sets of
  installations are exposed, but new installations are created as user
  installations.
+
+ Strict installation path checking is enforced by EESSI for EESSI and site
+ installations involving accelerators. In these cases, if you wish to create an
+ accelerator installation you must set the environment variable
+ EESSI_ACCELERATOR_INSTALL (and load/reload this module).
 """
 
 toolchain = SYSTEM
@@ -78,8 +83,21 @@ if (mode() == "load") then
   end
 end
 working_dir = os.getenv("WORKING_DIR") or pathJoin("/tmp", os.getenv("USER"))
+
 -- Gather the EPREFIX to use as a sysroot
 sysroot = os.getenv("EESSI_EPREFIX")
+
+-- Check if we have GPU capabilities and configure CUDA compute capabilities
+eessi_accelerator_target = os.getenv("EESSI_ACCELERATOR_TARGET")
+if (eessi_accelerator_target ~= nil) then
+  cuda_compute_capability = string.match(eessi_accelerator_target, "^accel/nvidia/cc([0-9][0-9])$")
+  if (cuda_compute_capability ~= nil) then
+    easybuild_cuda_compute_capabilities = cuda_compute_capability:sub(1, 1) ..  "." .. cuda_compute_capability:sub(2, 2)
+  else
+    LmodError("Incorrect value for $EESSI_ACCELERATOR_TARGET: " .. eessi_accelerator_target)
+  end
+end
+
 -- Use an installation prefix that we _should_ have write access to
 if (os.getenv("EESSI_CVMFS_INSTALL") ~= nil) then
   -- Make sure no other EESSI install environment variables are set
@@ -88,15 +106,9 @@ if (os.getenv("EESSI_CVMFS_INSTALL") ~= nil) then
   end
   eessi_cvmfs_install = true
   easybuild_installpath = os.getenv("EESSI_SOFTWARE_PATH")
-  eessi_accelerator_target = os.getenv("EESSI_ACCELERATOR_TARGET")
-  if (eessi_accelerator_target ~= nil) then
-    cuda_compute_capability = string.match(eessi_accelerator_target, "^nvidia/cc([0-9][0-9])$")
-    if (cuda_compute_capability ~= nil) then
-      easybuild_installpath = pathJoin(easybuild_installpath, 'accel', eessi_accelerator_target)
-      easybuild_cuda_compute_capabilities = cuda_compute_capability:sub(1, 1) ..  "." .. cuda_compute_capability:sub(2, 2)
-    else
-      LmodError("Incorrect value for $EESSI_ACCELERATOR_TARGET: " .. eessi_accelerator_target)
-    end
+  -- enforce accelerator subdirectory usage for CVMFS installs (only if an accelerator install is requested)
+  if (eessi_accelerator_target ~= nil) and (cuda_compute_capability ~= nil) and (os.getenv("EESSI_ACCELERATOR_INSTALL") ~= nil) then
+      easybuild_installpath = pathJoin(easybuild_installpath, eessi_accelerator_target)
   end
 elseif (os.getenv("EESSI_SITE_INSTALL") ~= nil) then
   -- Make sure no other EESSI install environment variables are set
@@ -104,6 +116,10 @@ elseif (os.getenv("EESSI_SITE_INSTALL") ~= nil) then
     LmodError("You cannot use EESSI_SITE_INSTALL in combination with any other EESSI_*_INSTALL environment variables")
   end
   easybuild_installpath = os.getenv("EESSI_SITE_SOFTWARE_PATH")
+  -- enforce accelerator subdirectory usage for site installs (only if an accelerator install is requested)
+  if (eessi_accelerator_target ~= nil) and (cuda_compute_capability ~= nil) and (os.getenv("EESSI_ACCELERATOR_INSTALL") ~= nil) then
+      easybuild_installpath = pathJoin(easybuild_installpath, eessi_accelerator_target)
+  end
 else
   -- Deal with user and project installs
   project_install = os.getenv("EESSI_PROJECT_INSTALL")

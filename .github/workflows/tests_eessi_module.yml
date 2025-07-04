@@ -165,9 +165,9 @@ jobs:
         include:
           # For each override we expect a specific path (which may differ from the original due to overrides)
         - EESSI_ACCELERATOR_TARGET_OVERRIDE: accel/nvidia/cc80
-          FINAL_ACCELERATOR_PATH_EXPECTED: accel/nvidia/cc80
+          FINAL_ACCELERATOR_TARGET_EXPECTED: accel/nvidia/cc80
         - EESSI_ACCELERATOR_TARGET_OVERRIDE: accel/nvidia/cc77  # deliberately chose a non-existent CUDA capability
-          FINAL_ACCELERATOR_PATH_EXPECTED: accel/nvidia/cc70  # this reverts to the fallback case (which does exist)
+          FINAL_ACCELERATOR_TARGET_EXPECTED: accel/nvidia/cc70  # this reverts to the fallback case (which does exist)
 
     steps:
       - name: Check out software-layer repository
@@ -193,7 +193,7 @@ jobs:
           # Set our accelerator path overrides according to our matrix
           if [[ "${{matrix.EESSI_ACCELERATOR_TARGET_OVERRIDE}}" != "none" ]]; then
               export EESSI_ACCELERATOR_TARGET_OVERRIDE=${{matrix.EESSI_ACCELERATOR_TARGET_OVERRIDE}}
-              export FINAL_ACCELERATOR_PATH_EXPECTED=${{matrix.FINAL_ACCELERATOR_PATH_EXPECTED}}
+              export FINAL_ACCELERATOR_TARGET_EXPECTED=${{matrix.FINAL_ACCELERATOR_TARGET_EXPECTED}}
           fi
 
           # Turn on debug output in case we want to take a look
