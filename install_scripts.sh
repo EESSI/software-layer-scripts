@@ -129,6 +129,10 @@ POSITIONAL_ARGS=()
 
 while [[ $# -gt 0 ]]; do
   case $1 in
+    --eessi-version)
+      EESSI_VERSION="$2"
+      shift 2
+      ;;
     -p|--prefix)
       INSTALL_PREFIX="$2"
       shift 2
@@ -148,6 +152,16 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [ -z "${INSTALL_PREFIX}" ]; then
+    echo "EESSI prefix not specified, you must use --prefix" >&2
+    exit 2
+fi
+
+if [ -z "${EESSI_VERSION}" ]; then
+    echo "EESSI version not specified, you must use --eessi-version" >&2
+    exit 3
+fi
 
 set -- "${POSITIONAL_ARGS[@]}"
 
@@ -175,7 +189,7 @@ copy_files_by_list ${TOPDIR}/init/Magic_Castle ${INSTALL_PREFIX}/init/Magic_Cast
 
 # Copy for init/modules/EESSI directory
 mc_files=(
-   2023.06.lua
+   ${EESSI_VERSION}.lua
 )
 copy_files_by_list ${TOPDIR}/init/modules/EESSI ${INSTALL_PREFIX}/init/modules/EESSI "${mc_files[@]}"
 
@@ -199,13 +213,12 @@ nvidia_files=(
 )
 copy_files_by_list ${TOPDIR}/scripts/gpu_support/nvidia ${INSTALL_PREFIX}/scripts/gpu_support/nvidia "${nvidia_files[@]}"
 
-# Easystacks to be used to install software in host injections
-host_injections_easystacks=(
-    eessi-2023.06-eb-4.9.4-2023a-CUDA-host-injections.yml
-    eessi-2023.06-eb-4.9.4-2023b-CUDA-host-injections.yml
-)
-copy_files_by_list ${TOPDIR}/scripts/gpu_support/nvidia/easystacks \
-${INSTALL_PREFIX}/scripts/gpu_support/nvidia/easystacks "${host_injections_easystacks[@]}"
+# Easystacks to be used to install software in host injections for this EESSI version
+host_injections_easystacks_dir=${TOPDIR}/scripts/gpu_support/nvidia/easystacks/${EESSI_VERSION}
+if [[ -d ${host_injections_easystacks_dir} ]]; then
+    host_injections_easystacks=$(find ${host_injections_easystacks_dir} -name eessi-${EESSI_VERSION}-*-CUDA-host-injections.yml -exec basename {} \;)
+    copy_files_by_list ${host_injections_easystacks_dir} ${INSTALL_PREFIX}/scripts/gpu_support/nvidia/easystacks "${host_injections_easystacks[@]}"
+fi
 
 # Copy over EasyBuild hooks file used for installations
 hook_files=(
