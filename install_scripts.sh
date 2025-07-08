@@ -129,6 +129,10 @@ POSITIONAL_ARGS=()
 
 while [[ $# -gt 0 ]]; do
   case $1 in
+    --eessi-version)
+      EESSI_VERSION="$2"
+      shift 2
+      ;;
     -p|--prefix)
       INSTALL_PREFIX="$2"
       shift 2
@@ -148,6 +152,16 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [ -z "${INSTALL_PREFIX}" ]; then
+    echo "EESSI prefix not specified, you must use --prefix" >&2
+    exit 2
+fi
+
+if [ -z "${EESSI_VERSION}" ]; then
+    echo "EESSI version not specified, you must use --eessi-version" >&2
+    exit 3
+fi
 
 set -- "${POSITIONAL_ARGS[@]}"
 
@@ -175,7 +189,7 @@ copy_files_by_list ${TOPDIR}/init/Magic_Castle ${INSTALL_PREFIX}/init/Magic_Cast
 
 # Copy for init/modules/EESSI directory
 mc_files=(
-   2023.06.lua
+   ${EESSI_VERSION}.lua
 )
 copy_files_by_list ${TOPDIR}/init/modules/EESSI ${INSTALL_PREFIX}/init/modules/EESSI "${mc_files[@]}"
 

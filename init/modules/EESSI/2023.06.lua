@@ -10,6 +10,7 @@ More information
 whatis("Description: The European Environment for Scientific Software Installations (EESSI, pronounced as easy) is a collaboration between different European partners in HPC community. The goal of this project is to build a common stack of scientific software installations for HPC systems and beyond, including laptops, personal workstations and cloud infrastructure.")
 whatis("URL: https://www.eessi.io/docs/")
 conflict("EESSI")
+-- this is a version-agnostic module file, works for EESSI/2023.06, EESSI/2025.06, etc.
 local eessi_version = myModuleVersion()
 local eessi_repo = "/cvmfs/software.eessi.io"
 if (subprocess("uname -m"):gsub("\n$","") == "riscv64") then
