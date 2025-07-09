@@ -256,6 +256,56 @@ def post_prepare_hook(self, *args, **kwargs):
         post_prepare_hook_ignore_zen4_gcccore1220_error(self, *args, **kwargs)
 
 
+def parse_hook_tensorflow_CUDA(ec, eprefix):
+    """
+    Fix the Python and environment used while building and running tests for TensorFlow with CUDA
+    """
+    if ec.name == 'TensorFlow' and ec.version == '2.15.1' :
+        # Check if CUDA is in dependencies
+        has_cuda = any(
+            (isinstance(dep, (list, tuple)) and dep[0] == 'CUDA') or
+            (isinstance(dep, dict) and dep.get('name') == 'CUDA')
+            for dep in ec.get('dependencies', [])
+        )
+
+        if has_cuda:
+            ec['preconfigopts'] = (
+                'export TF_NEED_CUDA=1 && '
+                'export CUDA_TOOLKIT_PATH=$EBROOTCUDA && '
+                'export TF_CUDA_INCLUDE_PATH=$EBROOTCUDA/include && '
+                'export CUDNN_INSTALL_PATH=$EBROOTCUDNN && '
+                'export GCC_HOST_COMPILER_PATH=$EBROOTGCC/bin/gcc && '
+                'sed -i \'s|--define=PREFIX=/usr|--define=PREFIX=\\$EESSI_EPREFIX|g\' .bazelrc && '
+            )
+
+            ec['buildopts'] = [
+                '--linkopt=-Wl,--disable-new-dtags --host_linkopt=-Wl,--disable-new-dtags --action_env=GCC_HOST_COMPILER_PATH=$EBROOT
+GCC/bin/gcc --host_action_env=GCC_HOST_COMPILER_PATH=$EBROOTGCC/bin/gcc --linkopt=-Wl,-rpath,$EBROOTCUDA/lib:$EBROOTCUDNN/lib:$EBROOT
+NCCL/lib --host_linkopt=-Wl,-rpath,$EBROOTCUDA/lib:$EBROOTCUDNN/lib:$EBROOTNCCL/lib',
+            ]
+
+            ec['pretestopts'] = (
+                #'patchelf --set-interpreter "$EESSI_EPREFIX/lib64/ld-linux-%(arch)s.so.1" '
+                #'"%(builddir)s/%(name)s/bazel-root/0b9648e0837f9e5bb579e0e2e64adf3f/external/python_aarch64-unknown-linux-gnu/bin/python%(pyshortver)s" && '
+
+                'mv "%(builddir)s/%(name)s/bazel-root/0b9648e0837f9e5bb579e0e2e64adf3f/external/python_aarch64-unknown-linux-gnu/bin/python%(pyshortver)s" "%(builddir)s/%(name)s/bazel-root/0b9648e0837f9e5bb579e0e2e64adf3f/external/python_aarch64-unknown-linux-gnu/bin/python%(pyshortver)s.old" && cp -f $EBROOTPYTHON/bin/python%(pyshortver)s "%(builddir)s/%(name)s/bazel-root/0b9648e0837f9e5bb579e0e2e64adf3f/external/python_aarch64-unknown-linux-gnu/bin/python%(pyshortver)s" && '
+                
+                
+                
+                #'LD_LIBRARY_PATH=$EBROOTCUDA/lib:$EBROOTCUDNN/lib:$EBROOTNCCL/lib:$LD_LIBRARY_PATH && '
+            )
+
+            ec['postinstallcmds'] = [
+                'mkdir -p %(installdir)s/bin',
+                'ln -s $EBROOTCUDA/bin/cuobjdump %(installdir)s/bin/cuobjdump',
+                'chmod 755 -R %(builddir)s',
+            ]
+            
+            print_msg("TensorFlow-CUDA required changes are applied!!!"),
+    else:
+        raise EasyBuildError("TensorFlow-CUDA specific hook triggered for non-TensorFlow-CUDA easyconfig?!")
+
+
 def parse_hook_casacore_disable_vectorize(ec, eprefix):
     """
     Disable 'vectorize' toolchain option for casacore 3.5.0 on aarch64/neoverse_v1
@@ -1298,6 +1348,7 @@ def post_module_hook(self, *args, **kwargs):
 
 
 PARSE_HOOKS = {
+    'TensorFlow': parse_hook_tensorflow_CUDA,
     'casacore': parse_hook_casacore_disable_vectorize,
     'CGAL': parse_hook_cgal_toolchainopts_precise,
     'fontconfig': parse_hook_fontconfig_add_fonts,
