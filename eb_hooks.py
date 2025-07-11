@@ -279,29 +279,23 @@ def parse_hook_tensorflow_CUDA(ec, eprefix):
             )
 
             ec['buildopts'] = [
-                '--linkopt=-Wl,--disable-new-dtags --host_linkopt=-Wl,--disable-new-dtags --action_env=GCC_HOST_COMPILER_PATH=$EBROOT
-GCC/bin/gcc --host_action_env=GCC_HOST_COMPILER_PATH=$EBROOTGCC/bin/gcc --linkopt=-Wl,-rpath,$EBROOTCUDA/lib:$EBROOTCUDNN/lib:$EBROOT
-NCCL/lib --host_linkopt=-Wl,-rpath,$EBROOTCUDA/lib:$EBROOTCUDNN/lib:$EBROOTNCCL/lib',
+                '--linkopt=-Wl,--disable-new-dtags --host_linkopt=-Wl,--disable-new-dtags --action_env=GCC_HOST_COMPILER_PATH=$EBROOTGCC/bin/gcc --host_action_env=GCC_HOST_COMPILER_PATH=$EBROOTGCC/bin/gcc --linkopt=-Wl,-rpath,$EBROOTCUDA/lib:$EBROOTCUDNN/lib:$EBROOTNCCL/lib --host_linkopt=-Wl,-rpath,$EBROOTCUDA/lib:$EBROOTCUDNN/lib:$EBROOTNCCL/lib',
             ]
 
             ec['pretestopts'] = (
-                #'patchelf --set-interpreter "$EESSI_EPREFIX/lib64/ld-linux-%(arch)s.so.1" '
-                #'"%(builddir)s/%(name)s/bazel-root/0b9648e0837f9e5bb579e0e2e64adf3f/external/python_aarch64-unknown-linux-gnu/bin/python%(pyshortver)s" && '
-
-                'mv "%(builddir)s/%(name)s/bazel-root/0b9648e0837f9e5bb579e0e2e64adf3f/external/python_aarch64-unknown-linux-gnu/bin/python%(pyshortver)s" "%(builddir)s/%(name)s/bazel-root/0b9648e0837f9e5bb579e0e2e64adf3f/external/python_aarch64-unknown-linux-gnu/bin/python%(pyshortver)s.old" && cp -f $EBROOTPYTHON/bin/python%(pyshortver)s "%(builddir)s/%(name)s/bazel-root/0b9648e0837f9e5bb579e0e2e64adf3f/external/python_aarch64-unknown-linux-gnu/bin/python%(pyshortver)s" && '
-                
-                
-                
-                #'LD_LIBRARY_PATH=$EBROOTCUDA/lib:$EBROOTCUDNN/lib:$EBROOTNCCL/lib:$LD_LIBRARY_PATH && '
-            )
+                """interppath=$(find "$EESSI_EPREFIX/lib64" -name 'ld-*' | grep -E 'so\\.1|so\\.2' | head -n1) && """
+                """patchelf --set-interpreter "$interppath" """
+                """"%(builddir)s/%(name)s/bazel-root/0b9648e0837f9e5bb579e0e2e64adf3f/external/python_%(arch)s-unknown-linux-gnu/bin/python%(pyshortver)s" && """
+                """export LD_LIBRARY_PATH="$EBROOTCUDA/lib:$EBROOTCUDNN/lib:$EBROOTNCCL/lib:$LD_LIBRARY_PATH" && """
+                )
 
             ec['postinstallcmds'] = [
                 'mkdir -p %(installdir)s/bin',
                 'ln -s $EBROOTCUDA/bin/cuobjdump %(installdir)s/bin/cuobjdump',
-                'chmod 755 -R %(builddir)s',
+                #'chmod 755 -R %(builddir)s',
             ]
             
-            print_msg("TensorFlow-CUDA required changes are applied!!!"),
+            print_msg("TensorFlow-CUDA related changes have been applied")
     else:
         raise EasyBuildError("TensorFlow-CUDA specific hook triggered for non-TensorFlow-CUDA easyconfig?!")
 
@@ -325,7 +319,7 @@ def parse_hook_casacore_disable_vectorize(ec, eprefix):
                 if 'toolchainopts' not in ec or ec['toolchainopts'] is None:
                     ec['toolchainopts'] = {}
                 ec['toolchainopts']['vectorize'] = False
-                print_msg("Changed toochainopts for %s: %s", ec.name, ec['toolchainopts'])
+                print_msg("Changed toolchainopts for %s: %s", ec.name, ec['toolchainopts'])
             else:
                 print_msg("Not changing option vectorize for %s on non-neoverse_v1", ec.name)
         else:
@@ -1451,3 +1445,4 @@ PARALLELISM_LIMITS = {
         CPU_TARGET_A64FX: (set_maximum, 8),
     },
 }
+
