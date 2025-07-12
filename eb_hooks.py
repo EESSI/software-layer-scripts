@@ -284,15 +284,14 @@ def parse_hook_tensorflow_CUDA(ec, eprefix):
 
             ec['pretestopts'] = (
                 """interppath=$(find "$EESSI_EPREFIX/lib64" -name 'ld-*' | grep -E 'so\\.1|so\\.2' | head -n1) && """
-                """patchelf --set-interpreter "$interppath" """
-                """"%(builddir)s/%(name)s/bazel-root/0b9648e0837f9e5bb579e0e2e64adf3f/external/python_%(arch)s-unknown-linux-gnu/bin/python%(pyshortver)s" && """
+                """pybin=$(find "%(builddir)s/%(name)s/bazel-root/" -type f -path "*/external/python_%(arch)s-unknown-linux-gnu/bin/python%(pyshortver)s" | head -n1) && """ 
+                """patchelf --set-interpreter "$interppath" "$pybin" && """
                 """export LD_LIBRARY_PATH="$EBROOTCUDA/lib:$EBROOTCUDNN/lib:$EBROOTNCCL/lib:$LD_LIBRARY_PATH" && """
                 )
 
             ec['postinstallcmds'] = [
                 'mkdir -p %(installdir)s/bin',
                 'ln -s $EBROOTCUDA/bin/cuobjdump %(installdir)s/bin/cuobjdump',
-                #'chmod 755 -R %(builddir)s',
             ]
             
             print_msg("TensorFlow-CUDA related changes have been applied")
