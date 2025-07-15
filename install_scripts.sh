@@ -80,7 +80,7 @@ compare_and_copy() {
           else
             echo "File has changed in the PR"
           fi
-          cp "$source_file" "$destination_file"
+          cp --preserve=mode "$source_file" "$destination_file"
           echo "File $source_file copied to $destination_file"
         else
           case $? in
