@@ -80,7 +80,9 @@ compare_and_copy() {
           else
             echo "File has changed in the PR"
           fi
-          cp --preserve=mode "$source_file" "$destination_file"
+          #cp --preserve=mode "$source_file" "$destination_file"
+          # Use cat to retain existing permissions, set umask to world readable in case the target file does not yet exist.
+          (umask 022 && cat "$source_file" "$destination_file")
           echo "File $source_file copied to $destination_file"
         else
           case $? in
