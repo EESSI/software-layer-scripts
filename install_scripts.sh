@@ -173,7 +173,7 @@ init_files=(
     minimal_eessi_env README.md test.py lmod_eessi_archdetect_wrapper.sh lmod_eessi_archdetect_wrapper_accel.sh
 
 )
-copy_files_by_list ${TOPDIR}/init ${INSTALL_PREFIX}/init "${init_files[@]}"
+copy_files_by_list ${TOPDIR}/init ${INSTALL_PREFIX}/init_new "${init_files[@]}"
 
 # Copy for the init/arch_specs directory
 arch_specs_files=(
@@ -191,7 +191,7 @@ copy_files_by_list ${TOPDIR}/init/Magic_Castle ${INSTALL_PREFIX}/init/Magic_Cast
 mc_files=(
    ${EESSI_VERSION}.lua
 )
-copy_files_by_list ${TOPDIR}/init/modules/EESSI ${INSTALL_PREFIX}/init/modules/EESSI "${mc_files[@]}"
+copy_files_by_list ${TOPDIR}/init/modules/EESSI ${INSTALL_PREFIX}/init/modules_new/EESSI "${mc_files[@]}"
 
 # Copy for init/lmod directory
 init_script_files=(
