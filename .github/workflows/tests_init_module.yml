@@ -15,6 +15,7 @@ jobs:
       matrix:
         EESSI_VERSION:
           - '2023.06'
+          - '2025.06'
         EESSI_SOFTWARE_SUBDIR_OVERRIDE:
           - x86_64/intel/haswell
     steps:
@@ -33,7 +34,7 @@ jobs:
           for shell in $(ls init/lmod); do
             sed -i "s/__EESSI_VERSION_DEFAULT__/${{matrix.EESSI_VERSION}}/g" init/lmod/${shell}
           done
-         
+
       - name: Clone assert.sh script
         run: git clone https://github.com/lehmannro/assert.sh.git
 
