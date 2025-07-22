@@ -14,10 +14,11 @@ jobs:
       matrix:
         EESSI_VERSION:
           - '2023.06'
+          - '2025.06'
     steps:
       - name: Check out software-layer repository
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
-          
+
       - name: Mount EESSI CernVM-FS pilot repository
         uses: cvmfs-contrib/github-action-cvmfs@55899ca74cf78ab874bdf47f5a804e47c198743c # v4.0
         with:
@@ -69,6 +70,7 @@ jobs:
       matrix:
         EESSI_VERSION:
           - '2023.06'
+          - '2025.06'
         EESSI_SOFTWARE_SUBDIR_OVERRIDE:
           - x86_64/amd/zen3
           - x86_64/amd/zen4
@@ -80,7 +82,7 @@ jobs:
     steps:
       - name: Check out software-layer repository
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
-          
+
       - name: Mount EESSI CernVM-FS pilot repository
         uses: cvmfs-contrib/github-action-cvmfs@55899ca74cf78ab874bdf47f5a804e47c198743c # v4.0
         with:
@@ -141,9 +143,9 @@ jobs:
           echo ""
           if (diff "${moduleoutfile}" "${sourceoutfile}" > /dev/null); then
               echo "Test for checking env variables PASSED"
-          else 
+          else
               echo "Test for checking env variables FAILED"  >&2
-              diff --unified=0 "${moduleoutfile}" "${sourceoutfile}" 
+              diff --unified=0 "${moduleoutfile}" "${sourceoutfile}"
               exit 1
           fi
 
@@ -154,6 +156,7 @@ jobs:
       matrix:
         EESSI_VERSION:
           - '2023.06'
+          - '2025.06'
         EESSI_SOFTWARE_SUBDIR_OVERRIDE:
           - none
           - x86_64/amd/zen2
