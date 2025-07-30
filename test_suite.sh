@@ -168,6 +168,8 @@ env | grep "RFM_"
 
 # Make debugging easier by printing the final config file:
 echo "ReFrame config file used:"
+ls "${shared_fs_path}"
+ls "${RFM_CONFIG_FILES}"
 cat "${RFM_CONFIG_FILES}"
 
 # Workaround for https://github.com/EESSI/software-layer/pull/467#issuecomment-1973341966
