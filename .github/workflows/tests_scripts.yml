@@ -41,7 +41,7 @@ jobs:
     - name: install Apptainer
       run: |
         ./install_apptainer_ubuntu.sh
-
+    
     - name: test load_easybuild_module.sh script
       run: |
         # bind current directory into container as /software-layer-scripts
@@ -139,3 +139,16 @@ jobs:
           for pattern in "^Site Pkg location.*/software-layer-scripts/.lmod/SitePackage.lua" "LMOD_SITEPACKAGE_LOCATION.*/software-layer-scripts/.lmod/SitePackage.lua"; do
             grep "${pattern}" ${out} || (echo "Pattern '${pattern}' not found in output!" && exit 1)
           done
+
+    - name: Mount EESSI CernVM-FS repository
+      uses: eessi/github-action-eessi@v3
+      with:
+        eessi_stack_version: ${{matrix.EESSI_VERSION}}
+        use_eessi_module: true
+    
+    - name: Verify that mounted repositories are passed through directly
+      run: |
+          # run wrapper script + capture & check output
+          out="${PWD}/eb-${EB_VERSION}.out"
+          ./eessi_container.sh --access rw --mode run --verbose /software-layer-scripts/run_in_compat_layer_env.sh ls 2>&1 | tee ${out}
+          grep "SINGULARITY_BIND" ${out} | grep "software.eessi.io" || (echo "software.eessi.io did not seem to be bind mounted!" && exit 1)
