@@ -19,6 +19,7 @@ jobs:
           - cc01 # non-existing GPU
         EESSI_VERSION:
           - '2023.06'
+          #- '2025.06'
       fail-fast: false
     steps:
     - name: checkout

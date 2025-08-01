@@ -14,10 +14,11 @@ jobs:
       matrix:
         EESSI_VERSION:
           - '2023.06'
+          - '2025.06'
     steps:
       - name: Check out software-layer repository
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
-          
+
       - name: Mount EESSI CernVM-FS repository
         uses: cvmfs-contrib/github-action-cvmfs@55899ca74cf78ab874bdf47f5a804e47c198743c # v4.0
         with:
@@ -42,7 +43,7 @@ jobs:
           env | grep LMOD
           module purge
           unset MODULEPATH
-    
+
       - name: Test for archdetect_cpu functionality with invalid path
         run: |
           # Initialise Lmod
@@ -69,6 +70,7 @@ jobs:
       matrix:
         EESSI_VERSION:
           - '2023.06'
+          - '2025.06'
         EESSI_SOFTWARE_SUBDIR_OVERRIDE:
           - x86_64/amd/zen3
           - x86_64/amd/zen4
@@ -80,7 +82,7 @@ jobs:
     steps:
       - name: Check out software-layer repository
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
-          
+
       - name: Mount EESSI CernVM-FS repository
         uses: cvmfs-contrib/github-action-cvmfs@55899ca74cf78ab874bdf47f5a804e47c198743c # v4.0
         with:
@@ -91,19 +93,19 @@ jobs:
       - name: Fix EESSI version in init scripts
         run: |
           sed -i "s/__EESSI_VERSION_DEFAULT__/${{matrix.EESSI_VERSION}}/g" init/eessi_defaults
-              
+
       - name: Test for expected variables match between Lmod init script and original bash script
         run: |
           # Initialise Lmod
           . /cvmfs/software.eessi.io/versions/${{matrix.EESSI_VERSION}}/compat/linux/$(uname -m)/usr/share/Lmod/init/bash
-          
+
           # Set our path overrides according to our matrix
           export EESSI_SOFTWARE_SUBDIR_OVERRIDE=${{matrix.EESSI_SOFTWARE_SUBDIR_OVERRIDE}}
           export EESSI_ACCELERATOR_TARGET_OVERRIDE=${{matrix.EESSI_ACCELERATOR_TARGET_OVERRIDE}}
-          
+
           moduleoutfile="moduleout.txt"
           sourceoutfile="sourceout.txt"
-          
+
           # First do (and undo) the Lmod initialisation
           export MODULEPATH=init/modules
           # Turn on debug output in case we want to take a look
@@ -115,7 +117,7 @@ jobs:
           # Store all relevant environment variables
           env | grep -E '(^EESSI_|^LMOD_RC|^LMOD_PACKAGE_PATH|^MODULEPATH)' | grep -v EESSI_ARCHDETECT_OPTIONS | sort > "${moduleoutfile}"
           module unload EESSI/${{matrix.EESSI_VERSION}}
-          
+
           # We should only have two EESSI_* variables defined (which set the overrides)
           if [ "$(env | grep -c '^EESSI')" -ne 2 ]; then
           echo "Expected 2 EESSI-related environment variables, but found a different number."
@@ -129,7 +131,7 @@ jobs:
           unset EESSI_USE_ARCHSPEC
           unset EESSI_USE_ARCHDETECT
           env | grep -E '(^EESSI_|^LMOD_RC|^LMOD_PACKAGE_PATH|^MODULEPATH)' | sort > "${sourceoutfile}"
-          
+
           # Now compare the two results
           echo ""
           echo "Lmod initialisation:"
@@ -141,9 +143,9 @@ jobs:
           echo ""
           if (diff "${moduleoutfile}" "${sourceoutfile}" > /dev/null); then
               echo "Test for checking env variables PASSED"
-          else 
+          else
               echo "Test for checking env variables FAILED"  >&2
-              diff --unified=0 "${moduleoutfile}" "${sourceoutfile}" 
+              diff --unified=0 "${moduleoutfile}" "${sourceoutfile}"
               exit 1
           fi
 
@@ -154,6 +156,7 @@ jobs:
       matrix:
         EESSI_VERSION:
           - '2023.06'
+          #- '2025.06'
         EESSI_SOFTWARE_SUBDIR_OVERRIDE:
           - none
           - x86_64/amd/zen2
@@ -172,19 +175,19 @@ jobs:
     steps:
       - name: Check out software-layer repository
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
-          
+
       - name: Mount EESSI CernVM-FS repository
         uses: cvmfs-contrib/github-action-cvmfs@55899ca74cf78ab874bdf47f5a804e47c198743c # v4.0
         with:
           cvmfs_config_package: https://github.com/EESSI/filesystem-layer/releases/download/latest/cvmfs-config-eessi_latest_all.deb
           cvmfs_http_proxy: DIRECT
           cvmfs_repositories: software.eessi.io
-              
+
       - name: Test for identical environment after loading and unloading the EESSI module
         run: |
           # Initialise Lmod
           . /cvmfs/software.eessi.io/versions/${{matrix.EESSI_VERSION}}/compat/linux/$(uname -m)/usr/share/Lmod/init/bash
-          
+
           # Set our cpu path overrides according to our matrix
           if [[ "${{matrix.EESSI_SOFTWARE_SUBDIR_OVERRIDE}}" != "none" ]]; then
               export EESSI_SOFTWARE_SUBDIR_OVERRIDE=${{matrix.EESSI_SOFTWARE_SUBDIR_OVERRIDE}}
@@ -201,7 +204,7 @@ jobs:
 
           initial_env_file="initial_env.txt"
           module_cycled_file="load_unload_cycle.txt"
-          
+
           # prepare Lmod, resetting it in a roundabout way given we don't want defaults set
           export MODULEPATH=init/modules:.github/workflows/modules
           module load fake_module
@@ -217,13 +220,13 @@ jobs:
           module load EESSI/${{matrix.EESSI_VERSION}}
           module unload EESSI/${{matrix.EESSI_VERSION}}
           env | grep -v _ModuleTable | sort > "${module_cycled_file}"
-          
+
           # Now compare the two results (do not expose the files, as they contain the full environment!)
           if (diff "${initial_env_file}" "${module_cycled_file}" > /dev/null); then
               echo "Test for checking env variables PASSED"
-          else 
+          else
               echo "Test for checking env variables FAILED"  >&2
-              diff --unified=0 "${initial_env_file}" "${module_cycled_file}" 
+              diff --unified=0 "${initial_env_file}" "${module_cycled_file}"
               exit 1
           fi
 
@@ -245,27 +248,27 @@ jobs:
     steps:
       - name: Check out software-layer repository
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
-          
+
       - name: Mount EESSI CernVM-FS repository
         uses: cvmfs-contrib/github-action-cvmfs@55899ca74cf78ab874bdf47f5a804e47c198743c # v4.0
         with:
           cvmfs_config_package: https://github.com/EESSI/filesystem-layer/releases/download/latest/cvmfs-config-eessi_latest_all.deb
           cvmfs_http_proxy: DIRECT
           cvmfs_repositories: software.eessi.io
-              
+
       - name: Make sure we have a sticky EESSI module
         run: |
           # Initialise Lmod
           . /cvmfs/software.eessi.io/versions/${{matrix.EESSI_VERSION}}/compat/linux/$(uname -m)/usr/share/Lmod/init/bash
-          
+
           # Make sure we are using the module file from the repository
           export MODULEPATH=init/modules
-          
+
           # Set the relevant environment variable and load the EESSI module
           export EESSI_MODULE_STICKY=1
           module load "EESSI/${{matrix.EESSI_VERSION}}"
           module list |& grep "EESSI/${{matrix.EESSI_VERSION}}"
-          
+
           # Purge and check the module is still loaded
           module purge
           module list |& grep "EESSI/${{matrix.EESSI_VERSION}}"

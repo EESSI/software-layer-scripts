@@ -15,8 +15,14 @@ jobs:
       matrix:
         EESSI_VERSION:
           - '2023.06'
+          - '2025.06'
         EESSI_SOFTWARE_SUBDIR_OVERRIDE:
           - x86_64/intel/haswell
+        include:
+          - EESSI_VERSION: '2023.06'
+            EXPECTED_EASYBUILD_VERSION: '5.0.0'
+          - EESSI_VERSION: '2025.06'
+            EXPECTED_EASYBUILD_VERSION: '5.1.1'
     steps:
       - name: Check out software-layer repository
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
@@ -33,7 +39,7 @@ jobs:
           for shell in $(ls init/lmod); do
             sed -i "s/__EESSI_VERSION_DEFAULT__/${{matrix.EESSI_VERSION}}/g" init/lmod/${shell}
           done
-         
+
       - name: Clone assert.sh script
         run: git clone https://github.com/lehmannro/assert.sh.git
 
@@ -45,5 +51,7 @@ jobs:
 
       - name: Run tests for available shells
         run: |
+          export EESSI_VERSION=${{matrix.EESSI_VERSION}}
+          export EXPECTED_EASYBUILD_VERSION=${{matrix.EXPECTED_EASYBUILD_VERSION}}
           .github/workflows/scripts/test_init_scripts.sh "bash" "zsh" "ksh" "fish" "csh"
 
