@@ -156,6 +156,9 @@ jobs:
           export SINGULARITY_CACHEDIR=$PWD
           # run wrapper script + capture & check output
           export SINGULARITY_BIND="${PWD}:/software-layer-scripts"
+          # make sure that correct EESSI version is used (required because default is a placeholder version)
+          export EESSI_VERSION_OVERRIDE="${{matrix.EESSI_VERSION}}"
+
           out="${PWD}/eb-${EB_VERSION}.out"
           ./eessi_container.sh --access rw --mode run --verbose /software-layer-scripts/run_in_compat_layer_env.sh ls 2>&1 | tee ${out}
           echo $(grep "SINGULARITY_BIND" ${out})
