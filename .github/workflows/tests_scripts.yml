@@ -42,7 +42,7 @@ jobs:
     - name: install Apptainer
       run: |
         ./install_apptainer_ubuntu.sh
-    
+
     - name: test load_easybuild_module.sh script
       run: |
         export TMPDIR=$PWD
