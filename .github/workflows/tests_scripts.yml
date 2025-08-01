@@ -45,7 +45,7 @@ jobs:
 
     - name: test load_easybuild_module.sh script
       run: |
-        export TMPDIR=$PWD
+        export SINGULARITY_CACHEDIR=$PWD
         # bind current directory into container as /software-layer-scripts
         export SINGULARITY_BIND="${PWD}:/software-layer-scripts"
 
@@ -92,7 +92,7 @@ jobs:
 
     - name: test install_software_layer.sh script
       run: |
-          export TMPDIR=$PWD
+          export SINGULARITY_CACHEDIR=$PWD
           # bind current directory into container as /software-layer-scripts
           export SINGULARITY_BIND="${PWD}:/software-layer-scripts"
           # force using x86_64/generic, to avoid triggering an installation from scratch
@@ -107,7 +107,7 @@ jobs:
 
     - name: test create_directory_tarballs.sh script
       run: |
-          export TMPDIR=$PWD
+          export SINGULARITY_CACHEDIR=$PWD
           # bind current directory into container as /software-layer-scripts
           export SINGULARITY_BIND="${PWD}:/software-layer-scripts"
 
@@ -122,7 +122,7 @@ jobs:
 
     - name: test create_lmodsitepackage.py script
       run: |
-          export TMPDIR=$PWD
+          export SINGULARITY_CACHEDIR=$PWD
           # bind current directory into container as /software-layer-scripts
           export SINGULARITY_BIND="${PWD}:/software-layer-scripts"
 
@@ -153,7 +153,7 @@ jobs:
     
     - name: Verify that mounted repositories are passed through directly
       run: |
-          export TMPDIR=$PWD
+          export SINGULARITY_CACHEDIR=$PWD
           # run wrapper script + capture & check output
           export SINGULARITY_BIND="${PWD}:/software-layer-scripts"
           out="${PWD}/eb-${EB_VERSION}.out"
