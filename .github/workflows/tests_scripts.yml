@@ -50,7 +50,7 @@ jobs:
         # can't test with EasyBuild versions older than v4.5.2 when using EESSI 2023.06,
         # since Python in compat layer is Python 3.11.x;
         # testing with a single EasyBuild version takes a while in GitHub Actions, so stick to a single sensible version
-        for EB_VERSION in '4.6.0'; do
+        for EB_VERSION in '5.1.0'; do
           # Create script that uses load_easybuild_module.sh which we can run in compat layer environment
           # note: Be careful with single vs double quotes below!
           #       ${EB_VERSION} should be expanded, so use double quotes;
@@ -112,7 +112,7 @@ jobs:
 
           # scripts need to be copied to /tmp,
           # since create_directory_tarballs.sh must be accessible from within build container
-          ./eessi_container.sh --mode run --verbose /software-layer-scripts/create_directory_tarballs.sh 2023.06
+          ./eessi_container.sh --mode run --verbose /software-layer-scripts/create_directory_tarballs.sh "${{matrix.EESSI_VERSION}}"
           # check if tarballs have been produced
           ls -l *.tar.gz
 
