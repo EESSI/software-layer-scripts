@@ -747,7 +747,14 @@ declare -a EESSI_FUSE_MOUNTS=()
 # mount cvmfs-config repo (to get access to EESSI repositories such as software.eessi.io) unless env var
 # EESSI_DO_NOT_MOUNT_CVMFS_CONFIG_CERN_CH is defined
 if [ -z ${EESSI_DO_NOT_MOUNT_CVMFS_CONFIG_CERN_CH+x} ]; then
-    EESSI_FUSE_MOUNTS+=("--fusemount" "container:cvmfs2 cvmfs-config.cern.ch /cvmfs/cvmfs-config.cern.ch")
+    if cvmfs_config stat cvmfs-config.cern.ch ; then
+      # if the system has the repo available just pass it through
+      BIND_PATHS="${BIND_PATHS},/cvmfs/cvmfs-config.cern.ch:/cvmfs/cvmfs-config.cern.ch"
+    else
+      # otherwise use apptainer capabilities to make it available within the container
+      EESSI_FUSE_MOUNTS+=("--fusemount" "container:cvmfs2 cvmfs-config.cern.ch /cvmfs/cvmfs-config.cern.ch")
+      export EESSI_FUSE_MOUNTS
+    fi
 fi
 
 
@@ -795,9 +802,14 @@ do
             echo "  session. Will use it as left-most directory in 'lowerdir' argument for fuse-overlayfs."
 
             # make the target CernVM-FS repository available under /cvmfs_ro
-            export EESSI_READONLY="container:cvmfs2 ${cvmfs_repo_name} /cvmfs_ro/${cvmfs_repo_name}"
-
-            EESSI_FUSE_MOUNTS+=("--fusemount" "${EESSI_READONLY}")
+            if cvmfs_config stat ${cvmfs_repo_name} ; then
+              # if the system has the repo available just pass it through
+              BIND_PATHS="${BIND_PATHS},/cvmfs/${cvmfs_repo_name}:/cvmfs_ro/${cvmfs_repo_name}"
+            else
+              # otherwise use apptainer capabilities to make it available within the container
+              export EESSI_READONLY="container:cvmfs2 ${cvmfs_repo_name} /cvmfs_ro/${cvmfs_repo_name}"
+              EESSI_FUSE_MOUNTS+=("--fusemount" "${EESSI_READONLY}")
+            fi
 
             # now, put the overlay-upper read-only on top of the repo and make it available under the usual prefix /cvmfs
             if [[ "${OVERLAY_TOOL}" == "fuse-overlayfs" ]]; then
@@ -827,10 +839,15 @@ do
             # basic "ro" access that doesn't require any fuseoverlay-fs
             echo "Mounting '${cvmfs_repo_name}' 'read-only' without fuse-overlayfs."
 
-            export EESSI_READONLY="container:cvmfs2 ${cvmfs_repo_name} /cvmfs/${cvmfs_repo_name}"
-
-            EESSI_FUSE_MOUNTS+=("--fusemount" "${EESSI_READONLY}")
-            export EESSI_FUSE_MOUNTS
+            if cvmfs_config stat ${cvmfs_repo_name} ; then
+              # if the system has the repo available just pass it through
+              BIND_PATHS="${BIND_PATHS},/cvmfs/${cvmfs_repo_name}:/cvmfs/${cvmfs_repo_name}"
+            else
+              # otherwise use apptainer capabilities to make it available within the container
+              export EESSI_READONLY="container:cvmfs2 ${cvmfs_repo_name} /cvmfs/${cvmfs_repo_name}"
+              EESSI_FUSE_MOUNTS+=("--fusemount" "${EESSI_READONLY}")
+              export EESSI_FUSE_MOUNTS
+            fi
         fi
     elif [[ ${cvmfs_repo_access} == "rw" ]] ; then
         # use repo-specific overlay directories
@@ -839,10 +856,15 @@ do
 
         [[ ${VERBOSE} -eq 1 ]] && echo -e "TMP directory contents:\n$(ls -l ${EESSI_TMPDIR})"
 
-        # set environment variables for fuse mounts in Singularity container
-        export EESSI_READONLY="container:cvmfs2 ${cvmfs_repo_name} /cvmfs_ro/${cvmfs_repo_name}"
-
-        EESSI_FUSE_MOUNTS+=("--fusemount" "${EESSI_READONLY}")
+        # make the target CernVM-FS repository available under /cvmfs_ro
+        if cvmfs_config stat ${cvmfs_repo_name} ; then
+          # if the system has the repo available just pass it through
+          BIND_PATHS="${BIND_PATHS},/cvmfs/${cvmfs_repo_name}:/cvmfs_ro/${cvmfs_repo_name}"
+        else
+          # otherwise use apptainer capabilities to make it available within the container
+          export EESSI_READONLY="container:cvmfs2 ${cvmfs_repo_name} /cvmfs_ro/${cvmfs_repo_name}"
+          EESSI_FUSE_MOUNTS+=("--fusemount" "${EESSI_READONLY}")
+        fi
 
         if [[ "${OVERLAY_TOOL}" == "fuse-overlayfs" ]]; then
             EESSI_WRITABLE_OVERLAY="container:fuse-overlayfs"
