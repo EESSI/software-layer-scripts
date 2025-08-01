@@ -147,3 +147,22 @@ function get_ipv4_address {
     echo "${hipv4}"
     return 0
 }
+
+function verify_nvidia-smi {
+    if command_exists "nvidia-smi"; then
+        nvidia-smi --version
+        ec=$?
+        if [ ${ec} -eq 0 ]; then
+            echo "Command 'nvidia-smi' found. Installing NVIDIA drivers for use in prefix shell..."
+	    return 0
+        else
+            echo "Warning: command 'nvidia-smi' found, but 'nvidia-smi --version' did not run succesfully."
+            echo "This script now assumes this is NOT a GPU node."
+            echo "If, and only if, the current node actually does contain Nvidia GPUs, this should be considered an error."
+	    return 1
+	fi
+    else
+        echo echo "No 'nvidia-smi' found, no available GPU but allowing overriding this check" 
+	return 2
+    fi
+}
