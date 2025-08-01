@@ -310,10 +310,17 @@ else
 fi
 
 # Install NVIDIA drivers in host_injections (if they exist)
-if command_exists "nvidia-smi"; then
+# Accept that this may fail
+set +e
+verify_nvidia-smi
+ec=$?
+if [ ${ec} -eq 0 ]; then
     export LD_LIBRARY_PATH="/.singularity.d/libs:${LD_LIBRARY_PATH}"
-    check_nvidia-smi_installation
+    ${EESSI_PREFIX}/scripts/gpu_support/nvidia/link_nvidia_host_libraries.sh
+elif [ ${ec} -eq 1 ]; then
+    export LD_LIBRARY_PATH="/.singularity.d/libs:${LD_LIBRARY_PATH}"
 fi
+set -e
 
 if [ ! -z "${shared_fs_path}" ]; then
     shared_eb_sourcepath=${shared_fs_path}/easybuild/sources

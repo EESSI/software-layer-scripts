@@ -225,12 +225,14 @@ fi
 TEST_STEP_ARGS+=("--extra-bind-paths" "/sys/fs/cgroup:/hostsys/fs/cgroup:ro")
 
 # add options required to handle NVIDIA support
-if command_exists "nvidia-smi"; then
-    # Accept that this may fail
-    set +e
-    check_nvidia-smi_installation
-    set -e
+# Accept that this may fail
+set +e
+verify_nvidia-smi
+ec=$?
+if [ ${ec} -eq 0 ]; then
+    TEST_STEP_ARGS+=("--nvidia" "run")
 fi
+set -e
 
 # prepare arguments to test_suite.sh (specific to test step)
 declare -a TEST_SUITE_ARGS=()

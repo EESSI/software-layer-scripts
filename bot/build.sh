@@ -220,15 +220,18 @@ BUILD_STEP_ARGS+=("--save" "${TARBALL_TMP_BUILD_STEP_DIR}")
 BUILD_STEP_ARGS+=("--storage" "${STORAGE}")
 
 # add options required to handle NVIDIA support
-if command_exists "nvidia-smi"; then
-    # Accept that this may fail
-    set +e
-    check_nvidia-smi_installation
-    set -e
-else
-    echo "No 'nvidia-smi' found, no available GPU but allowing overriding this check"
+# Accept that this may fail
+set +e
+verify_nvidia-smi
+ec=$?
+if [ ${ec} -eq 0 ]; then
+    BUILD_STEP_ARGS+=("--nvidia" "all")
+elif [ ${ec} -eq 1 ]; then
+    BUILD_STEP_ARGS+=("--nvidia" "install")
+elif [  ${ec} -eq 2  ]; then 
     BUILD_STEP_ARGS+=("--nvidia" "install")
 fi
+set -e
 
 # Retain location for host injections so we don't reinstall CUDA
 # (Always need to run the driver installation as available driver may change)
