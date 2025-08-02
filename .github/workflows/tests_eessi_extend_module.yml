@@ -86,6 +86,19 @@ jobs:
           # check some specific ones
           check_env_var "EASYBUILD_INSTALLPATH" "$EESSI_SOFTWARE_PATH"
           check_env_var "EASYBUILD_UMASK" "022"
+          # Check some things that are EasyBuild 5+ (available in all EESSI versions so should exist)
+          check_env_var "EASYBUILD_STRICT_RPATH_SANITY_CHECK" "1"
+          check_env_var "EASYBUILD_CUDA_SANITY_CHECK_ERROR_ON_FAILED_CHECKS" "1"
+          check_env_var "EASYBUILD_FAIL_ON_MOD_FILES_GCCCORE" "1"
+          check_env_var "EASYBUILD_LOCAL_VAR_NAMING_CHECK" "error"
+          # Check some EESSI version specific settings
+          if [[ "${{ matrix.EESSI_VERSION }}" != "2023.06" ]]; then
+            check_env_var "EASYBUILD_PREFER_PYTHON_SEARCH_PATH" "EBPYTHONPREFIXES"
+            check_env_var "EASYBUILD_MODULE_SEARCH_PATH_HEADERS" "include_paths"
+            check_env_var "EASYBUILD_SEARCH_PATH_CPP_HEADERS" "include_paths"
+          fi
+          # verify the configuration is actually valid
+          eb --show-config
           # unload and check the environment is clean again
           module unload EESSI-extend
           check_disallowed_env_prefix EASYBUILD_
@@ -97,6 +110,8 @@ jobs:
           # check some specific envvars
           check_env_var "EASYBUILD_INSTALLPATH" "$EESSI_SITE_SOFTWARE_PATH"
           check_env_var "EASYBUILD_UMASK" "022"
+          # verify the configuration is actually valid
+          eb --show-config
           # unload and check the environment is clean again
           module unload EESSI-extend
           check_disallowed_env_prefix EASYBUILD_
@@ -110,6 +125,8 @@ jobs:
           check_env_var "EASYBUILD_INSTALLPATH" "$EXPECTED_INSTALLATION_PATH"
           check_env_var "EASYBUILD_UMASK" "002"
           check_env_var "EASYBUILD_GROUP_WRITABLE_INSTALLDIR" "1"
+          # verify the configuration is actually valid
+          eb --show-config
           # unload and check the environment is clean again
           module unload EESSI-extend
           check_disallowed_env_prefix EASYBUILD_
@@ -123,6 +140,8 @@ jobs:
           export EXPECTED_INSTALLATION_PATH="$MY_INSTALLATION_PATH/$USER/versions/$EESSI_VERSION/software/linux/$EESSI_SOFTWARE_SUBDIR"
           check_env_var "EASYBUILD_INSTALLPATH" "$EXPECTED_INSTALLATION_PATH"
           check_env_var "EASYBUILD_UMASK" "077"
+          # verify the configuration is actually valid
+          eb --show-config
           # unload and check the environment is clean again
           module unload EESSI-extend
           check_disallowed_env_prefix EASYBUILD_

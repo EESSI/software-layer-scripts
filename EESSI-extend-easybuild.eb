@@ -98,21 +98,26 @@ if (eessi_accelerator_target ~= nil) then
   end
 end
 
+-- Some environment variables affect behaviour, let's gather them once
+local eessi_cvmfs_install = os.getenv("EESSI_CVMFS_INSTALL") ~= nil
+local eessi_site_install = os.getenv("EESSI_SITE_INSTALL") ~= nil
+local eessi_project_install = os.getenv("EESSI_PROJECT_INSTALL") ~= nil
+local eessi_user_install = os.getenv("EESSI_USER_INSTALL") ~= nil
+
 -- Use an installation prefix that we _should_ have write access to
-if (os.getenv("EESSI_CVMFS_INSTALL") ~= nil) then
+if eessi_cvmfs_install then
   -- Make sure no other EESSI install environment variables are set
-  if ((os.getenv("EESSI_SITE_INSTALL") ~= nil) or (os.getenv("EESSI_PROJECT_INSTALL") ~= nil) or (os.getenv("EESSI_USER_INSTALL") ~= nil)) then
+  if (eessi_site_install or eessi_project_install or eessi_user_install) then
     LmodError("You cannot use EESSI_CVMFS_INSTALL in combination with any other EESSI_*_INSTALL environment variables")
   end
-  eessi_cvmfs_install = true
   easybuild_installpath = os.getenv("EESSI_SOFTWARE_PATH")
   -- enforce accelerator subdirectory usage for CVMFS installs (only if an accelerator install is requested)
   if (eessi_accelerator_target ~= nil) and (cuda_compute_capability ~= nil) and (os.getenv("EESSI_ACCELERATOR_INSTALL") ~= nil) then
       easybuild_installpath = pathJoin(easybuild_installpath, eessi_accelerator_target)
   end
-elseif (os.getenv("EESSI_SITE_INSTALL") ~= nil) then
+elseif eessi_site_install then
   -- Make sure no other EESSI install environment variables are set
-  if ((os.getenv("EESSI_PROJECT_INSTALL") ~= nil) or (os.getenv("EESSI_USER_INSTALL") ~= nil)) then
+  if (eessi_project_install or eessi_user_install) then
     LmodError("You cannot use EESSI_SITE_INSTALL in combination with any other EESSI_*_INSTALL environment variables")
   end
   easybuild_installpath = os.getenv("EESSI_SITE_SOFTWARE_PATH")
@@ -122,35 +127,35 @@ elseif (os.getenv("EESSI_SITE_INSTALL") ~= nil) then
   end
 else
   -- Deal with user and project installs
-  project_install = os.getenv("EESSI_PROJECT_INSTALL")
+  project_install_dir = os.getenv("EESSI_PROJECT_INSTALL")
   project_modulepath = nil
-  if (project_install ~= nil) then
+  if eessi_project_install then
     -- Check the folder exists
-    if not isDir(project_install) then
-      LmodError("The location of EESSI_PROJECT_INSTALL (" .. project_install .. ") does not exist or is not a folder")
+    if not isDir(project_install_dir) then
+      LmodError("The location of EESSI_PROJECT_INSTALL (" .. project_install_dir .. ") does not exist or is not a folder")
     end
     if (mode() == "load") then
-      LmodMessage("Configuring for use of EESSI_PROJECT_INSTALL under " .. project_install)
+      LmodMessage("Configuring for use of EESSI_PROJECT_INSTALL under " .. project_install_dir)
     end
-    easybuild_installpath = string.gsub(os.getenv("EESSI_SOFTWARE_PATH"), os.getenv("EESSI_CVMFS_REPO"), project_install)
+    easybuild_installpath = string.gsub(os.getenv("EESSI_SOFTWARE_PATH"), os.getenv("EESSI_CVMFS_REPO"), project_install_dir)
     project_modulepath = pathJoin(easybuild_installpath, 'modules', 'all')
   end
-  user_install = os.getenv("EESSI_USER_INSTALL")
+  user_install_dir = os.getenv("EESSI_USER_INSTALL")
   user_modulepath = nil
-  if (user_install ~= nil) then
+  if eessi_user_install then
     -- Check the folder exists
-    if not isDir(user_install) then
-      LmodError("The location of EESSI_USER_INSTALL (" .. user_install .. ") does not exist or is not a folder")
+    if not isDir(user_install_dir) then
+      LmodError("The location of EESSI_USER_INSTALL (" .. user_install_dir .. ") does not exist or is not a folder")
     end
-  elseif (user_install == nil) and (project_install == nil) then
+  elseif (user_install_dir == nil) and (project_install_dir == nil) then
     -- No need to check for existence when we use a HOME subdir
-    user_install = pathJoin(os.getenv("HOME"), "eessi")
+    user_install_dir = pathJoin(os.getenv("HOME"), "eessi")
   end
-  if (user_install ~= nil) then
+  if (user_install_dir ~= nil) then
     if (mode() == "load") then
-      LmodMessage("Configuring for use of EESSI_USER_INSTALL under " .. user_install)
+      LmodMessage("Configuring for use of EESSI_USER_INSTALL under " .. user_install_dir)
     end
-    easybuild_installpath = string.gsub(os.getenv("EESSI_SOFTWARE_PATH"), os.getenv("EESSI_CVMFS_REPO"), user_install)
+    easybuild_installpath = string.gsub(os.getenv("EESSI_SOFTWARE_PATH"), os.getenv("EESSI_CVMFS_REPO"), user_install_dir)
     user_modulepath = pathJoin(easybuild_installpath, 'modules', 'all')
   end
 end
@@ -196,9 +201,28 @@ elseif (project_modulepath ~= nil) then
   -- configure MODULEPATH
   prepend_path("MODULEPATH", project_modulepath)
 end
+
 -- Make sure EasyBuild itself is loaded
+-- need to also handle the unload behaviour where the version is defined only before we unload
+easybuild_version = os.getenv("EBVERSIONEASYBUILD")
 if not ( isloaded("EasyBuild") ) then
     load(latest("EasyBuild"))
+end
+easybuild_version = os.getenv("EBVERSIONEASYBUILD") or easybuild_version
+eessi_version = os.getenv("EESSI_VERSION") or "2023.06"
+
+-- Set environment variables that are EasyBuild version specific
+if convertToCanonical(easybuild_version) > convertToCanonical("4") then
+  setenv ("EASYBUILD_STRICT_RPATH_SANITY_CHECK", "1")
+  setenv ("EASYBUILD_CUDA_SANITY_CHECK_ERROR_ON_FAILED_CHECKS", "1")
+  setenv ("EASYBUILD_FAIL_ON_MOD_FILES_GCCCORE", "1")
+  setenv ("EASYBUILD_LOCAL_VAR_NAMING_CHECK", "error")
+  -- Set environment variables that are EESSI version specific
+  if convertToCanonical(eessi_version) > convertToCanonical("2023.06") then
+    setenv ("EASYBUILD_PREFER_PYTHON_SEARCH_PATH", "EBPYTHONPREFIXES")
+    setenv ("EASYBUILD_MODULE_SEARCH_PATH_HEADERS", "include_paths")
+    setenv ("EASYBUILD_SEARCH_PATH_CPP_HEADERS", "include_paths")
+  end
 end
 """
 
