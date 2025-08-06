@@ -269,7 +269,7 @@ def parse_hook_tensorflow_CUDA(ec, eprefix):
         )
 
         if has_cuda:
-            ec['preconfigopts'] = (
+            ec['preconfigopts'] = ec.get('preconfigopts', '') + (
                 'export TF_NEED_CUDA=1 && '
                 'export CUDA_TOOLKIT_PATH=$EBROOTCUDA && '
                 'export TF_CUDA_INCLUDE_PATH=$EBROOTCUDA/include && '
@@ -277,8 +277,12 @@ def parse_hook_tensorflow_CUDA(ec, eprefix):
                 'export GCC_HOST_COMPILER_PATH=$EBROOTGCC/bin/gcc && '
                 'sed -i \'s|--define=PREFIX=/usr|--define=PREFIX=\\$EESSI_EPREFIX|g\' .bazelrc && '
             )
-
-            ec['buildopts'] = [
+            
+            current_opts = ec.get('buildopts', [])
+            if isinstance(current_opts, str):
+                current_opts = current_opts.split()
+            
+            ec['buildopts'] = current_opts + [
                 '--linkopt=-Wl,--disable-new-dtags --host_linkopt=-Wl,--disable-new-dtags --action_env=GCC_HOST_COMPILER_PATH=$EBROOTGCC/bin/gcc --host_action_env=GCC_HOST_COMPILER_PATH=$EBROOTGCC/bin/gcc --linkopt=-Wl,-rpath,$EBROOTCUDA/lib:$EBROOTCUDNN/lib:$EBROOTNCCL/lib --host_linkopt=-Wl,-rpath,$EBROOTCUDA/lib:$EBROOTCUDNN/lib:$EBROOTNCCL/lib',
             ]
 
