@@ -12,7 +12,7 @@ eessi_tmpdir=$1
 eessi_version=$2
 cpu_arch_subdir=$3
 accel_subdir=$4
-target_tgz=$5
+target_tarball=$5
 
 tmpdir=`mktemp -d`
 echo ">> tmpdir: $tmpdir"
@@ -114,10 +114,29 @@ fi
 
 topdir=${cvmfs_repo}/versions/
 
-echo ">> Creating tarball ${target_tgz} from ${topdir}..."
-tar cfvz ${target_tgz} -C ${topdir} --files-from=${files_list}
-
-echo ${target_tgz} created!
+echo ">> Creating tarball ${target_tarball} from ${topdir}..."
+target_tarball_ext="${target_tarball##*.}"
+if [ "${target_tarball_ext}" = "zst" ]; then
+    if [ -x "$(command -v zstd)" ]; then
+        tar -cf - -C ${topdir} --files-from=${files_list} | zstd -T0 > ${target_tarball}
+    else
+        echo "Zstd compression requested, but zstd command is not available." >&2
+        exit 4
+    fi
+elif [ "${target_tarball_ext}" = "gz" ]; then
+    if [[ -x "$(command -v gzip)" ]]; then
+        tar -cfvz ${target_tarball} -C ${topdir} --files-from=${files_list}
+    else
+        echo "Gzip compression requested, but gzip command is not available." >&2
+        exit 4
+    fi
+elif [ "${target_tarball_ext}" = "tar" ]; then
+    tar -cfv ${target_tarball} -C ${topdir} --files-from=${files_list}
+else
+    echo "Unknown tarball type (${target_tarball_ext}) requested."
+    exit 4
+fi
+echo ${target_tarball} created!
 
 echo ">> Cleaning up tmpdir ${tmpdir}..."
 rm -r ${tmpdir}
