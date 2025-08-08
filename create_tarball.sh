@@ -118,14 +118,14 @@ echo ">> Creating tarball ${target_tarball} from ${topdir}..."
 target_tarball_ext="${target_tarball##*.}"
 if [ "${target_tarball_ext}" = "zst" ]; then
     if [ -x "$(command -v zstd)" ]; then
-        tar -cf - -C ${topdir} --files-from=${files_list} | zstd -T0 > ${target_tarball}
+        tar -cvf - -C ${topdir} --files-from=${files_list} | zstd -T0 > ${target_tarball}
     else
         echo "Zstd compression requested, but zstd command is not available." >&2
         exit 4
     fi
 elif [ "${target_tarball_ext}" = "gz" ]; then
     if [[ -x "$(command -v gzip)" ]]; then
-        tar -cfvz ${target_tarball} -C ${topdir} --files-from=${files_list}
+        tar -czvf ${target_tarball} -C ${topdir} --files-from=${files_list}
     else
         echo "Gzip compression requested, but gzip command is not available." >&2
         exit 4
