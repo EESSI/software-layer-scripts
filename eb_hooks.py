@@ -1,18 +1,24 @@
 # Hooks to customize how EasyBuild installs software in EESSI
 # see https://docs.easybuild.io/en/latest/Hooks.html
+import ast
+import datetime
 import glob
+import json
 import os
 import re
 
 import easybuild.tools.environment as env
 from easybuild.easyblocks.generic.configuremake import obtain_config_guess
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
-from easybuild.tools.build_log import EasyBuildError, print_msg
-from easybuild.tools.config import build_option, update_build_option
-from easybuild.tools.filetools import apply_regex_substitutions, copy_file, remove_file, symlink, which
+from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy
+from easybuild.tools import config
+from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
+from easybuild.tools.config import build_option, install_path, update_build_option
+from easybuild.tools.filetools import apply_regex_substitutions, copy_dir, copy_file, remove_file, symlink, which
 from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import AARCH64, POWER, X86_64, get_cpu_architecture, get_cpu_features
 from easybuild.tools.toolchain.compiler import OPTARCH_GENERIC
+from easybuild.tools.toolchain.toolchain import is_system_toolchain
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 from easybuild.tools.modules import get_software_root_env_var_name
 
@@ -45,6 +51,21 @@ HOST_INJECTIONS_LOCATION = "/cvmfs/software.eessi.io/host_injections/"
 
 # Make sure a single environment variable name is used for this throughout the hooks
 EESSI_IGNORE_ZEN4_GCC1220_ENVVAR="EESSI_IGNORE_LMOD_ERROR_ZEN4_GCC1220"
+
+STACK_REPROD_SUBDIR = 'reprod'
+
+EESSI_SUPPORTED_TOP_LEVEL_TOOLCHAINS = {
+    '2023.06': [
+        {'name': 'foss', 'version': '2022b'},
+        {'name': 'foss', 'version': '2023a'},
+        {'name': 'foss', 'version': '2023b'},
+    ],
+    '2025.06': [
+        {'name': 'foss', 'version': '2024a'},
+        {'name': 'foss', 'version': '2025a'},
+    ],
+}
+
 
 def is_gcccore_1220_based(**kwargs):
 # ecname, ecversion, tcname, tcversion):
@@ -123,6 +144,62 @@ def parse_hook(ec, *args, **kwargs):
     ec = inject_gpu_property(ec)
 
 
+def parse_list_of_dicts_env(var_name):
+    """Parse a list of dicts that are stored in an environment variable string"""
+
+    # Check if the environment variable name is valid (letters, numbers, underscores, and doesn't start with a digit)
+    if not re.match(r'^[A-Za-z_][A-Za-z0-9_]*$', var_name):
+        raise ValueError(f"Invalid environment variable name: {var_name}")
+    list_string = os.getenv(var_name, '[]')
+    
+    list_of_dicts = []
+    try:
+        # Try JSON format first
+        list_of_dicts = json.loads(list_string)
+    except json.JSONDecodeError:
+        try:
+            # Fall back to Python literal format
+            list_of_dicts = ast.literal_eval(list_string)
+        except (ValueError, SyntaxError):
+            raise ValueError(f"Environment variable '{var_name}' does not contain a valid list of dictionaries.")
+    
+    return list_of_dicts
+
+
+def verify_toolchains_supported_by_eessi_version(easyconfigs):
+    """Each EESSI version supports a limited set of toolchains, sanity check the easyconfigs for toolchain support."""
+    eessi_version = get_eessi_envvar('EESSI_VERSION')
+    supported_eessi_toolchains = []
+    # Environment variable can't have a '.' so replace by '_'
+    site_top_level_toolchains_envvar = 'EESSI_SITE_TOP_LEVEL_TOOLCHAINS_' + eessi_version.replace('.', '_')
+    site_top_level_toolchains = parse_list_of_dicts_env(site_top_level_toolchains_envvar)
+    for top_level_toolchain in EESSI_SUPPORTED_TOP_LEVEL_TOOLCHAINS[eessi_version] + site_top_level_toolchains:
+        supported_eessi_toolchains += get_toolchain_hierarchy(top_level_toolchain)
+    for ec in easyconfigs:
+        toolchain = ec['ec']['toolchain']
+        # if it is a system toolchain or appears in the list, we are all good
+        if is_system_toolchain(toolchain['name']):
+            continue
+        # This check verifies that the toolchain dict is in the list of supported toolchains.
+        # It uses <= as there may be other dict entries in the values returned from get_toolchain_hierarchy()
+        # but we only care that the toolchain dict (which has 'name' and 'version') appear.
+        elif not any(toolchain.items() <= supported.items() for supported in supported_eessi_toolchains):
+            raise EasyBuildError(
+                f"Toolchain {toolchain} (required by {ec['full_mod_name']}) is not supported in EESSI/{eessi_version}\n"
+                f"Supported toolchains are:\n" + "\n".join(sorted("  " + str(tc) for tc in supported_eessi_toolchains))
+            )
+
+
+def pre_build_and_install_loop_hook(easyconfigs):
+    """Main pre_build_and_install_loop hook: trigger custom functions before beginning installation loop."""
+
+    # Always check that toolchain supported by the EESSI version (unless overridden)
+    if os.getenv("EESSI_OVERRIDE_TOOLCHAIN_CHECK"):
+        print_warning("Overriding the check that the toolchains are supported by the EESSI version.")
+    else:
+        verify_toolchains_supported_by_eessi_version(easyconfigs)
+
+
 def post_ready_hook(self, *args, **kwargs):
     """
     Post-ready hook: limit parallellism for selected builds based on software name and CPU target.
@@ -130,7 +207,10 @@ def post_ready_hook(self, *args, **kwargs):
     """
     # 'parallel' easyconfig parameter (EB4) or the parallel property (EB5) is set via EasyBlock.set_parallel
     # in ready step based on available cores
-    parallel = getattr(self, 'parallel', self.cfg['parallel'])
+    if hasattr(self, 'parallel'):
+        parallel = self.parallel
+    else:
+        parallel = self.cfg['parallel']
     
     if parallel == 1:
         return  # no need to limit if already using 1 core
@@ -162,7 +242,7 @@ def post_ready_hook(self, *args, **kwargs):
 
     # apply the limit if it's different from current
     if new_parallel != parallel:
-        if EASYBUILD_VERSION >= '5':
+        if hasattr(self, 'parallel'):
             self.cfg.parallel = new_parallel
         else:
             self.cfg['parallel'] = new_parallel
@@ -436,7 +516,7 @@ def parse_hook_freeimage_aarch64(ec, *args, **kwargs):
     https://github.com/EESSI/software-layer/pull/736#issuecomment-2373261889
     """
     if ec.name == 'FreeImage' and ec.version in ('3.18.0',):
-        if os.getenv('EESSI_CPU_FAMILY') == 'aarch64':
+        if get_eessi_envvar('EESSI_CPU_FAMILY') == 'aarch64':
             # Make sure the toolchainopts key exists, and the value is a dict,
             # before we add the option to enable PIC and disable PNG_ARM_NEON_OPT
             if 'toolchainopts' not in ec or ec['toolchainopts'] is None:
@@ -561,6 +641,20 @@ def post_module_hook_zen4_gcccore1220(self, *args, **kwargs):
             if self.initial_environ.get(EESSI_IGNORE_ZEN4_GCC1220_ENVVAR, False):
                 print_msg(f"Removing {EESSI_IGNORE_ZEN4_GCC1220_ENVVAR} in initial environment")
                 del self.initial_environ[EESSI_IGNORE_ZEN4_GCC1220_ENVVAR]
+
+
+def post_easyblock_hook_copy_easybuild_subdir(self, *args, **kwargs):
+    """
+    Post easyblock hook that copies the easybuild subdirectory of every installed application
+    to a central and timestamped location in the root of the software stack, e.g.:
+    /path/to/stack/reprod/MyApp/1.2-foss-2025a/20250102T12:34:56Z
+    """
+
+    stack_reprod_dir = os.path.join(os.path.dirname(install_path()), STACK_REPROD_SUBDIR)
+    now_utc_timestamp = datetime.datetime.now(datetime.UTC).strftime('%Y%m%d_%H%M%S%Z')
+    app_easybuild_dir = os.path.join(self.installdir, config.log_path(ec=self.cfg))
+    app_reprod_dir = os.path.join(stack_reprod_dir, self.install_subdir, now_utc_timestamp, 'easybuild')
+    copy_dir(app_easybuild_dir, app_reprod_dir)
 
 
 # Modules for dependencies are loaded in the prepare step. Thus, that's where we need this variable to be set
@@ -1258,7 +1352,7 @@ def replace_non_distributable_files_with_symlinks(log, install_dir, pkg_name, al
                     # CUDA and cu* libraries themselves don't care about compute capability so remove this
                     # duplication from under host_injections (symlink to a single CUDA or cu* library
                     # installation for all compute capabilities)
-                    accel_subdir = os.getenv("EESSI_ACCELERATOR_TARGET")
+                    accel_subdir = get_eessi_envvar("EESSI_ACCELERATOR_TARGET")
                     if accel_subdir:
                         host_inj_path = host_inj_path.replace("/accel/%s" % accel_subdir, '')
                     # make sure source and target of symlink are not the same
@@ -1344,6 +1438,24 @@ def post_module_hook(self, *args, **kwargs):
         post_module_hook_zen4_gcccore1220(self, *args, **kwargs)
 
 
+# The post_easyblock_hook was introduced in EasyBuild 5.1.1.
+# Older versions would fail if the function is defined anyway, as EasyBuild performs some checks on function names in hooks files.
+if EASYBUILD_VERSION >= '5.1.1':
+    def post_easyblock_hook(self, *args, **kwargs):
+        """Main post easyblock hook: trigger custom functions based on software name."""
+        if self.name in POST_EASYBLOCK_HOOKS:
+            POST_EASYBLOCK_HOOKS[self.name](self, *args, **kwargs)
+
+        # Always trigger this one for EESSI CVMFS/site installations and version 2025.06 or newer, regardless of self.name
+        if os.getenv('EESSI_CVMFS_INSTALL') or os.getenv('EESSI_SITE_INSTALL'):
+            if get_eessi_envvar('EESSI_VERSION') and LooseVersion(get_eessi_envvar('EESSI_VERSION')) >= '2025.06':
+                post_easyblock_hook_copy_easybuild_subdir(self, *args, **kwargs)
+        else:
+            self.log.debug("No CVMFS/site installation requested, not running post_easyblock_hook_copy_easybuild_subdir.")
+else:
+    print_warning(f"Not enabling the post_easybuild_hook, as it requires EasyBuild 5.1.1 or newer (you are using {EASYBUILD_VERSION}).")
+
+
 PARSE_HOOKS = {
     'TensorFlow': parse_hook_tensorflow_CUDA,
     'casacore': parse_hook_casacore_disable_vectorize,
@@ -1412,6 +1524,8 @@ POST_POSTPROC_HOOKS = {
 PRE_MODULE_HOOKS = {}
 
 POST_MODULE_HOOKS = {}
+
+POST_EASYBLOCK_HOOKS = {}
 
 # Define parallelism limit operations
 def divide_by_factor(parallel, factor):

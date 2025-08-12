@@ -1,6 +1,15 @@
 #!/bin/bash
-EESSI_VERSION="2023.06"
 export LMOD_PAGER=cat
+
+if [ -z ${EESSI_VERSION} ] || [ ! -d /cvmfs/software.eessi.io/versions/${EESSI_VERSION} ]; then
+	echo "\$EESSI_VERSION has to be set to a valid EESSI version."
+	exit 1
+fi
+
+if [ -z ${EXPECTED_EASYBUILD_VERSION} ]; then
+	echo "\$EXPECTED_EASYBUILD_VERSION has to be set to an EasyBuild version that is expected to be available in EESSI version ${EESSI_VERSION}."
+	exit 1
+fi
 
 # initialize assert framework
 if [ ! -d assert.sh ]; then
@@ -23,22 +32,23 @@ for shell in ${SHELLS[@]}; do
 		echo -e "\033[33mWe don't now how to test the shell '$shell', PRs are Welcome.\033[0m" 
   else
 		# TEST 1: Source Script and check Module Output
-		assert "$shell -c 'source init/lmod/$shell' 2>&1 " "EESSI/$EESSI_VERSION loaded successfully"
+		assert "$shell -c 'source init/lmod/$shell' 2>&1 " "Module for EESSI/$EESSI_VERSION loaded successfully"
 		# TEST 2: Check if module overviews first section is the loaded EESSI module
 		MODULE_SECTIONS=($($shell -c "source init/lmod/$shell 2>/dev/null; module ov 2>&1 | grep -e '---'"))
 		PATTERN="/cvmfs/software\.eessi\.io/versions/$EESSI_VERSION/software/linux/x86_64/(intel/haswell|amd/zen3)/modules/all"
 		assert_raises 'echo "${MODULE_SECTIONS[1]}" | grep -E "$PATTERN"'
 		# TEST 3: Check if module overviews second section is the EESSI init module
 		assert "echo ${MODULE_SECTIONS[4]}" "/cvmfs/software.eessi.io/versions/$EESSI_VERSION/init/modules"
-		# Test 4: Load Python module and check version
-		command="$shell -c 'source init/lmod/$shell 2>/dev/null; module load Python/3.10.8-GCCcore-12.2.0; python --version'"
-		expected="Python 3.10.8"
-		assert "$command" "$expected"
-		# Test 5: Load Python module and check path
-		PYTHON_PATH=$($shell -c "source init/lmod/$shell 2>/dev/null; module load Python/3.10.8-GCCcore-12.2.0; which python")
-		PATTERN="/cvmfs/software\.eessi\.io/versions/$EESSI_VERSION/software/linux/x86_64/(intel/haswell|amd/zen3)/software/Python/3\.10\.8-GCCcore-12\.2\.0/bin/python"
-		echo "$PYTHON_PATH" | grep -E "$PATTERN"
-		assert_raises 'echo "$PYTHON_PATH" | grep -E "$PATTERN"'
+		# Test 4: Load EasyBuild module and check version
+		# eb --version outputs: "This is EasyBuild 5.1.1 (framework: 5.1.1, easyblocks: 5.1.1) on host ..."
+		command="$shell -c 'source init/lmod/$shell 2>/dev/null; module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; eb --version | cut -d \" \" -f4'"
+		assert "$command" "$EXPECTED_EASYBUILD_VERSION"
+		# Test 5: Load EasyBuild module and check path
+		EASYBUILD_PATH=$($shell -c "source init/lmod/$shell 2>/dev/null; module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; which eb")
+		# escape the dots in ${EASYBUILD_VERSION}
+		PATTERN="/cvmfs/software\.eessi\.io/versions/$EESSI_VERSION/software/linux/x86_64/(intel/haswell|amd/zen3)/software/EasyBuild/${EXPECTED_EASYBUILD_VERSION//./\\.}/bin/eb"
+		echo "$EASYBUILD_PATH" | grep -E "$PATTERN"
+		assert_raises 'echo "$EASYBUILD_PATH" | grep -E "$PATTERN"'
 		
 		#End Test Suite
 		assert_end "source_eessi_$shell"

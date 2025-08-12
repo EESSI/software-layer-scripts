@@ -17,11 +17,6 @@ display_help() {
   echo "  --skip-cuda-install    -  disable installing a full CUDA SDK in the host_injections prefix (e.g. in CI)"
 }
 
-# Function to check if a command exists
-function command_exists() {
-    command -v "$1" >/dev/null 2>&1
-}
-
 function copy_build_log() {
     # copy specified build log to specified directory, with some context added
     build_log=${1}
@@ -183,6 +178,20 @@ else
     fatal_error "Failed to initialize Lmod?! (see output in ${ml_version_out}"
 fi
 
+# install any additional required scripts
+# order is important: these are needed to install a full CUDA SDK in host_injections
+# for now, this just reinstalls all scripts. Note the most elegant, but works
+
+# the install_scripts.sh script relies on knowing the location of the PR diff
+# assume there's only one diff file that corresponds to the PR patch file
+pr_diff=$(ls [0-9]*.diff | head -1)
+export PR_DIFF="$PWD/$pr_diff"
+
+# Only run install_scripts.sh if not in dev.eessi.io for security
+if [[ -z ${EESSI_DEV_PROJECT} ]]; then
+    ${TOPDIR}/install_scripts.sh --prefix ${EESSI_CVMFS_REPO}/versions/${EESSI_VERSION} --eessi-version ${EESSI_VERSION}
+fi
+
 # Make sure we start with no modules and clean $MODULEPATH
 echo ">> Setting up \$MODULEPATH..."
 module --force purge
@@ -236,20 +245,6 @@ if [ ! -f ${_lmod_sitepackage_file} ]; then
     echo "Lmod file '${_lmod_sitepackage_file}' does not exist yet; creating it..."
     command -V python3
     python3 ${TOPDIR}/create_lmodsitepackage.py ${_eessi_software_path}
-fi
-
-# install any additional required scripts
-# order is important: these are needed to install a full CUDA SDK in host_injections
-# for now, this just reinstalls all scripts. Note the most elegant, but works
-
-# the install_scripts.sh script relies on knowing the location of the PR diff
-# assume there's only one diff file that corresponds to the PR patch file
-pr_diff=$(ls [0-9]*.diff | head -1)
-export PR_DIFF="$PWD/$pr_diff"
-
-# Only run install_scripts.sh if not in dev.eessi.io for security
-if [[ -z ${EESSI_DEV_PROJECT} ]]; then
-    ${TOPDIR}/install_scripts.sh --prefix ${EESSI_PREFIX}
 fi
 
 echo ">> Configuring EasyBuild..."
@@ -315,18 +310,9 @@ else
 fi
 
 # Install NVIDIA drivers in host_injections (if they exist)
-if command_exists "nvidia-smi"; then
-    export LD_LIBRARY_PATH="/.singularity.d/libs:${LD_LIBRARY_PATH}"
-    nvidia-smi --version
-    ec=$?
-    if [ ${ec} -eq 0 ]; then 
-        echo "Command 'nvidia-smi' found. Installing NVIDIA drivers for use in prefix shell..."
-        ${EESSI_PREFIX}/scripts/gpu_support/nvidia/link_nvidia_host_libraries.sh
-    else
-        echo "Warning: command 'nvidia-smi' found, but 'nvidia-smi --version' did not run succesfully."
-        echo "This script now assumes this is NOT a GPU node."
-        echo "If, and only if, the current node actually does contain Nvidia GPUs, this should be considered an error."
-    fi
+if nvidia_gpu_available; then
+    echo "Installing NVIDIA drivers for use in prefix shell..."
+    ${EESSI_PREFIX}/scripts/gpu_support/nvidia/link_nvidia_host_libraries.sh
 fi
 
 if [ ! -z "${shared_fs_path}" ]; then

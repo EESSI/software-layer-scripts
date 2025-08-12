@@ -34,6 +34,7 @@ jobs:
       matrix:
         EESSI_VERSION:
           - '2023.06'
+          - '2025.06'
     steps:
     - name: checkout
       uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
@@ -44,13 +45,14 @@ jobs:
 
     - name: test load_easybuild_module.sh script
       run: |
+        export SINGULARITY_CACHEDIR=$PWD
         # bind current directory into container as /software-layer-scripts
         export SINGULARITY_BIND="${PWD}:/software-layer-scripts"
 
         # can't test with EasyBuild versions older than v4.5.2 when using EESSI 2023.06,
         # since Python in compat layer is Python 3.11.x;
         # testing with a single EasyBuild version takes a while in GitHub Actions, so stick to a single sensible version
-        for EB_VERSION in '4.6.0'; do
+        for EB_VERSION in '5.1.0'; do
           # Create script that uses load_easybuild_module.sh which we can run in compat layer environment
           # note: Be careful with single vs double quotes below!
           #       ${EB_VERSION} should be expanded, so use double quotes;
@@ -90,6 +92,7 @@ jobs:
 
     - name: test install_software_layer.sh script
       run: |
+          export SINGULARITY_CACHEDIR=$PWD
           # bind current directory into container as /software-layer-scripts
           export SINGULARITY_BIND="${PWD}:/software-layer-scripts"
           # force using x86_64/generic, to avoid triggering an installation from scratch
@@ -104,6 +107,7 @@ jobs:
 
     - name: test create_directory_tarballs.sh script
       run: |
+          export SINGULARITY_CACHEDIR=$PWD
           # bind current directory into container as /software-layer-scripts
           export SINGULARITY_BIND="${PWD}:/software-layer-scripts"
 
@@ -112,12 +116,13 @@ jobs:
 
           # scripts need to be copied to /tmp,
           # since create_directory_tarballs.sh must be accessible from within build container
-          ./eessi_container.sh --mode run --verbose /software-layer-scripts/create_directory_tarballs.sh 2023.06
+          ./eessi_container.sh --mode run --verbose /software-layer-scripts/create_directory_tarballs.sh "${{matrix.EESSI_VERSION}}"
           # check if tarballs have been produced
           ls -l *.tar.gz
 
     - name: test create_lmodsitepackage.py script
       run: |
+          export SINGULARITY_CACHEDIR=$PWD
           # bind current directory into container as /software-layer-scripts
           export SINGULARITY_BIND="${PWD}:/software-layer-scripts"
 
@@ -139,3 +144,22 @@ jobs:
           for pattern in "^Site Pkg location.*/software-layer-scripts/.lmod/SitePackage.lua" "LMOD_SITEPACKAGE_LOCATION.*/software-layer-scripts/.lmod/SitePackage.lua"; do
             grep "${pattern}" ${out} || (echo "Pattern '${pattern}' not found in output!" && exit 1)
           done
+
+    - name: Mount EESSI CernVM-FS repository
+      uses: eessi/github-action-eessi@v3
+      with:
+        eessi_stack_version: ${{matrix.EESSI_VERSION}}
+        use_eessi_module: true
+
+    - name: Verify that mounted repositories are passed through directly
+      run: |
+          export SINGULARITY_CACHEDIR=$PWD
+          # run wrapper script + capture & check output
+          export SINGULARITY_BIND="${PWD}:/software-layer-scripts"
+          # make sure that correct EESSI version is used (required because default is a placeholder version)
+          export EESSI_VERSION_OVERRIDE="${{matrix.EESSI_VERSION}}"
+
+          out="${PWD}/eb-${EB_VERSION}.out"
+          ./eessi_container.sh --repository software.eessi.io,access=rw,mount=bind --mode run --verbose /software-layer-scripts/run_in_compat_layer_env.sh ls 2>&1 | tee ${out}
+          echo $(grep "SINGULARITY_BIND" ${out})
+          grep "SINGULARITY_BIND" ${out} | grep "software.eessi.io" || (echo "software.eessi.io did not seem to be bind mounted!" && exit 1)

@@ -502,7 +502,9 @@ if [[ $USE_CHECK_BUILD_ARTEFACTS_SCRIPT -eq 0 ]]; then
         # extract directories/entries from tarball content
         modules_entries=$(grep "${prefix}/modules" ${tmpfile})
         software_entries=$(grep "${prefix}/software" ${tmpfile})
-        other_entries=$(cat ${tmpfile} | grep -v "${prefix}/modules" | grep -v "${prefix}/software")
+        reprod_entries=$(grep "${prefix}/reprod" ${tmpfile})
+        reprod_shortened=$(echo "${reprod_entries}" | sed -e "s@${prefix}/reprod/@@" | awk -F/ '{if (NR >= 4) {print $1 "/" $2 "/" $3}}' | sort -u)
+        other_entries=$(cat ${tmpfile} | grep -v "${prefix}/modules" | grep -v "${prefix}/software" | grep -v "${prefix}/reprod")
         other_shortened=$(echo "${other_entries}" | sed -e "s@^.*${prefix}/@@" | sort -u)
         modules=$(echo "${modules_entries}" | grep "/all/.*/.*lua$" | sed -e 's@^.*/\([^/]*/[^/]*.lua\)$@\1@' | sort -u)
         software_pkgs=$(echo "${software_entries}" | sed -e "s@${prefix}/software/@@" | awk -F/ '{if (NR >= 2) {print $1 "/" $2}}' | sort -u)
@@ -529,6 +531,16 @@ if [[ $USE_CHECK_BUILD_ARTEFACTS_SCRIPT -eq 0 ]]; then
             done <<< "${software_pkgs}"
         else
             comment_artifacts_list="${comment_artifacts_list}$(print_br_item '__ITEM__' 'no software packages in tarball')"
+        fi
+        comment_artifacts_list="${comment_artifacts_list}</pre>"
+        comment_artifacts_list="${comment_artifacts_list}$(print_br_item 'reprod directories under ___ITEM___' ${prefix}/reprod)"
+        comment_artifacts_list="${comment_artifacts_list}<pre>"
+        if [[ ! -z ${reprod_shortened} ]]; then
+            while IFS= read -r reprod ; do
+                comment_artifacts_list="${comment_artifacts_list}$(print_br_item '<code>__ITEM__</code>' ${reprod})"
+            done <<< "${reprod_shortened}"
+        else
+            comment_artifacts_list="${comment_artifacts_list}$(print_br_item '__ITEM__' 'no reprod directories in tarball')"
         fi
         comment_artifacts_list="${comment_artifacts_list}</pre>"
         comment_artifacts_list="${comment_artifacts_list}$(print_br_item 'other under ___ITEM___' ${prefix})"

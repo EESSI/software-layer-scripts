@@ -90,8 +90,13 @@ for subdir in ${sw_subdirs}; do
         for package_version in $(cat ${module_files_list}); do
             echo "handling ${package_version}"
             find ${eessi_version}/software/${os}/${subdir}/software/${package_version} -maxdepth 0 -type d \! -name '.wh.*' >> ${files_list}
+            # if there is a directory for this installation in the stack's reprod directory, include that too
+            if [ -d ${eessi_version}/software/${os}/${subdir}/reprod ]; then
+                find ${eessi_version}/software/${os}/${subdir}/reprod/${package_version} -maxdepth 0 -type d \! -name '.wh.*' >> ${files_list}
+            fi
         done
     fi
+
 done
 
 # add a bit debug output

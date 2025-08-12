@@ -130,10 +130,16 @@ for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
     module --ignore_cache load EESSI-extend/${EESSI_EXTEND_VERSION}
     unset EESSI_EXTEND_VERSION
 
+    # If there is a GPU on the node, the installation path will by default have an
+    # accelerator subdirectory. For CUDA and cu*, these are binary installations and
+    # don't care about the target compute capability. Our hooks are aware of this and
+    # therefore expect CUDA to be available under EESSI_SITE_SOFTWARE_PATH
+    export EASYBUILD_INSTALLPATH=$EESSI_SITE_SOFTWARE_PATH
+
     # Install modules in hidden .modules dir to keep track of what was installed before
     # (this action is temporary, and we do not call Lmod again within the current shell context, but in EasyBuild
     # subshells, so loaded modules are not automatically unloaded)
-    MODULEPATH=${EESSI_SITE_SOFTWARE_PATH}/.modules/all
+    MODULEPATH=${EASYBUILD_INSTALLPATH}/.modules/all
     echo "set MODULEPATH=${MODULEPATH}"
 
     # We don't want hooks used in this install, we need vanilla installations

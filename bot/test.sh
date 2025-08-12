@@ -175,8 +175,14 @@ export EESSI_SOFTWARE_SUBDIR_OVERRIDE
 echo "bot/test.sh: EESSI_SOFTWARE_SUBDIR_OVERRIDE='${EESSI_SOFTWARE_SUBDIR_OVERRIDE}'"
 
 # determine accelerator target (if any) from .architecture in ${JOB_CFG_FILE}
-export EESSI_ACCELERATOR_TARGET=$(cfg_get_value "architecture" "accelerator")
-echo "bot/test.sh: EESSI_ACCELERATOR_TARGET='${EESSI_ACCELERATOR_TARGET}'"
+ACCEL_OVERRIDE=$(cfg_get_value "architecture" "accelerator")
+if [[ -n "$ACCEL_OVERRIDE" ]]; then
+    # bot job config does not include accel subdirectory
+    export EESSI_ACCELERATOR_TARGET_OVERRIDE="accel/$ACCEL_OVERRIDE"
+else
+    export EESSI_ACCELERATOR_TARGET_OVERRIDE=""
+fi
+echo "bot/test.sh: EESSI_ACCELERATOR_TARGET_OVERRIDE='${EESSI_ACCELERATOR_TARGET_OVERRIDE}'"
 
 # get EESSI_OS_TYPE from .architecture.os_type in ${JOB_CFG_FILE} (default: linux)
 EESSI_OS_TYPE=$(cfg_get_value "architecture" "os_type")
@@ -219,20 +225,8 @@ fi
 TEST_STEP_ARGS+=("--extra-bind-paths" "/sys/fs/cgroup:/hostsys/fs/cgroup:ro")
 
 # add options required to handle NVIDIA support
-if command_exists "nvidia-smi"; then
-    # Accept that this may fail
-    set +e
-    nvidia-smi --version
-    ec=$?
-    set -e
-    if [ ${ec} -eq 0 ]; then
-        echo "Command 'nvidia-smi' found, using available GPU"
-        TEST_STEP_ARGS+=("--nvidia" "run")
-    else
-        echo "Warning: command 'nvidia-smi' found, but 'nvidia-smi --version' did not run succesfully."
-        echo "This script now assumes this is NOT a GPU node."
-        echo "If, and only if, the current node actually does contain Nvidia GPUs, this should be considered an error."
-    fi
+if nvidia_gpu_available; then
+    TEST_STEP_ARGS+=("--nvidia" "run")
 fi
 
 # prepare arguments to test_suite.sh (specific to test step)
