@@ -151,7 +151,7 @@ def parse_list_of_dicts_env(var_name):
     if not re.match(r'^[A-Za-z_][A-Za-z0-9_]*$', var_name):
         raise ValueError(f"Invalid environment variable name: {var_name}")
     list_string = os.getenv(var_name, '[]')
-    
+
     list_of_dicts = []
     try:
         # Try JSON format first
@@ -162,7 +162,7 @@ def parse_list_of_dicts_env(var_name):
             list_of_dicts = ast.literal_eval(list_string)
         except (ValueError, SyntaxError):
             raise ValueError(f"Environment variable '{var_name}' does not contain a valid list of dictionaries.")
-    
+
     return list_of_dicts
 
 
@@ -211,7 +211,7 @@ def post_ready_hook(self, *args, **kwargs):
         parallel = self.parallel
     else:
         parallel = self.cfg['parallel']
-    
+
     if parallel == 1:
         return  # no need to limit if already using 1 core
 
@@ -780,7 +780,7 @@ def pre_configure_hook_score_p(self, *args, **kwargs):
 def pre_configure_hook_vsearch(self, *args, **kwargs):
     """
     Pre-configure hook for VSEARCH
-    - Workaround for a Zlib macro being renamed in Gentoo, see https://bugs.gentoo.org/383179 
+    - Workaround for a Zlib macro being renamed in Gentoo, see https://bugs.gentoo.org/383179
       (solves "expected initializer before 'OF'" errors)
     """
     if self.name == 'VSEARCH':
@@ -1246,7 +1246,7 @@ def post_postproc_cuda(self, *args, **kwargs):
 
             # replace files that are not distributable with symlinks into
             # host_injections
-            replace_non_distributable_files_with_symlinks(self.log, self.installdir, self.name, allowlist)
+            replace_binary_non_distributable_files_with_symlinks(self.log, self.installdir, self.name, allowlist)
         else:
             print_msg(f"EESSI hook to respect CUDA license not triggered for installation path {self.installdir}")
     else:
@@ -1296,16 +1296,19 @@ def post_postproc_cudnn(self, *args, **kwargs):
 
             # replace files that are not distributable with symlinks into
             # host_injections
-            replace_non_distributable_files_with_symlinks(self.log, self.installdir, self.name, allowlist)
+            replace_binary_non_distributable_files_with_symlinks(self.log, self.installdir, self.name, allowlist)
         else:
             print_msg(f"EESSI hook to respect cuDDN license not triggered for installation path {self.installdir}")
     else:
         raise EasyBuildError("cuDNN-specific hook triggered for non-cuDNN easyconfig?!")
 
 
-def replace_non_distributable_files_with_symlinks(log, install_dir, pkg_name, allowlist):
+def replace_binary_non_distributable_files_with_symlinks(log, install_dir, pkg_name, allowlist):
     """
     Replace files that cannot be distributed with symlinks into host_injections
+    Since these are binary files, only the CPU family will be included in the prefix,
+    no microarchitecture or accelerator architecture will be included. For example,
+    /cvmfs/software.eessi.io/host_injections/x86_64/suffix/to/actual/file
     """
     # Different packages use different ways to specify which files or file
     # 'types' may be redistributed. For CUDA, the 'EULA.txt' lists full file
@@ -1348,13 +1351,37 @@ def replace_non_distributable_files_with_symlinks(log, install_dir, pkg_name, al
                     log.debug("%s is not found in allowlist, so replacing it with symlink: %s",
                               print_name, full_path)
                     # the host_injections path is under a fixed repo/location for CUDA or cuDNN
+                    # full_path is something similar to
+                    # /cvmfs/software.eessi.io/version/.../x86_64/amd/zen4/accel/nvidia/cc90/.../CUDA/bin/nvcc
+                    # host_inj_path will then be
+                    # /cvmfs/software.eessi.io/host_injections/.../x86_64/amd/zen4/accel/nvidia/cc90/.../CUDA/bin/nvcc
                     host_inj_path = re.sub(EESSI_INSTALLATION_REGEX, HOST_INJECTIONS_LOCATION, full_path)
                     # CUDA and cu* libraries themselves don't care about compute capability so remove this
                     # duplication from under host_injections (symlink to a single CUDA or cu* library
                     # installation for all compute capabilities)
                     accel_subdir = get_eessi_envvar("EESSI_ACCELERATOR_TARGET")
+                    # If accel_subdir is defined, remove it from the full path
+                    # After removal of accel_subdir, host_inj_path will be something like
+                    # /cvmfs/software.eessi.io/host_injections/.../x86_64/amd/zen4/.../CUDA/bin/nvcc
                     if accel_subdir:
-                        host_inj_path = host_inj_path.replace("/accel/%s" % accel_subdir, '')
+                        host_inj_path = host_inj_path.replace(accel_subdir, '')
+                    software_subdir = get_eessi_envvar("EESSI_SOFTWARE_SUBDIR")
+                    cpu_family = get_eessi_envvar("EESSI_CPU_FAMILY")
+                    os_type = get_eessi_envvar("EESSI_OS_TYPE")
+                    eessi_version = get_eessi_envvar("EESSI_VERSION")
+                    if software_subdir and cpu_family and os_type and eessi_version:
+                        # Compose the string to be removed:
+                        partial_path = f"{eessi_version}/software/{os_type}/{software_subdir}"
+                        # After this, host_inj_path will be e.g.
+                        # /cvmfs/software.eessi.io/host_injections/x86_64/software/CUDA/bin/nvcc
+                        host_inj_path = host_inj_path.replace(partial_path, cpu_family)
+                    else:
+                        msg = "Failed to construct path to symlink for file (%s). All of the following values "
+                        msg += "have to be defined: EESSI_SOFTWARE_SUBDIR='%s', EESSI_CPU_FAMILY='%s', "
+                        msg += "EESSI_OS_TYPE='%s', EESSI_VERSION='%s'. Failed to replace non-redistributable file "
+                        msg += "with symlink, aborting..."
+                        raise EasyBuildError(msg, full_path, software_subdir, cpu_family, os_type, eessi_version)
+
                     # make sure source and target of symlink are not the same
                     if full_path == host_inj_path:
                         raise EasyBuildError("Source (%s) and target (%s) are the same location, are you sure you "

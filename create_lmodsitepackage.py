@@ -123,13 +123,31 @@ local function eessi_cuda_and_libraries_enabled_load_hook(t)
     local refer_to_docs = "For more information on how to do this, see https://www.eessi.io/docs/site_specific_config/gpu/.\\n"
     if packagesList[simpleName] then
         -- simpleName is a module in packagesList
-        -- get the full host_injections path
-        local hostInjections = string.gsub(os.getenv('EESSI_SOFTWARE_PATH') or "", 'versions', 'host_injections')
+        -- first, check the old host_injections path prior to https://github.com/EESSI/software-layer-scripts/pull/59
+        -- If that exists, print a more targetted, explanatory warning
+        local previousHostInjections = string.gsub(os.getenv('EESSI_SOFTWARE_PATH') or "", 'versions', 'host_injections')
+        local previousPackageEasyBuildDir = previousHostInjections .. "/software/" .. t.modFullName .. "/easybuild"
+        local previousPackageDirExists = isDir(previousPackageEasyBuildDir)
+
+        -- get the host_injections path, and add only the EESSI_CPU_FAMILY at the end
+        local strip_suffix = os.getenv('EESSI_VERSION') .. "/software/" .. os.getenv('EESSI_OS_TYPE') .. "/"
+        strip_suffix = strip_suffix .. os.getenv('EESSI_SOFTWARE_SUBDIR')
+        local hostInjections = string.gsub(os.getenv('EESSI_SOFTWARE_PATH') or "", strip_suffix, os.getenv('EESSI_CPU_FAMILY'))
 
         -- build final path where the software should be installed
         local packageEasyBuildDir = hostInjections .. "/software/" .. t.modFullName .. "/easybuild"
         local packageDirExists = isDir(packageEasyBuildDir)
-        if not packageDirExists then
+        if previousPackageDirExists and not packageDirExists then
+            local advice = "but while the module file exists, the actual software is not entirely shipped with EESSI "
+            advice = advice .. "due to licencing. You will need to install a full copy of the " .. simpleName .. " package where EESSI "
+            advice = advice .. "can find it.\\n"
+            advice = advice .. "Note that a full copy is installed at " .. previousHostInjections .. "/software/" .. t.modFullName .. ". "
+            advice = advice .. "However, EESSI expects it in a different location since Aug'25, namely at "
+            advice = advice .. hostInjections .. "/software/" .. t.modFullName .. ". "
+            advice = advice .. "Please re-install the package at the new location. "
+            advice = advice .. refer_to_docs
+            LmodError("\\nYou requested to load ", simpleName, " ", advice)
+        elseif not packageDirExists then
             local advice = "but while the module file exists, the actual software is not entirely shipped with EESSI "
             advice = advice .. "due to licencing. You will need to install a full copy of the " .. simpleName .. " package where EESSI "
             advice = advice .. "can find it.\\n"
@@ -293,7 +311,7 @@ sitepackage_path = os.path.join(prefix, DOT_LMOD, 'SitePackage.lua')
 # the install path (if it exists)
 accel_subdir = os.getenv("EESSI_ACCELERATOR_TARGET")
 if accel_subdir:
-    sitepackage_path = sitepackage_path.replace("/accel/%s" % accel_subdir, '')
+    sitepackage_path = sitepackage_path.replace("/%s" % accel_subdir, '')
 try:
     os.makedirs(os.path.dirname(sitepackage_path), exist_ok=True)
     with open(sitepackage_path, 'w') as fp:
