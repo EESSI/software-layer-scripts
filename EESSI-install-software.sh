@@ -348,7 +348,7 @@ fi
 
 # if an accelerator target is specified, we need to make sure that the CPU-only modules are also still available
 if [ ! -z ${EESSI_ACCELERATOR_TARGET} ]; then
-    CPU_ONLY_MODULES_PATH=$(echo $EASYBUILD_INSTALLPATH | sed "s@/accel/${EESSI_ACCELERATOR_TARGET}@@g")/modules/all
+    CPU_ONLY_MODULES_PATH=$(echo $EASYBUILD_INSTALLPATH | sed "s@/${EESSI_ACCELERATOR_TARGET}@@g")/modules/all
     if [ -d ${CPU_ONLY_MODULES_PATH} ]; then
         module use ${CPU_ONLY_MODULES_PATH}
     else
@@ -439,7 +439,7 @@ lmod_rc_file="$LMOD_CONFIG_DIR/lmodrc.lua"
 echo "DEBUG: lmod_rc_file='${lmod_rc_file}'"
 if [[ ! -z ${EESSI_ACCELERATOR_TARGET} ]]; then
     # EESSI_ACCELERATOR_TARGET is set, so let's remove the accelerator path from $lmod_rc_file
-    lmod_rc_file=$(echo ${lmod_rc_file} | sed "s@/accel/${EESSI_ACCELERATOR_TARGET}@@")
+    lmod_rc_file=$(echo ${lmod_rc_file} | sed "s@/${EESSI_ACCELERATOR_TARGET}@@")
     echo "Path to lmodrc.lua changed to '${lmod_rc_file}'"
 fi
 lmodrc_changed=$(cat ${pr_diff} | grep '^+++' | cut -f2 -d' ' | sed 's@^[a-z]/@@g' | grep '^create_lmodrc.py$' > /dev/null; echo $?)
@@ -452,7 +452,7 @@ fi
 lmod_sitepackage_file="$LMOD_PACKAGE_PATH/SitePackage.lua"
 if [[ ! -z ${EESSI_ACCELERATOR_TARGET} ]]; then
     # EESSI_ACCELERATOR_TARGET is set, so let's remove the accelerator path from $lmod_sitepackage_file
-    lmod_sitepackage_file=$(echo ${lmod_sitepackage_file} | sed "s@/accel/${EESSI_ACCELERATOR_TARGET}@@")
+    lmod_sitepackage_file=$(echo ${lmod_sitepackage_file} | sed "s@/${EESSI_ACCELERATOR_TARGET}@@")
     echo "Path to SitePackage.lua changed to '${lmod_sitepackage_file}'"
 fi
 sitepackage_changed=$(cat ${pr_diff} | grep '^+++' | cut -f2 -d' ' | sed 's@^[a-z]/@@g' | grep '^create_lmodsitepackage.py$' > /dev/null; echo $?)

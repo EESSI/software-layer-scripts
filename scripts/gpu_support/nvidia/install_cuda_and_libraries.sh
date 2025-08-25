@@ -211,10 +211,14 @@ for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
       required_space_in_tmpdir=$((required_space_in_tmpdir + ${base_storage_space}))
     fi
     
+    # Checking disk space on a non-existing folder returns a permission denied, but the error then seems to 
+    # incorrectly suggest there is insufficient disk space. Let's make sure this directory exists.
+    mkdir -p ${EASYBUILD_INSTALLPATH}
+
     # The install is pretty fat, you need lots of space for download/unpack/install
     # (~3*${base_storage_space}*1000 Bytes),
     # need to do a space check before we proceed
-    avail_space=$(df --output=avail "${EESSI_SITE_SOFTWARE_PATH}"/ | tail -n 1 | awk '{print $1}')
+    avail_space=$(df --output=avail "${EASYBUILD_INSTALLPATH}"/ | tail -n 1 | awk '{print $1}')
     min_disk_storage=$((3 * ${base_storage_space}))
     if (( avail_space < ${min_disk_storage} )); then
       fatal_error "Need at least $(echo "${min_disk_storage} / 1000000" | bc) GB disk space to install CUDA and other libraries under ${EESSI_SITE_SOFTWARE_PATH}, exiting now..."
