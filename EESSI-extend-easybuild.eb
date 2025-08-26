@@ -70,7 +70,7 @@ modextravars = {
 # EASYBUILD_INSTALLPATH=${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR}
 # EASYBUILD_SOURCEPATH=${WORKDIR}/easybuild/sources:${EESSI_SOURCEPATH}
 #
-# And also some optional ones based on the kind of installation
+# And also some optional ones based on the installation mode
 # EASYBUILD_SET_GID_BIT
 # EASYBUILD_GROUP_WRITABLE_INSTALLDIR
 # EASYBUILD_UMASK
@@ -212,7 +212,11 @@ easybuild_version = os.getenv("EBVERSIONEASYBUILD") or easybuild_version
 eessi_version = os.getenv("EESSI_VERSION") or "2023.06"
 
 -- Set environment variables that are EasyBuild version specific
-if convertToCanonical(easybuild_version) > convertToCanonical("4") then
+-- Do unload unconditionally, so that even if EB versions were switched in the meantime, this gets unset
+-- This avoids issues where EESSI-extend is first loaded with EB => 5.1 (which set these vars)
+-- but then EB is swapped for a version < 5.1 and then EESSI-extend is unloaded (which would not unset
+-- these vars if we did it conditional on the EB version)
+if convertToCanonical(easybuild_version) >= convertToCanonical("5.1") or mode() == "unload" then
   setenv ("EASYBUILD_STRICT_RPATH_SANITY_CHECK", "1")
   setenv ("EASYBUILD_CUDA_SANITY_CHECK_ERROR_ON_FAILED_CHECKS", "1")
   setenv ("EASYBUILD_FAIL_ON_MOD_FILES_GCCCORE", "1")

@@ -150,6 +150,29 @@ else
       # make sure the the software and modules directory exist
       # (since it's expected by init/eessi_environment_variables when using archdetect and by the EESSI module)
       mkdir -p ${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/{modules,software}
+
+      # If EESSI_ACCELERATOR_TARGET_OVERRIDE is defined, we are building for an accelerator target
+      # In that case, make sure the modulepath for the accelerator subdir exists, otherwise the EESSI module will not
+      # set EESSI_ACCELERATOR_TARGET and the if-condition later in this script which checks if EESSI_ACCELERATOR_TARGET
+      # is equal to EESSI_ACCELERATOR_TARGET_OVERRIDE will fail 
+      # See https://github.com/EESSI/software-layer-scripts/pull/59#issuecomment-3173593882
+      if [ -n $EESSI_ACCELERATOR_TARGET_OVERRIDE ]; then
+          # Note that ${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/${EESSI_ACCELERATOR_TARGET_OVERRIDE}/modules/all
+          # is only the correct path if EESSI_ACCEL_SOFTWARE_SUBDIR_OVERRIDE is not set
+          if [ -z $EESSI_ACCEL_SOFTWARE_SUBDIR_OVERRIDE ]; then
+              mkdir -p ${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/${EESSI_ACCELERATOR_TARGET_OVERRIDE}/modules/all
+          else
+              # At runtime, one might want to use a different CPU subdir for a given accelerator. E.g. one could use
+              # a zen2 CPU subdir on a zen4 node if the required GPU software isn't available in the zen4 tree.
+              # At build time, this doesn't make a lot of sense: we'd probably build in a CPU prefix that is different
+              # from what the code will be optimized for, and we wouldn't want that
+              # So this message _should_ never be printed...
+              msg="When building the software subdirectory for the CPU should almost certainly be that of the host."
+              msg="$msg If you think this is incorrect, please implement behaviour that makes sense in "
+              msg="$msg EESSI-software-installation.sh, essentially replacing this error."
+              fatal_error "$msg"
+          fi
+      fi
   )
 fi
 
@@ -294,6 +317,7 @@ source $TOPDIR/load_eessi_extend_module.sh ${EESSI_VERSION}
 echo "DEBUG: after loading EESSI-extend //  EASYBUILD_INSTALLPATH='${EASYBUILD_INSTALLPATH}'"
 
 # Install full CUDA SDK and cu* libraries in host_injections
+# (This is done *before* configuring EasyBuild as it may rely on an older EB version)
 # Hardcode this for now, see if it works
 # TODO: We should make a nice yaml and loop over all CUDA versions in that yaml to figure out what to install
 # Allow skipping CUDA SDK install in e.g. CI environments
@@ -315,6 +339,7 @@ if nvidia_gpu_available; then
     ${EESSI_PREFIX}/scripts/gpu_support/nvidia/link_nvidia_host_libraries.sh
 fi
 
+
 if [ ! -z "${shared_fs_path}" ]; then
     shared_eb_sourcepath=${shared_fs_path}/easybuild/sources
     echo ">> Using ${shared_eb_sourcepath} as shared EasyBuild source path"
@@ -323,7 +348,7 @@ fi
 
 # if an accelerator target is specified, we need to make sure that the CPU-only modules are also still available
 if [ ! -z ${EESSI_ACCELERATOR_TARGET} ]; then
-    CPU_ONLY_MODULES_PATH=$(echo $EASYBUILD_INSTALLPATH | sed "s@/accel/${EESSI_ACCELERATOR_TARGET}@@g")/modules/all
+    CPU_ONLY_MODULES_PATH=$(echo $EASYBUILD_INSTALLPATH | sed "s@/${EESSI_ACCELERATOR_TARGET}@@g")/modules/all
     if [ -d ${CPU_ONLY_MODULES_PATH} ]; then
         module use ${CPU_ONLY_MODULES_PATH}
     else
@@ -414,7 +439,7 @@ lmod_rc_file="$LMOD_CONFIG_DIR/lmodrc.lua"
 echo "DEBUG: lmod_rc_file='${lmod_rc_file}'"
 if [[ ! -z ${EESSI_ACCELERATOR_TARGET} ]]; then
     # EESSI_ACCELERATOR_TARGET is set, so let's remove the accelerator path from $lmod_rc_file
-    lmod_rc_file=$(echo ${lmod_rc_file} | sed "s@/accel/${EESSI_ACCELERATOR_TARGET}@@")
+    lmod_rc_file=$(echo ${lmod_rc_file} | sed "s@/${EESSI_ACCELERATOR_TARGET}@@")
     echo "Path to lmodrc.lua changed to '${lmod_rc_file}'"
 fi
 lmodrc_changed=$(cat ${pr_diff} | grep '^+++' | cut -f2 -d' ' | sed 's@^[a-z]/@@g' | grep '^create_lmodrc.py$' > /dev/null; echo $?)
@@ -427,7 +452,7 @@ fi
 lmod_sitepackage_file="$LMOD_PACKAGE_PATH/SitePackage.lua"
 if [[ ! -z ${EESSI_ACCELERATOR_TARGET} ]]; then
     # EESSI_ACCELERATOR_TARGET is set, so let's remove the accelerator path from $lmod_sitepackage_file
-    lmod_sitepackage_file=$(echo ${lmod_sitepackage_file} | sed "s@/accel/${EESSI_ACCELERATOR_TARGET}@@")
+    lmod_sitepackage_file=$(echo ${lmod_sitepackage_file} | sed "s@/${EESSI_ACCELERATOR_TARGET}@@")
     echo "Path to SitePackage.lua changed to '${lmod_sitepackage_file}'"
 fi
 sitepackage_changed=$(cat ${pr_diff} | grep '^+++' | cut -f2 -d' ' | sed 's@^[a-z]/@@g' | grep '^create_lmodsitepackage.py$' > /dev/null; echo $?)

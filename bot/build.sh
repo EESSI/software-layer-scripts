@@ -267,11 +267,15 @@ TARBALL_STEP_ARGS+=("--resume" "${BUILD_TMPDIR}")
 timestamp=$(date +%s)
 # to set EESSI_VERSION we need to source init/eessi_defaults now
 source $software_layer_dir/init/eessi_defaults
-# Note: iff ${EESSI_DEV_PROJECT} is defined (building for dev.eessi.io), then we 
+# Note: if ${EESSI_DEV_PROJECT} is defined (building for dev.eessi.io), then we 
 # append the project (subdirectory) name to the end tarball name. This is information
 # then used at the ingestion stage. If ${EESSI_DEV_PROJECT} is not defined, nothing is
 # appended
-export TGZ=$(printf "eessi-%s-software-%s-%s-%b%d.tar.gz" ${EESSI_VERSION} ${EESSI_OS_TYPE} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE//\//-} ${EESSI_DEV_PROJECT:+$EESSI_DEV_PROJECT-} ${timestamp})
+if [[ -z ${EESSI_ACCELERATOR_TARGET_OVERRIDE} ]]; then
+    export TGZ=$(printf "eessi-%s-software-%s-%s-%b%d.tar.gz" ${EESSI_VERSION} ${EESSI_OS_TYPE} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE//\//-} ${EESSI_DEV_PROJECT:+$EESSI_DEV_PROJECT-} ${timestamp})
+else
+    export TGZ=$(printf "eessi-%s-software-%s-%s-%s-%b%d.tar.gz" ${EESSI_VERSION} ${EESSI_OS_TYPE} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE//\//-} ${EESSI_ACCELERATOR_TARGET_OVERRIDE//\//-} ${EESSI_DEV_PROJECT:+$EESSI_DEV_PROJECT-} ${timestamp})
+fi
 
 # Export EESSI_DEV_PROJECT to use it (if needed) when making tarball
 echo "bot/build.sh: EESSI_DEV_PROJECT='${EESSI_DEV_PROJECT}'"
