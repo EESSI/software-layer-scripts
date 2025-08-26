@@ -132,7 +132,8 @@ local function eessi_cuda_and_libraries_enabled_load_hook(t)
         -- get the host_injections path, and add only the EESSI_CPU_FAMILY at the end
         local strip_suffix = os.getenv('EESSI_VERSION') .. "/software/" .. os.getenv('EESSI_OS_TYPE') .. "/"
         strip_suffix = strip_suffix .. os.getenv('EESSI_SOFTWARE_SUBDIR')
-        local hostInjections = string.gsub(os.getenv('EESSI_SOFTWARE_PATH') or "", strip_suffix, os.getenv('EESSI_CPU_FAMILY'))
+        local hostInjections = string.gsub(os.getenv('EESSI_SOFTWARE_PATH') or "", 'versions', 'host_injections')
+        hostInjections = string.gsub(hostInjections, strip_suffix, os.getenv('EESSI_CPU_FAMILY'))
 
         -- build final path where the software should be installed
         local packageEasyBuildDir = hostInjections .. "/software/" .. t.modFullName .. "/easybuild"
