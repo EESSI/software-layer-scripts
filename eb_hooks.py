@@ -682,12 +682,12 @@ def pre_configure_hook(self, *args, **kwargs):
 
 def pre_configure_hook_BLIS_a64fx(self, *args, **kwargs):
     """
-    Pre-configure hook for BLIS when building for A64FX:
+    Pre-configure hook for BLIS when building for A64FX to fix "Illegal instruction" problem
     - add -DCACHE_SECTOR_SIZE_READONLY to $CFLAGS for BLIS 0.9.0, cfr. https://github.com/flame/blis/issues/800
     """
     if self.name == 'BLIS':
         cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
-        if self.version == '0.9.0' and cpu_target == CPU_TARGET_A64FX:
+        if self.version in ('0.9.0', '1.0', '1.1') and cpu_target == CPU_TARGET_A64FX:
             # last argument of BLIS' configure command is configuration target (usually 'auto' for auto-detect),
             # specifying of variables should be done before that
             config_opts = self.cfg['configopts'].split(' ')
