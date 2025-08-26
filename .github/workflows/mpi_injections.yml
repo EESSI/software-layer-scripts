@@ -10,21 +10,29 @@ jobs:
     steps:
         -  uses: actions/checkout@v4
         -  uses: eessi/github-action-eessi@v3
-        
-        - name: Install OpenMPI
-          run: |
-            module load EESSI-extend
-            eb --rebuild OpenMPI-4.1.6-GCC-13.2.0.eb
 
         - name: Inject OpenMPI libs
           run: |
+            # Needed dir for the injected libs
             mkdir /opt/eessi
-            ./scripts/mpi_support/install_openmpi_host_injection.sh --mpi-path $HOME/eessi/versions/2023.06/software/linux/$EESSI_SOFTWARE_SUBDIR/software/OpenMPI/4.1.6-GCC-13.2.0/
+
+            # Load last OpenMPI from 2023b and declaring var for injection path
+            module load OpenMPI/4.1.6-GCC-13.2.0
+            export OPENMPI_TO_INJECT=$EBROOTOPENMPI
+            module purge
+
+            # Inject script
+            ./scripts/mpi_support/install_openmpi_host_injection.sh --mpi-path $OPENMPI_TO_INJECT
             
         - name: Check with OSU
           run: |
-            module load OSU-Micro-Benchmarks/7.2-gompi-2023b
+            # Load OSU version that uses older OpenMPI
+            module load OSU-Micro-Benchmarks/7.1-1-gompi-2023a
+
+            # Verify injected libs are being used
             ldd $(which osu_latency) | grep host_injections
+
+            # Check it works correctly
             mpirun -n 2 osu_latency
             export output=$?
             if [ $output -ne 0 ]; then
