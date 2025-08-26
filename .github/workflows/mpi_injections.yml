@@ -19,7 +19,7 @@ jobs:
         - name: Inject OpenMPI libs
           run: |
             mkdir /opt/eessi
-            ./../scripts/mpi_support/install_openmpi_host_injection.sh --mpi-path $HOME/eessi/versions/2023.06/software/linux/$EESSI_SOFTWARE_SUBDIR/software/OpenMPI/4.1.6-GCC-13.2.0/
+            ./scripts/mpi_support/install_openmpi_host_injection.sh --mpi-path $HOME/eessi/versions/2023.06/software/linux/$EESSI_SOFTWARE_SUBDIR/software/OpenMPI/4.1.6-GCC-13.2.0/
             
         - name: Check with OSU
           run: |
