@@ -16,7 +16,7 @@ from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option, install_path, update_build_option
 from easybuild.tools.filetools import apply_regex_substitutions, copy_dir, copy_file, remove_file, symlink, which
 from easybuild.tools.run import run_cmd
-from easybuild.tools.systemtools import AARCH64, POWER, X86_64, get_cpu_architecture, get_cpu_features
+from easybuild.tools.systemtools import AARCH64, POWER, X86_64, det_parallelism, get_cpu_architecture, get_cpu_features
 from easybuild.tools.toolchain.compiler import OPTARCH_GENERIC
 from easybuild.tools.toolchain.toolchain import is_system_toolchain
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
@@ -205,20 +205,29 @@ def post_ready_hook(self, *args, **kwargs):
     Post-ready hook: limit parallellism for selected builds based on software name and CPU target.
                      parallelism needs to be limited because some builds require a lot of memory per used core.
     """
-    # 'parallel' easyconfig parameter (EB4) or the parallel property (EB5) is set via EasyBlock.set_parallel
-    # in ready step based on available cores
-    if hasattr(self, 'parallel'):
-        parallel = self.parallel
-    else:
-        parallel = self.cfg['parallel']
+    if self.iter_idx > 0:
+        # only tweak level of parallelism in 1st iteration, not subsequent ones
+        self.log.info(f"Not limiting parallellism again in iteration #{self.iter_idx+1}")
+        return
 
-    if parallel == 1:
+    # 'parallel' easyconfig parameter (EasyBuild 4.x) or the parallel property (EasyBuild 5.x)
+    # is set via EasyBlock.set_parallel in ready step based on available cores
+    # (and --max-parallel EasyBuild configuration option in EasyBuild 5.x)
+    if hasattr(self, 'parallel'):
+        curr_parallel = self.parallel
+    else:
+        curr_parallel = self.cfg['parallel']
+
+    if curr_parallel == 1:
         return  # no need to limit if already using 1 core
 
     # get CPU target
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
 
-    new_parallel = parallel
+    # derive level of parallelism from available cores and ulimit settings in current session
+    session_parallel = det_parallelism()
+
+    new_parallel = None
 
     # check if we have limits defined for this software
     if self.name in PARALLELISM_LIMITS:
@@ -227,27 +236,28 @@ def post_ready_hook(self, *args, **kwargs):
         # first check for CPU-specific limit
         if cpu_target in limits:
             operation_func, operation_args = limits[cpu_target]
-            new_parallel = operation_func(parallel, operation_args)
+            new_parallel = operation_func(session_parallel, operation_args)
         # then check for generic limit (applies to all CPU targets)
         elif '*' in limits:
             operation_func, operation_args = limits['*']
-            new_parallel = operation_func(parallel, operation_args)
+            new_parallel = operation_func(session_parallel, operation_args)
         else:
             return  # no applicable limits found
 
     # check if there's a general limit set for CPU target
     elif cpu_target in PARALLELISM_LIMITS:
         operation_func, operation_args = PARALLELISM_LIMITS[cpu_target]
-        new_parallel = operation_func(parallel, operation_args)
+        new_parallel = operation_func(session_parallel, operation_args)
 
-    # apply the limit if it's different from current
-    if new_parallel != parallel:
+    # apply the limit if it's lower than current
+    if new_parallel is not None and new_parallel < curr_parallel:
         if hasattr(self, 'parallel'):
             self.cfg.parallel = new_parallel
         else:
             self.cfg['parallel'] = new_parallel
-        msg = "limiting parallelism to %s (was %s) for %s on %s to avoid out-of-memory failures during building/testing"
-        print_msg(msg % (new_parallel, parallel, self.name, cpu_target), log=self.log)
+        msg = "limiting parallelism to %s (was %s, derived parallelism %s) for %s on %s "
+        msg+ "to avoid out-of-memory failures during building/testing"
+        print_msg(msg % (new_parallel, curr_parallel, session_parallel, self.name, cpu_target), log=self.log)
 
 
 def pre_prepare_hook(self, *args, **kwargs):
