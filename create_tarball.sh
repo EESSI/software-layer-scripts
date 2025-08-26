@@ -115,7 +115,7 @@ fi
 topdir=${cvmfs_repo}/versions/
 
 echo ">> Creating tarball ${target_tarball} from ${topdir}..."
-tar cavf ${target_tgz} -C ${topdir} --files-from=${files_list}
+tar cavf ${target_tarball} -C ${topdir} --files-from=${files_list}
 echo ${target_tarball} created!
 
 echo ">> Cleaning up tmpdir ${tmpdir}..."
