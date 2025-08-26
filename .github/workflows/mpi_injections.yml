@@ -24,6 +24,7 @@ jobs:
         - name: Check with OSU
           run: |
             module load OSU-Micro-Benchmarks/7.2-gompi-2023b
+            ldd $(which osu_latency) | grep host_injections
             mpirun -n 2 osu_latency
             export output=$?
             if [ $output -ne 0 ]; then
