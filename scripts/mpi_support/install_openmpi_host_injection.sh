@@ -108,6 +108,7 @@ libcuda_exists=0
 inject_mpi() {
     # Temporary directory for injection
     local tmpdir=$1
+    local timestamp=$(date +%Y%m%d%H%M%S)
 
     local eessi_ldd="${EESSI_EPREFIX}/usr/bin/ldd"
     local system_ldd="/usr/bin/ldd"
@@ -122,6 +123,8 @@ inject_mpi() {
             echo "MPI was already injected"
             if ${FORCE}; then
                 echo "Forcing new MPI injection"
+                mv ${host_injection_mpi_path} ${host_injection_mpi_path}-${timestamp}
+                echo "Previous injection saved on" ${host_injection_mpi_path}-${timestamp}
             else
                 return 0
             fi
