@@ -382,44 +382,44 @@ else
         # make sure that easystack file being picked up is for EESSI version that we're building for...
         echo "${easystack_file}" | grep -q "^easystacks/$(basename ${EESSI_CVMFS_REPO})/${EESSI_VERSION}/"
         if [ $? -ne 0 ]; then
-            fatal_error "Easystack file ${easystack_file} is not intended for EESSI version ${EESSI_VERSION}, giving up!"
-        fi
-
-        echo -e "Processing easystack file ${easystack_file}...\n\n"
-
-        # determine version of EasyBuild module to load based on EasyBuild version included in name of easystack file
-        eb_version=$(echo ${easystack_file} | sed 's/.*eb-\([0-9.]*\).*.yml/\1/g')
-
-        # load EasyBuild module (will be installed if it's not available yet)
-        source ${TOPDIR}/load_easybuild_module.sh ${eb_version}
-
-        ${EB} --show-config
-
-        echo_green "All set, let's start installing some software with EasyBuild v${eb_version} in ${EASYBUILD_INSTALLPATH}..."
-
-        if [ -f ${easystack_file} ]; then
-            echo_green "Feeding easystack file ${easystack_file} to EasyBuild..."
-
-            if [[ ${easystack_file} == *"/rebuilds/"* ]]; then
-                ${EB} --easystack ${easystack_file} --rebuild
-            else
-                ${EB} --easystack ${easystack_file} --robot
-            fi
-            ec=$?
-
-            # copy EasyBuild log file if EasyBuild exited with an error
-            if [ ${ec} -ne 0 ]; then
-                eb_last_log=$(unset EB_VERBOSE; eb --last-log)
-                # copy to current working directory
-                cp -a ${eb_last_log} .
-                echo "Last EasyBuild log file copied from ${eb_last_log} to ${PWD}"
-                # copy to build logs dir (with context added)
-                copy_build_log "${eb_last_log}" "${build_logs_dir}"
-            fi
-    
-            $TOPDIR/check_missing_installations.sh ${easystack_file} ${pr_diff}
+            echo_yellow "Easystack file ${easystack_file} is not intended for EESSI version ${EESSI_VERSION}, skipping it..."
         else
-            fatal_error "Easystack file ${easystack_file} not found!"
+            echo -e "Processing easystack file ${easystack_file}...\n\n"
+
+            # determine version of EasyBuild module to load based on EasyBuild version included in name of easystack file
+            eb_version=$(echo ${easystack_file} | sed 's/.*eb-\([0-9.]*\).*.yml/\1/g')
+
+            # load EasyBuild module (will be installed if it's not available yet)
+            source ${TOPDIR}/load_easybuild_module.sh ${eb_version}
+
+            ${EB} --show-config
+
+            echo_green "All set, let's start installing some software with EasyBuild v${eb_version} in ${EASYBUILD_INSTALLPATH}..."
+
+            if [ -f ${easystack_file} ]; then
+                echo_green "Feeding easystack file ${easystack_file} to EasyBuild..."
+
+                if [[ ${easystack_file} == *"/rebuilds/"* ]]; then
+                    ${EB} --easystack ${easystack_file} --rebuild
+                else
+                    ${EB} --easystack ${easystack_file} --robot
+                fi
+                ec=$?
+
+                # copy EasyBuild log file if EasyBuild exited with an error
+                if [ ${ec} -ne 0 ]; then
+                    eb_last_log=$(unset EB_VERBOSE; eb --last-log)
+                    # copy to current working directory
+                    cp -a ${eb_last_log} .
+                    echo "Last EasyBuild log file copied from ${eb_last_log} to ${PWD}"
+                    # copy to build logs dir (with context added)
+                    copy_build_log "${eb_last_log}" "${build_logs_dir}"
+                fi
+
+                $TOPDIR/check_missing_installations.sh ${easystack_file} ${pr_diff}
+            else
+                fatal_error "Easystack file ${easystack_file} not found!"
+            fi
         fi
 
     done
