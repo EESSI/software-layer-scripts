@@ -189,4 +189,10 @@ end
 
 if mode() == "load" then
     LmodMessage(load_message)
+    -- notify about ToU
+    LmodMessage("")
+    tou_message = "Please note that by initializing and using the EESSI software stack, "
+    tou_message = tou_message .. "you agree to abide by the EESSI Terms of Use "
+    tou_message = tou_message .. "(see https://www.eessi.io/docs/governance/terms_of_use/)."
+    LmodMessage(tou_message)
 end

@@ -48,5 +48,6 @@ if [ $? -eq 0 ]; then
     #show_msg ""
 
     echo "Environment set up to use EESSI (${EESSI_VERSION}), have fun!"
+    echo -e "\033[1;33mPlease note that by initializing and using the EESSI software stack,\nyou agree to abide by the EESSI Terms of Use\n(see https://www.eessi.io/docs/governance/terms_of_use/).\033[0m"
 
 fi
