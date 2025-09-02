@@ -128,4 +128,8 @@ else
     fatal_error "EasyBuild not working?!"
 fi
 
+# EESSI-extend checks for the EB version being used.
+# If EESSI-extend is already loaded, we need to reload it in order to reevaluate the checks.
+module is-loaded EESSI-extend && module update
+
 unset EB_VERSION
