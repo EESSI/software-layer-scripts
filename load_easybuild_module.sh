@@ -113,7 +113,7 @@ echo ">> Loading EasyBuild v${EB_VERSION} module..."
 module ${IGNORE_CACHE} load EasyBuild/${EB_VERSION}
 # EESSI-extend checks for the EB version being used.
 # If EESSI-extend is already loaded, we need to reload it in order to reevaluate the checks and reconfigure EasyBuild.
-module is-loaded EESSI-extend && module update
+module is-loaded EESSI-extend && module load EESSI-extend
 
 eb_show_system_info_out=${TMPDIR}/eb_show_system_info.out
 ${EB} --show-system-info > ${eb_show_system_info_out}
