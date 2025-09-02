@@ -1,4 +1,0 @@
-easyconfigs:
-  - cowsay-3.04.eb:
-      options:
-        from-commit: 2b8a316e7e61cb69597ba119528a714e9495edac
