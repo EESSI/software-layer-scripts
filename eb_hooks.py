@@ -942,6 +942,19 @@ def pre_configure_hook_LAMMPS_zen4(self, *args, **kwargs):
     else:
         raise EasyBuildError("LAMMPS-specific hook triggered for non-LAMMPS easyconfig?!")
 
+def pre_configure_hook_cmake_system(self, *args, **kwargs):
+    """
+    pre-configure hook for cmake built with SYSTEM toolchain:
+    - unset configopts for cmake easyconfigs using the SYSTEM toolchain
+    - https://github.com/EESSI/software-layer/issues/1175
+    """
+
+    if self.name == 'CMake':
+        if self.toolchain.name == 'system':
+            print_msg("Unset configopts to use ncurses library from the EESSI compatibility layer")
+            self.cfg['configopts'] = ''
+    else:
+        raise EasyBuildError("CMake-specific hook triggered for non-CMake easyconfig?!")
 
 def pre_test_hook(self, *args, **kwargs):
     """Main pre-test hook: trigger custom functions based on software name."""
@@ -1484,6 +1497,7 @@ PRE_CONFIGURE_HOOKS = {
     'LAMMPS': pre_configure_hook_LAMMPS_zen4,
     'Score-P': pre_configure_hook_score_p,
     'VSEARCH': pre_configure_hook_vsearch,
+    'CMake': pre_configure_hook_cmake_system,
 }
 
 PRE_TEST_HOOKS = {
