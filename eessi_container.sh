@@ -316,12 +316,9 @@ fi
 # iterate over entries in REPOSITORIES and check if they are known
 for cvmfs_repo in "${REPOSITORIES[@]}"
 do
-    # split into name and access mode if ',access=' in $cvmfs_repo
-    if [[ ${cvmfs_repo} == *",access="* ]] ; then
-        cvmfs_repo_name=${cvmfs_repo/,access=*/} # remove access mode specification
-    else
-        cvmfs_repo_name="${cvmfs_repo}"
-    fi
+    readarray -td, cvmfs_repo_args < <(printf '%s' "$cvmfs_repo")
+    cvmfs_repo_name=${cvmfs_repo_args[0]}
+
     if [[ ! -n "${eessi_cvmfs_repos[${cvmfs_repo_name}]}" && ! -n ${cfg_cvmfs_repos[${cvmfs_repo_name}]} ]]; then
         fatal_error "The repository '${cvmfs_repo_name}' is not an EESSI CVMFS repository or it is not known how to mount it (could be due to a typo or missing configuration). Run '$0 -l' to obtain a list of available repositories." "${REPOSITORY_ERROR_EXITCODE}"
     fi
@@ -331,7 +328,8 @@ done
 declare -A listed_repos=()
 for cvmfs_repo in "${REPOSITORIES[@]}"
 do
-    cvmfs_repo_name=${cvmfs_repo/,access=*/} # remove access mode
+    readarray -td, cvmfs_repo_args < <(printf '%s' "$cvmfs_repo")
+    cvmfs_repo_name=${cvmfs_repo_args[0]}
     [[ ${VERBOSE} -eq 1 ]] && echo "checking for duplicates: '${cvmfs_repo}' and '${cvmfs_repo_name}'"
     # if cvmfs_repo_name is not in eessi_cvmfs_repos, assume it's in cfg_cvmfs_repos
     #   and obtain actual repo_name from config
@@ -617,14 +615,8 @@ mkdir -p ${EESSI_TMPDIR}/repos_cfg
 for cvmfs_repo in "${REPOSITORIES[@]}"
 do
     [[ ${VERBOSE} -eq 1 ]] && echo "process CVMFS repo spec '${cvmfs_repo}'"
-    # split into name and access mode if ',access=' in $cvmfs_repo
-    if [[ ${cvmfs_repo} == *",access="* ]] ; then
-        cvmfs_repo_name=${cvmfs_repo/,access=*/} # remove access mode specification
-        cvmfs_repo_access=${cvmfs_repo/*,access=/} # remove repo name part
-    else
-        cvmfs_repo_name="${cvmfs_repo}"
-        cvmfs_repo_access="${ACCESS}" # use globally defined access mode
-    fi
+    readarray -td, cvmfs_repo_args < <(printf '%s' "$cvmfs_repo")
+    cvmfs_repo_name=${cvmfs_repo_args[0]}
     # if cvmfs_repo_name is in cfg_cvmfs_repos, it is a "repository ID" and was
     #   derived from information in EESSI_REPOS_CFG_FILE, namely the section
     #   names in that .ini-type file
@@ -761,22 +753,25 @@ do
     unset cfg_repo_id
     [[ ${VERBOSE} -eq 1 ]] && echo "add fusemount options for CVMFS repo '${cvmfs_repo}'"
     # split into name, access mode, and mount mode
-    readarray -td, cvmfs_repo_args <<<"$cvmfs_repo"
-    cvmfs_repo_name=$(sed -e 's/\\n//g' <<< "${cvmfs_repo_args[0]}")
+    readarray -td, cvmfs_repo_args < <(printf '%s' "$cvmfs_repo")
+    cvmfs_repo_name=${cvmfs_repo_args[0]}
     cvmfs_repo_access="${ACCESS}" # initialize to the default access mode
+    cvmfs_repo_mount="fuse" # use fuse mounts by default
     for arg in ${cvmfs_repo_args[@]:1}; do
         if [[ $arg == "access="* ]]; then
             cvmfs_repo_access=${arg/access=}
         fi
         if [[ $arg == "mount="* ]]; then
             cvmfs_repo_mount=${arg/mount=}
-            # check if the specified mount mode is a valid one
-            if [[ ${cvmfs_repo_mount} != "bind" ]] && [[ ${cvmfs_repo_mount} != "fuse" ]]; then
-                echo -e "ERROR: mount mode '${cvmfs_repo_mount}' for CVMFS repository\n  '${cvmfs_repo_name}' is not known"
-                exit ${REPOSITORY_ERROR_EXITCODE}
-            fi
         fi
     done
+
+    # check if the specified mount mode is a valid one
+    if [[ ${cvmfs_repo_mount} != "bind" ]] && [[ ${cvmfs_repo_mount} != "fuse" ]]; then
+        echo -e "ERROR: mount mode '${cvmfs_repo_mount}' for CVMFS repository\n  '${cvmfs_repo_name}' is not known"
+        exit ${REPOSITORY_ERROR_EXITCODE}
+    fi
+    [[ ${VERBOSE} -eq 1 ]] && echo "Using a ${cvmfs_repo_mount} mount for /cvmfs/${cvmfs_repo_name}"
 
     # obtain cvmfs_repo_name from EESSI_REPOS_CFG_FILE if cvmfs_repo is in cfg_cvmfs_repos
     if [[ ${cfg_cvmfs_repos[${cvmfs_repo_name}]} ]]; then
@@ -784,22 +779,11 @@ do
         # cvmfs_repo_name is actually a repository ID, use that to obtain
         #   the actual name from the EESSI_REPOS_CFG_FILE
         cfg_repo_id=${cvmfs_repo_name}
-        echo "bob $cfg_repo_id"
         cvmfs_repo_name=$(cfg_get_value ${cfg_repo_id} "repo_name")
-        echo $cvmfs_repo_name
     fi
     # remove project subdir in container
     cvmfs_repo_name=${cvmfs_repo_name%"/${EESSI_DEV_PROJECT}"}
 
-    # if a mount mode was not specified, we use a bind mount if the repository is available on the host,
-    # and otherwise we use a fuse mount
-    if [[ -z ${cvmfs_repo_mount} ]]; then
-        cvmfs_repo_mount="fuse"
-        if [[ -x $(command -v cvmfs_config) ]] && cvmfs_config probe ${cvmfs_repo_name} >& /dev/null; then
-            cvmfs_repo_mount="bind"
-        fi
-    fi
-    [[ ${VERBOSE} -eq 1 ]] && echo "Using a ${cvmfs_repo_mount} mount for /cvmfs/${cvmfs_repo_name}"
     # if a bind mount was requested, check if the repository is really available on the host
     if [[ ${cvmfs_repo_mount} == "bind" ]]; then
         if [[ ! -x $(command -v cvmfs_config) ]] || ! cvmfs_config probe ${cvmfs_repo_name} >& /dev/null; then

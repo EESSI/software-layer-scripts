@@ -220,23 +220,9 @@ BUILD_STEP_ARGS+=("--save" "${TARBALL_TMP_BUILD_STEP_DIR}")
 BUILD_STEP_ARGS+=("--storage" "${STORAGE}")
 
 # add options required to handle NVIDIA support
-if command_exists "nvidia-smi"; then
-    # Accept that this may fail
-    set +e
-    nvidia-smi --version
-    ec=$?
-    set -e
-    if [ ${ec} -eq 0 ]; then
-        echo "Command 'nvidia-smi' found, using available GPU"
-        BUILD_STEP_ARGS+=("--nvidia" "all")
-    else
-        echo "Warning: command 'nvidia-smi' found, but 'nvidia-smi --version' did not run succesfully."
-        echo "This script now assumes this is NOT a GPU node."
-        echo "If, and only if, the current node actually does contain Nvidia GPUs, this should be considered an error."
-        BUILD_STEP_ARGS+=("--nvidia" "install")
-    fi
+if nvidia_gpu_available; then
+    BUILD_STEP_ARGS+=("--nvidia" "all")
 else
-    echo "No 'nvidia-smi' found, no available GPU but allowing overriding this check"
     BUILD_STEP_ARGS+=("--nvidia" "install")
 fi
 
@@ -281,11 +267,15 @@ TARBALL_STEP_ARGS+=("--resume" "${BUILD_TMPDIR}")
 timestamp=$(date +%s)
 # to set EESSI_VERSION we need to source init/eessi_defaults now
 source $software_layer_dir/init/eessi_defaults
-# Note: iff ${EESSI_DEV_PROJECT} is defined (building for dev.eessi.io), then we 
+# Note: if ${EESSI_DEV_PROJECT} is defined (building for dev.eessi.io), then we 
 # append the project (subdirectory) name to the end tarball name. This is information
 # then used at the ingestion stage. If ${EESSI_DEV_PROJECT} is not defined, nothing is
 # appended
-export TGZ=$(printf "eessi-%s-software-%s-%s-%b%d.tar.gz" ${EESSI_VERSION} ${EESSI_OS_TYPE} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE//\//-} ${EESSI_DEV_PROJECT:+$EESSI_DEV_PROJECT-} ${timestamp})
+if [[ -z ${EESSI_ACCELERATOR_TARGET_OVERRIDE} ]]; then
+    export TGZ=$(printf "eessi-%s-software-%s-%s-%b%d.tar.gz" ${EESSI_VERSION} ${EESSI_OS_TYPE} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE//\//-} ${EESSI_DEV_PROJECT:+$EESSI_DEV_PROJECT-} ${timestamp})
+else
+    export TGZ=$(printf "eessi-%s-software-%s-%s-%s-%b%d.tar.gz" ${EESSI_VERSION} ${EESSI_OS_TYPE} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE//\//-} ${EESSI_ACCELERATOR_TARGET_OVERRIDE//\//-} ${EESSI_DEV_PROJECT:+$EESSI_DEV_PROJECT-} ${timestamp})
+fi
 
 # Export EESSI_DEV_PROJECT to use it (if needed) when making tarball
 echo "bot/build.sh: EESSI_DEV_PROJECT='${EESSI_DEV_PROJECT}'"

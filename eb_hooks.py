@@ -16,7 +16,7 @@ from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option, install_path, update_build_option
 from easybuild.tools.filetools import apply_regex_substitutions, copy_dir, copy_file, remove_file, symlink, which
 from easybuild.tools.run import run_cmd
-from easybuild.tools.systemtools import AARCH64, POWER, X86_64, get_cpu_architecture, get_cpu_features
+from easybuild.tools.systemtools import AARCH64, POWER, X86_64, det_parallelism, get_cpu_architecture, get_cpu_features
 from easybuild.tools.toolchain.compiler import OPTARCH_GENERIC
 from easybuild.tools.toolchain.toolchain import is_system_toolchain
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
@@ -151,7 +151,7 @@ def parse_list_of_dicts_env(var_name):
     if not re.match(r'^[A-Za-z_][A-Za-z0-9_]*$', var_name):
         raise ValueError(f"Invalid environment variable name: {var_name}")
     list_string = os.getenv(var_name, '[]')
-    
+
     list_of_dicts = []
     try:
         # Try JSON format first
@@ -162,7 +162,7 @@ def parse_list_of_dicts_env(var_name):
             list_of_dicts = ast.literal_eval(list_string)
         except (ValueError, SyntaxError):
             raise ValueError(f"Environment variable '{var_name}' does not contain a valid list of dictionaries.")
-    
+
     return list_of_dicts
 
 
@@ -205,20 +205,29 @@ def post_ready_hook(self, *args, **kwargs):
     Post-ready hook: limit parallellism for selected builds based on software name and CPU target.
                      parallelism needs to be limited because some builds require a lot of memory per used core.
     """
-    # 'parallel' easyconfig parameter (EB4) or the parallel property (EB5) is set via EasyBlock.set_parallel
-    # in ready step based on available cores
+    if self.iter_idx > 0:
+        # only tweak level of parallelism in 1st iteration, not subsequent ones
+        self.log.info(f"Not limiting parallellism again in iteration #{self.iter_idx+1}")
+        return
+
+    # 'parallel' easyconfig parameter (EasyBuild 4.x) or the parallel property (EasyBuild 5.x)
+    # is set via EasyBlock.set_parallel in ready step based on available cores
+    # (and --max-parallel EasyBuild configuration option in EasyBuild 5.x)
     if hasattr(self, 'parallel'):
-        parallel = self.parallel
+        curr_parallel = self.parallel
     else:
-        parallel = self.cfg['parallel']
-    
-    if parallel == 1:
+        curr_parallel = self.cfg['parallel']
+
+    if curr_parallel == 1:
         return  # no need to limit if already using 1 core
 
     # get CPU target
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
 
-    new_parallel = parallel
+    # derive level of parallelism from available cores and ulimit settings in current session
+    session_parallel = det_parallelism()
+
+    new_parallel = None
 
     # check if we have limits defined for this software
     if self.name in PARALLELISM_LIMITS:
@@ -227,27 +236,28 @@ def post_ready_hook(self, *args, **kwargs):
         # first check for CPU-specific limit
         if cpu_target in limits:
             operation_func, operation_args = limits[cpu_target]
-            new_parallel = operation_func(parallel, operation_args)
+            new_parallel = operation_func(session_parallel, operation_args)
         # then check for generic limit (applies to all CPU targets)
         elif '*' in limits:
             operation_func, operation_args = limits['*']
-            new_parallel = operation_func(parallel, operation_args)
+            new_parallel = operation_func(session_parallel, operation_args)
         else:
             return  # no applicable limits found
 
     # check if there's a general limit set for CPU target
     elif cpu_target in PARALLELISM_LIMITS:
         operation_func, operation_args = PARALLELISM_LIMITS[cpu_target]
-        new_parallel = operation_func(parallel, operation_args)
+        new_parallel = operation_func(session_parallel, operation_args)
 
-    # apply the limit if it's different from current
-    if new_parallel != parallel:
+    # apply the limit if it's lower than current
+    if new_parallel is not None and new_parallel < curr_parallel:
         if hasattr(self, 'parallel'):
             self.cfg.parallel = new_parallel
         else:
             self.cfg['parallel'] = new_parallel
-        msg = "limiting parallelism to %s (was %s) for %s on %s to avoid out-of-memory failures during building/testing"
-        print_msg(msg % (new_parallel, parallel, self.name, cpu_target), log=self.log)
+        msg = "limiting parallelism to %s (was %s, derived parallelism %s) for %s on %s "
+        msg+ "to avoid out-of-memory failures during building/testing"
+        print_msg(msg % (new_parallel, curr_parallel, session_parallel, self.name, cpu_target), log=self.log)
 
 
 def pre_prepare_hook(self, *args, **kwargs):
@@ -672,12 +682,12 @@ def pre_configure_hook(self, *args, **kwargs):
 
 def pre_configure_hook_BLIS_a64fx(self, *args, **kwargs):
     """
-    Pre-configure hook for BLIS when building for A64FX:
+    Pre-configure hook for BLIS when building for A64FX to fix "Illegal instruction" problem
     - add -DCACHE_SECTOR_SIZE_READONLY to $CFLAGS for BLIS 0.9.0, cfr. https://github.com/flame/blis/issues/800
     """
     if self.name == 'BLIS':
         cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
-        if self.version == '0.9.0' and cpu_target == CPU_TARGET_A64FX:
+        if self.version in ('0.9.0', '1.0', '1.1') and cpu_target == CPU_TARGET_A64FX:
             # last argument of BLIS' configure command is configuration target (usually 'auto' for auto-detect),
             # specifying of variables should be done before that
             config_opts = self.cfg['configopts'].split(' ')
@@ -733,7 +743,7 @@ def pre_configure_hook_score_p(self, *args, **kwargs):
 def pre_configure_hook_vsearch(self, *args, **kwargs):
     """
     Pre-configure hook for VSEARCH
-    - Workaround for a Zlib macro being renamed in Gentoo, see https://bugs.gentoo.org/383179 
+    - Workaround for a Zlib macro being renamed in Gentoo, see https://bugs.gentoo.org/383179
       (solves "expected initializer before 'OF'" errors)
     """
     if self.name == 'VSEARCH':
@@ -1199,7 +1209,7 @@ def post_postproc_cuda(self, *args, **kwargs):
 
             # replace files that are not distributable with symlinks into
             # host_injections
-            replace_non_distributable_files_with_symlinks(self.log, self.installdir, self.name, allowlist)
+            replace_binary_non_distributable_files_with_symlinks(self.log, self.installdir, self.name, allowlist)
         else:
             print_msg(f"EESSI hook to respect CUDA license not triggered for installation path {self.installdir}")
     else:
@@ -1249,16 +1259,19 @@ def post_postproc_cudnn(self, *args, **kwargs):
 
             # replace files that are not distributable with symlinks into
             # host_injections
-            replace_non_distributable_files_with_symlinks(self.log, self.installdir, self.name, allowlist)
+            replace_binary_non_distributable_files_with_symlinks(self.log, self.installdir, self.name, allowlist)
         else:
             print_msg(f"EESSI hook to respect cuDDN license not triggered for installation path {self.installdir}")
     else:
         raise EasyBuildError("cuDNN-specific hook triggered for non-cuDNN easyconfig?!")
 
 
-def replace_non_distributable_files_with_symlinks(log, install_dir, pkg_name, allowlist):
+def replace_binary_non_distributable_files_with_symlinks(log, install_dir, pkg_name, allowlist):
     """
     Replace files that cannot be distributed with symlinks into host_injections
+    Since these are binary files, only the CPU family will be included in the prefix,
+    no microarchitecture or accelerator architecture will be included. For example,
+    /cvmfs/software.eessi.io/host_injections/x86_64/suffix/to/actual/file
     """
     # Different packages use different ways to specify which files or file
     # 'types' may be redistributed. For CUDA, the 'EULA.txt' lists full file
@@ -1301,13 +1314,37 @@ def replace_non_distributable_files_with_symlinks(log, install_dir, pkg_name, al
                     log.debug("%s is not found in allowlist, so replacing it with symlink: %s",
                               print_name, full_path)
                     # the host_injections path is under a fixed repo/location for CUDA or cuDNN
+                    # full_path is something similar to
+                    # /cvmfs/software.eessi.io/version/.../x86_64/amd/zen4/accel/nvidia/cc90/.../CUDA/bin/nvcc
+                    # host_inj_path will then be
+                    # /cvmfs/software.eessi.io/host_injections/.../x86_64/amd/zen4/accel/nvidia/cc90/.../CUDA/bin/nvcc
                     host_inj_path = re.sub(EESSI_INSTALLATION_REGEX, HOST_INJECTIONS_LOCATION, full_path)
                     # CUDA and cu* libraries themselves don't care about compute capability so remove this
                     # duplication from under host_injections (symlink to a single CUDA or cu* library
                     # installation for all compute capabilities)
                     accel_subdir = get_eessi_envvar("EESSI_ACCELERATOR_TARGET")
+                    # If accel_subdir is defined, remove it from the full path
+                    # After removal of accel_subdir, host_inj_path will be something like
+                    # /cvmfs/software.eessi.io/host_injections/.../x86_64/amd/zen4/.../CUDA/bin/nvcc
                     if accel_subdir:
-                        host_inj_path = host_inj_path.replace("/accel/%s" % accel_subdir, '')
+                        host_inj_path = host_inj_path.replace(accel_subdir, '')
+                    software_subdir = get_eessi_envvar("EESSI_SOFTWARE_SUBDIR")
+                    cpu_family = get_eessi_envvar("EESSI_CPU_FAMILY")
+                    os_type = get_eessi_envvar("EESSI_OS_TYPE")
+                    eessi_version = get_eessi_envvar("EESSI_VERSION")
+                    if software_subdir and cpu_family and os_type and eessi_version:
+                        # Compose the string to be removed:
+                        partial_path = f"{eessi_version}/software/{os_type}/{software_subdir}"
+                        # After this, host_inj_path will be e.g.
+                        # /cvmfs/software.eessi.io/host_injections/x86_64/software/CUDA/bin/nvcc
+                        host_inj_path = host_inj_path.replace(partial_path, cpu_family)
+                    else:
+                        msg = "Failed to construct path to symlink for file (%s). All of the following values "
+                        msg += "have to be defined: EESSI_SOFTWARE_SUBDIR='%s', EESSI_CPU_FAMILY='%s', "
+                        msg += "EESSI_OS_TYPE='%s', EESSI_VERSION='%s'. Failed to replace non-redistributable file "
+                        msg += "with symlink, aborting..."
+                        raise EasyBuildError(msg, full_path, software_subdir, cpu_family, os_type, eessi_version)
+
                     # make sure source and target of symlink are not the same
                     if full_path == host_inj_path:
                         raise EasyBuildError("Source (%s) and target (%s) are the same location, are you sure you "

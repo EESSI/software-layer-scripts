@@ -147,3 +147,22 @@ function get_ipv4_address {
     echo "${hipv4}"
     return 0
 }
+
+function nvidia_gpu_available {
+    if command_exists "nvidia-smi"; then
+        # We are careful here in case we are running in a container and LD_LIBARY_PATH has been wiped
+        LD_LIBRARY_PATH="/.singularity.d/libs:${LD_LIBRARY_PATH}" nvidia-smi --version
+        ec=$?
+        if [ ${ec} -eq 0 ]; then
+            echo "Command 'nvidia-smi' found."
+	    return 0
+        else
+            echo "Warning: command 'nvidia-smi' found, but 'nvidia-smi --version' did not run succesfully."
+            echo "This script now assumes this is NOT a GPU node."
+	    return 1
+	fi
+    else
+        echo "No 'nvidia-smi' found, no available GPU." 
+	return 2
+    fi
+}

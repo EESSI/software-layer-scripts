@@ -160,6 +160,6 @@ jobs:
           export EESSI_VERSION_OVERRIDE="${{matrix.EESSI_VERSION}}"
 
           out="${PWD}/eb-${EB_VERSION}.out"
-          ./eessi_container.sh --access rw --mode run --verbose /software-layer-scripts/run_in_compat_layer_env.sh ls 2>&1 | tee ${out}
+          ./eessi_container.sh --repository software.eessi.io,access=rw,mount=bind --mode run --verbose /software-layer-scripts/run_in_compat_layer_env.sh ls 2>&1 | tee ${out}
           echo $(grep "SINGULARITY_BIND" ${out})
           grep "SINGULARITY_BIND" ${out} | grep "software.eessi.io" || (echo "software.eessi.io did not seem to be bind mounted!" && exit 1)

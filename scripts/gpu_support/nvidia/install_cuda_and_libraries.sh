@@ -132,9 +132,16 @@ for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
 
     # If there is a GPU on the node, the installation path will by default have an
     # accelerator subdirectory. For CUDA and cu*, these are binary installations and
-    # don't care about the target compute capability. Our hooks are aware of this and
-    # therefore expect CUDA to be available under EESSI_SITE_SOFTWARE_PATH
-    export EASYBUILD_INSTALLPATH=$EESSI_SITE_SOFTWARE_PATH
+    # we don't care about the target compute capability nor the CPU microarchitecture.
+    # Our hooks are aware of this and therefore expect CUDA to be available under 
+    # something like EESSI_SITE_SOFTWARE_PATH, but then with the CPU micro-architecture
+    # stripped
+    # This sed command will capture everything from the EESSI_SITE_SOFTWARE_PATH up until
+    # the EESSI_VERSION in a capture group. It will the replace that with the content
+    # of the capture group and then have the EESSI_CPU_FAMILY appended
+    # Thus EESSI_SITE_CPU_FAMILY_PATH is then something like /cvmfs/software.eessi.io/host_injections/x86_64
+    EESSI_SITE_CPU_FAMILY_PATH=$(echo "$EESSI_SITE_SOFTWARE_PATH" | sed 's|\(.*\)'"$EESSI_VERSION"/software/"$EESSI_OS_TYPE"/"$EESSI_SOFTWARE_SUBDIR"'|\1'"$EESSI_CPU_FAMILY"'|')
+    export EASYBUILD_INSTALLPATH=$EESSI_SITE_CPU_FAMILY_PATH
 
     # Install modules in hidden .modules dir to keep track of what was installed before
     # (this action is temporary, and we do not call Lmod again within the current shell context, but in EasyBuild
@@ -204,10 +211,14 @@ for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
       required_space_in_tmpdir=$((required_space_in_tmpdir + ${base_storage_space}))
     fi
     
+    # Checking disk space on a non-existing folder returns a permission denied, but the error then seems to 
+    # incorrectly suggest there is insufficient disk space. Let's make sure this directory exists.
+    mkdir -p ${EASYBUILD_INSTALLPATH}
+
     # The install is pretty fat, you need lots of space for download/unpack/install
     # (~3*${base_storage_space}*1000 Bytes),
     # need to do a space check before we proceed
-    avail_space=$(df --output=avail "${EESSI_SITE_SOFTWARE_PATH}"/ | tail -n 1 | awk '{print $1}')
+    avail_space=$(df --output=avail "${EASYBUILD_INSTALLPATH}"/ | tail -n 1 | awk '{print $1}')
     min_disk_storage=$((3 * ${base_storage_space}))
     if (( avail_space < ${min_disk_storage} )); then
       fatal_error "Need at least $(echo "${min_disk_storage} / 1000000" | bc) GB disk space to install CUDA and other libraries under ${EESSI_SITE_SOFTWARE_PATH}, exiting now..."
@@ -258,7 +269,7 @@ for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
       cp -a ${eb_last_log} .
       fatal_error "some installation failed, please check EasyBuild logs ${PWD}/$(basename ${eb_last_log})..."
     else
-      echo_green "all installations at ${EESSI_SITE_SOFTWARE_PATH}/software/... succeeded!"
+      echo_green "all installations at ${EASYBUILD_INSTALLPATH}/software/... succeeded!"
     fi
 
     # clean up tmpdir content
