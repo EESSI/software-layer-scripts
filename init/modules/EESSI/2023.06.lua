@@ -22,15 +22,19 @@ if (subprocess("uname -m"):gsub("\n$","") == "riscv64") then
         eessi_version = os.getenv("EESSI_VERSION_OVERRIDE") or "20240402"
         eessi_repo = "/cvmfs/riscv.eessi.io"
         eessi_prefix = pathJoin(eessi_repo, "versions", eessi_version)
-        LmodMessage("RISC-V architecture detected, but there is no RISC-V support yet in the production repository.\n" ..
-                    "Automatically switching to version " .. eessi_version .. " of the RISC-V development repository " .. eessi_repo .. ".\n" ..
-                    "For more details about this repository, see https://www.eessi.io/docs/repositories/riscv.eessi.io/.")
+        if mode() == "load" then
+            LmodMessage("RISC-V architecture detected, but there is no RISC-V support yet in the production repository.\n" ..
+                        "Automatically switching to version " .. eessi_version .. " of the RISC-V development repository " .. eessi_repo .. ".\n" ..
+                        "For more details about this repository, see https://www.eessi.io/docs/repositories/riscv.eessi.io/.")
+        end
     elseif (eessi_version == "2025.06") then
         eessi_repo = "/cvmfs/dev.eessi.io/riscv"
         eessi_version = os.getenv("EESSI_VERSION_OVERRIDE") or eessi_version
         eessi_prefix = pathJoin(eessi_repo, "versions", eessi_version)
-        LmodMessage("This EESSI production version only provides a RISC-V compatibility layer,\n" ..
-                    "software installations are provided by the EESSI development repository at " .. eessi_repo .. ".\n")
+        if mode() == "load" then
+            LmodMessage("This EESSI production version only provides a RISC-V compatibility layer,\n" ..
+                        "software installations are provided by the EESSI development repository at " .. eessi_repo .. ".\n")
+        end
         if not isDir(eessi_repo) then
             LmodError("The EESSI development repository dev.eessi.io is not mounted on your system.\n" ..
                       "This is required for RISC-V systems.")
