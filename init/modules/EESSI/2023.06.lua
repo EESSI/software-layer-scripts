@@ -13,17 +13,21 @@ conflict("EESSI")
 -- this is a version-agnostic module file, works for EESSI/2023.06, EESSI/2025.06, etc.
 local eessi_version = myModuleVersion()
 local eessi_repo = "/cvmfs/software.eessi.io"
-local eessi_archdetect_prefix = pathJoin(eessi_repo, "versions", eessi_version, "init")
+local eessi_prefix = pathJoin(eessi_repo, "versions", eessi_version)
+local eessi_archdetect_prefix = pathJoin(eessi_prefix, "init")
+local eessi_os_type = "linux"
 -- for RISC-V clients we need to do some overrides, as things are stored in different CVMFS repositories
 if (subprocess("uname -m"):gsub("\n$","") == "riscv64") then
     if (eessi_version == "2023.06") then
         eessi_version = os.getenv("EESSI_VERSION_OVERRIDE") or "20240402"
         eessi_repo = "/cvmfs/riscv.eessi.io"
+        eessi_prefix = pathJoin(eessi_repo, "versions", eessi_version)
         LmodMessage("RISC-V architecture detected, but there is no RISC-V support yet in the production repository.\n" ..
                     "Automatically switching to version " .. eessi_version .. " of the RISC-V development repository " .. eessi_repo .. ".\n" ..
                     "For more details about this repository, see https://www.eessi.io/docs/repositories/riscv.eessi.io/.")
     elseif (eessi_version == "2025.06") then
         eessi_repo = "/cvmfs/dev.eessi.io/riscv"
+        eessi_prefix = pathJoin(eessi_repo, "versions", eessi_version)
         LmodMessage("This EESSI production version only provides a RISC-V compatibility layer,\n" ..
                     "software installations are provided by the EESSI development repository at " .. eessi_repo .. ".\n")
         if not isDir(eessi_repo) then
@@ -32,8 +36,6 @@ if (subprocess("uname -m"):gsub("\n$","") == "riscv64") then
         end
     end
 end
-local eessi_prefix = pathJoin(eessi_repo, "versions", eessi_version)
-local eessi_os_type = "linux"
 setenv("EESSI_VERSION_DEFAULT", eessi_version)
 setenv("EESSI_VERSION", eessi_version)
 setenv("EESSI_CVMFS_REPO", eessi_repo)
