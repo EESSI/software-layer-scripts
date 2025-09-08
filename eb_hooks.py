@@ -951,8 +951,11 @@ def pre_configure_hook_cmake_system(self, *args, **kwargs):
 
     if self.name == 'CMake':
         if self.toolchain.name == 'system':
-            print_msg("Unset configopts to use ncurses library from the EESSI compatibility layer")
+            self.log.info("EESSI hook: unset configopts to build on top of EESSI compatibility layer")
+            self.log.info("https://github.com/EESSI/software-layer/issues/1175")
+            self.log.info(f"Current configopts before the EESSI custom hook: {self.cfg['configopts']}")
             self.cfg['configopts'] = ''
+            self.log.info(f"Updated configopts after the  EESSI custom hook: {self.cfg['configopts']}")
     else:
         raise EasyBuildError("CMake-specific hook triggered for non-CMake easyconfig?!")
 
