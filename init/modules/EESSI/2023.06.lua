@@ -18,7 +18,7 @@ local eessi_archdetect_prefix = pathJoin(eessi_prefix, "init")
 local eessi_os_type = "linux"
 -- for RISC-V clients we need to do some overrides, as things are stored in different CVMFS repositories
 if (subprocess("uname -m"):gsub("\n$","") == "riscv64") then
-    if (eessi_version == "2023.06") then
+    if (eessi_version == "2023.06" or eessi_version == "20240402") then
         eessi_version = os.getenv("EESSI_VERSION_OVERRIDE") or "20240402"
         eessi_repo = "/cvmfs/riscv.eessi.io"
         eessi_prefix = pathJoin(eessi_repo, "versions", eessi_version)
