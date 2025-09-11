@@ -942,22 +942,24 @@ def pre_configure_hook_LAMMPS_zen4(self, *args, **kwargs):
     else:
         raise EasyBuildError("LAMMPS-specific hook triggered for non-LAMMPS easyconfig?!")
 
+
 def pre_configure_hook_cmake_system(self, *args, **kwargs):
     """
-    pre-configure hook for cmake built with SYSTEM toolchain:
-    - unset configopts for cmake easyconfigs using the SYSTEM toolchain
-    - https://github.com/EESSI/software-layer/issues/1175
+    pre-configure hook for CMake built with SYSTEM toolchain:
+    - remove configure options that link to ncurses static libraries for CMake with system toolchain;
+      see also https://github.com/EESSI/software-layer/issues/1175
     """
 
     if self.name == 'CMake':
-        if self.toolchain.name == 'system':
-            self.log.info("EESSI hook: unset configopts to build on top of EESSI compatibility layer")
-            self.log.info("https://github.com/EESSI/software-layer/issues/1175")
-            self.log.info(f"Current configopts before the EESSI custom hook: {self.cfg['configopts']}")
-            self.cfg['configopts'] = ''
-            self.log.info(f"Updated configopts after the  EESSI custom hook: {self.cfg['configopts']}")
+        if is_system_toolchain(self.toolchain.name):
+            self.log.info("Removing configure options that require ncurses static libraries...")
+            self.log.info(f"Original configopts value: {self.cfg['configopts']}")
+            regex = re.compile("-DCURSES_[A-Z]+_LIBRARY=\$EBROOTNCURSES/lib/lib[a-z]+\.a")
+            self.cfg['configopts'] = regex.sub(self.cfg['configopts'], '')
+            self.log.info(f"Updated configopts value: {self.cfg['configopts']}")
     else:
         raise EasyBuildError("CMake-specific hook triggered for non-CMake easyconfig?!")
+
 
 def pre_test_hook(self, *args, **kwargs):
     """Main pre-test hook: trigger custom functions based on software name."""
