@@ -98,7 +98,7 @@ jobs:
               fi
 
               echo ">>> checking last lines of init output..."
-              tail -5 init.out | grep "Environment set up to use EESSI (${{matrix.EESSI_VERSION}}), have fun!" || (echo "FAILED, full init output:" && cat init.out && exit 1)
+              tail -10 init.out | grep "Environment set up to use EESSI (${{matrix.EESSI_VERSION}}), have fun!" || (echo "FAILED, full init output:" && cat init.out && exit 1)
 
               echo "All checks on init output PASSED"
           else
