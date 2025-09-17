@@ -957,7 +957,7 @@ def pre_configure_hook_cmake_system(self, *args, **kwargs):
         if is_system_toolchain(self.toolchain.name):
             self.log.info("Removing configure options that require ncurses static libraries...")
             self.log.info(f"Original configopts value: {self.cfg['configopts']}")
-            regex = re.compile("-DCURSES_[A-Z]+_LIBRARY=\$EBROOTNCURSES/lib/lib[a-z]+\.a")
+            regex = re.compile(r"-DCURSES_[A-Z]+_LIBRARY=\$EBROOTNCURSES/lib/lib[a-z]+\.a")
             self.cfg['configopts'] = regex.sub(self.cfg['configopts'], '')
             self.log.info(f"Updated configopts value: {self.cfg['configopts']}")
     else:
