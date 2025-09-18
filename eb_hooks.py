@@ -188,7 +188,10 @@ def verify_toolchains_supported_by_eessi_version(easyconfigs):
     site_top_level_toolchains_envvar = 'EESSI_SITE_TOP_LEVEL_TOOLCHAINS_' + eessi_version.replace('.', '_')
     site_top_level_toolchains = parse_list_of_dicts_env(site_top_level_toolchains_envvar)
     for top_level_toolchain in EESSI_SUPPORTED_TOP_LEVEL_TOOLCHAINS[eessi_version] + site_top_level_toolchains:
-        supported_eessi_toolchains += get_toolchain_hierarchy(top_level_toolchain)
+        try:
+            supported_eessi_toolchains += get_toolchain_hierarchy(top_level_toolchain)
+        except EasyBuildError as error:
+            print_msg(f"No toolchain hierarchy found for {top_level_toolchain}, ignoring! ({error})")
     for ec in easyconfigs:
         toolchain = ec['ec']['toolchain']
         # if it is a system toolchain or appears in the list, we are all good
@@ -957,6 +960,24 @@ def pre_configure_hook_LAMMPS_zen4(self, *args, **kwargs):
         raise EasyBuildError("LAMMPS-specific hook triggered for non-LAMMPS easyconfig?!")
 
 
+def pre_configure_hook_cmake_system(self, *args, **kwargs):
+    """
+    pre-configure hook for CMake built with SYSTEM toolchain:
+    - remove configure options that link to ncurses static libraries for CMake with system toolchain;
+      see also https://github.com/EESSI/software-layer/issues/1175
+    """
+
+    if self.name == 'CMake':
+        if is_system_toolchain(self.toolchain.name):
+            self.log.info("Removing configure options that require ncurses static libraries...")
+            self.log.info(f"Original configopts value: {self.cfg['configopts']}")
+            regex = re.compile(r"-DCURSES_[A-Z]+_LIBRARY=\$EBROOTNCURSES/lib/lib[a-z]+\.a")
+            self.cfg['configopts'] = regex.sub(self.cfg['configopts'], '')
+            self.log.info(f"Updated configopts value: {self.cfg['configopts']}")
+    else:
+        raise EasyBuildError("CMake-specific hook triggered for non-CMake easyconfig?!")
+
+
 def pre_test_hook(self, *args, **kwargs):
     """Main pre-test hook: trigger custom functions based on software name."""
     if self.name in PRE_TEST_HOOKS:
@@ -1498,6 +1519,7 @@ PRE_CONFIGURE_HOOKS = {
     'LAMMPS': pre_configure_hook_LAMMPS_zen4,
     'Score-P': pre_configure_hook_score_p,
     'VSEARCH': pre_configure_hook_vsearch,
+    'CMake': pre_configure_hook_cmake_system,
 }
 
 PRE_TEST_HOOKS = {
