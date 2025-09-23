@@ -448,7 +448,6 @@ def parse_hook_bump_rust_version_in_2022b_for_a64fx(ec, eprefix):
                                 tcname=ec['toolchain']['name'], tcversion=ec['toolchain']['version']):
 
             build_deps = ec['builddependencies']
-            print(build_deps)
             rust_name = 'Rust'
             rust_original_version = '1.65.0'
             rust_new_version = '1.75.0'
