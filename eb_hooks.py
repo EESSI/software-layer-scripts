@@ -68,6 +68,7 @@ EESSI_SUPPORTED_TOP_LEVEL_TOOLCHAINS = {
 
 
 # Ensure that we don't print any messages in --terse mode
+# Note that --terse was introduced in EB 4.9.1
 orig_print_msg = print_msg
 orig_print_warning = print_warning
 
