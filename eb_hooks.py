@@ -933,25 +933,25 @@ def pre_configure_hook_LAMMPS_zen4_and_Aarch64_cuda(self, *args, **kwargs):
     """
     pre-configure hook for LAMMPS:
     - set kokkos_arch on x86_64/amd/zen4
-    - Disable SIMD for Aarch64 + cuda builds 
+    - Disable SIMD for Aarch64 + cuda builds
     """
- 
+
     # Get cpu_target for zen4 hook
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
- 
+
     # Get the dependencies to check CUDA
     deps = self.cfg.dependencies()
     cuda_versions = ('12.1.1')
- 
+
     if self.name == 'LAMMPS':
 
-         # Set kokkos_arch for LAMMPS version which do not have support for versions that do not support ZEN4    
+         # Set kokkos_arch for LAMMPS version which do not have support for versions that do not support ZEN4
          if self.version in ('2Aug2023_update2', '2Aug2023_update4', '29Aug2024'):
              if get_cpu_architecture() == X86_64:
                  if cpu_target == CPU_TARGET_ZEN4:
                      # There is no support for ZEN4 in LAMMPS yet so falling back to ZEN3
                      self.cfg['kokkos_arch'] = 'ZEN3'
- 
+
          # Disable SIMD for specific CUDA versions
          if self.version == '2Aug2023_update2':
              if get_cpu_architecture() == AARCH64:
@@ -961,12 +961,12 @@ def pre_configure_hook_LAMMPS_zen4_and_Aarch64_cuda(self, *args, **kwargs):
                              if dep['version'] in cuda_version:
                                  cxxflags = os.getenv('CXXFLAGS', '')
                                  cxxflags = cxxflags.replace('-mcpu=native', '')
-                                 # All ARM targets of 2Aug2023_update are build with ARMV80 or ARM81. 
+                                 # All ARM targets of 2Aug2023_update are build with ARMV80 or ARM81.
                                  # This is not the case for newer versions.
                                  cxxflags += ' -march=armv8-a+nosimd'
                                  self.log.info("Setting CXXFLAGS to disable NEON: %s", cxxflags)
                                  env.setvar('CXXFLAGS', cxxflags)
- 
+
      else:
          raise EasyBuildError("LAMMPS-specific hook triggered for non-LAMMPS easyconfig?!")
 
