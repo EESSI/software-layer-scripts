@@ -67,6 +67,20 @@ EESSI_SUPPORTED_TOP_LEVEL_TOOLCHAINS = {
 }
 
 
+# Ensure that we don't print any messages in --terse mode
+orig_print_msg = print_msg
+orig_print_warning = print_warning
+
+def print_msg(*args, **kwargs):
+    if not build_option('terse'):
+        orig_print_msg(*args, **kwargs)
+
+    
+def print_warning(*args, **kwargs):
+    if not build_option('terse'):
+        orig_print_warning(*args, **kwargs)
+
+
 def is_gcccore_1220_based(**kwargs):
 # ecname, ecversion, tcname, tcversion):
     """
