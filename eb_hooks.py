@@ -154,6 +154,9 @@ def parse_hook(ec, *args, **kwargs):
     if cpu_target == CPU_TARGET_ZEN4:
         parse_hook_zen4_module_only(ec, eprefix)
 
+    # All A64FX builds for the 2022b toolchain should use a newer Rust version, as the original one does not work
+    parse_hook_bump_rust_version_in_2022b_for_a64fx(ec, eprefix)
+
     # inject the GPU property (if required)
     ec = inject_gpu_property(ec)
 
@@ -446,6 +449,26 @@ def parse_hook_openblas_relax_lapack_tests_num_errors(ec, eprefix):
                 print_msg("Not changing option %s for %s on non-AARCH64", cfg_option, ec.name)
     else:
         raise EasyBuildError("OpenBLAS-specific hook triggered for non-OpenBLAS easyconfig?!")
+
+
+def parse_hook_bump_rust_version_in_2022b_for_a64fx(ec, eprefix):
+    """
+    Replace Rust 1.65.0 build dependency by version 1.75.0 for A64FX builds,
+    because version 1.65.0 has build issues.
+    """
+    cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+    if cpu_target == CPU_TARGET_A64FX:
+        if is_gcccore_1220_based(ecname=ec['name'], ecversion=ec['version'],
+                                tcname=ec['toolchain']['name'], tcversion=ec['toolchain']['version']):
+
+            build_deps = ec['builddependencies']
+            rust_name = 'Rust'
+            rust_original_version = '1.65.0'
+            rust_new_version = '1.75.0'
+            for idx, build_dep in enumerate(build_deps):
+                if build_dep[0] == rust_name and build_dep[1] == rust_original_version:
+                    build_deps[idx] = (rust_name, rust_new_version)
+                    break
 
 
 def parse_hook_pybind11_replace_catch2(ec, eprefix):
