@@ -443,7 +443,7 @@ def parse_hook_bump_rust_version_in_2022b_for_a64fx(ec, eprefix):
     because version 1.65.0 has build issues.
     """
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
-    if cpu_target == CPU_TARGET_A64FX
+    if cpu_target == CPU_TARGET_A64FX:
         if is_gcccore_1220_based(ecname=ec['name'], ecversion=ec['version'],
                                 tcname=ec['toolchain']['name'], tcversion=ec['toolchain']['version']):
 
