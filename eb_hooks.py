@@ -967,8 +967,8 @@ def pre_configure_hook_LAMMPS_zen4_and_Aarch64_cuda(self, *args, **kwargs):
                                  self.log.info("Setting CXXFLAGS to disable NEON: %s", cxxflags)
                                  env.setvar('CXXFLAGS', cxxflags)
 
-     else:
-         raise EasyBuildError("LAMMPS-specific hook triggered for non-LAMMPS easyconfig?!")
+    else:
+        raise EasyBuildError("LAMMPS-specific hook triggered for non-LAMMPS easyconfig?!")
 
 def pre_configure_hook_cmake_system(self, *args, **kwargs):
     """
