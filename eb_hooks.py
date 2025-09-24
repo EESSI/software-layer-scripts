@@ -958,7 +958,7 @@ def pre_configure_hook_LAMMPS_zen4_and_Aarch64_cuda(self, *args, **kwargs):
                  if ('CUDA' in [dep['name'] for dep in deps]):
                      for dep in deps:
                          if 'CUDA' == dep['name']:
-                             if dep['version'] in cuda_version:
+                             if dep['version'] in cuda_versions:
                                  cxxflags = os.getenv('CXXFLAGS', '')
                                  cxxflags = cxxflags.replace('-mcpu=native', '')
                                  # All ARM targets of 2Aug2023_update are build with ARMV80 or ARM81.
