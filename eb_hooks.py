@@ -68,16 +68,17 @@ EESSI_SUPPORTED_TOP_LEVEL_TOOLCHAINS = {
 
 
 # Ensure that we don't print any messages in --terse mode
+# Note that --terse was introduced in EB 4.9.1
 orig_print_msg = print_msg
 orig_print_warning = print_warning
 
 def print_msg(*args, **kwargs):
-    if not build_option('terse'):
+    if EASYBUILD_VERSION < '4.9.1' or not build_option('terse'):
         orig_print_msg(*args, **kwargs)
 
-    
+
 def print_warning(*args, **kwargs):
-    if not build_option('terse'):
+    if EASYBUILD_VERSION < '4.9.1' or not build_option('terse'):
         orig_print_warning(*args, **kwargs)
 
 
