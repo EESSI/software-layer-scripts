@@ -920,6 +920,42 @@ def pre_configure_hook_openblas_optarch_generic(self, *args, **kwargs):
         raise EasyBuildError("OpenBLAS-specific hook triggered for non-OpenBLAS easyconfig?!")
 
 
+def pre_configure_hook_openmpi_ipv6(self, *args, **kwargs):
+    """
+    Pre-configure hook to enable IPv6 support in OpenMPI from EESSI 2025.06 onwards
+    """
+    if self.name == 'OpenMPI':
+        eessi_version = get_eessi_envvar('EESSI_VERSION')
+        if eessi_version and LooseVersion(eessi_version) >= '2025.06':
+            self.cfg.update('configopts', '--enable-ipv6')
+    else:
+        raise EasyBuildError("OpenMPI-specific hook triggered for non-OpenMPI easyconfig?!")
+
+
+def pre_configure_hook_pmix_ipv6(self, *args, **kwargs):
+    """
+    Pre-configure hook to enable IPv6 support in PMIx from EESSI 2025.06 onwards
+    """
+    if self.name == 'PMIx':
+        eessi_version = get_eessi_envvar('EESSI_VERSION')
+        if eessi_version and LooseVersion(eessi_version) >= '2025.06':
+            self.cfg.update('configopts', '--enable-ipv6')
+    else:
+        raise EasyBuildError("PMIx-specific hook triggered for non-PMIx easyconfig?!")
+
+
+def pre_configure_hook_prrte_ipv6(self, *args, **kwargs):
+    """
+    Pre-configure hook to enable IPv6 support in PRRTE from EESSI 2025.06 onwards
+    """
+    if self.name == 'PRRTE':
+        eessi_version = get_eessi_envvar('EESSI_VERSION')
+        if eessi_version and LooseVersion(eessi_version) >= '2025.06':
+            self.cfg.update('configopts', '--enable-ipv6')
+    else:
+        raise EasyBuildError("PRRTE-specific hook triggered for non-PRRTE easyconfig?!")
+
+
 def pre_configure_hook_libfabric_disable_psm3_x86_64_generic(self, *args, **kwargs):
     """Add --disable-psm3 to libfabric configure options when building with --optarch=GENERIC on x86_64."""
     if self.name == 'libfabric':
@@ -1539,6 +1575,9 @@ PRE_CONFIGURE_HOOKS = {
     'ROCm-LLVM': pre_configure_hook_llvm,
     'MetaBAT': pre_configure_hook_metabat_filtered_zlib_dep,
     'OpenBLAS': pre_configure_hook_openblas_optarch_generic,
+    'OpenMPI': pre_configure_hook_openmpi_ipv6,
+    'PMIx': pre_configure_hook_pmix_ipv6,
+    'PRRTE': pre_configure_hook_prrte_ipv6,
     'WRF': pre_configure_hook_wrf_aarch64,
     'LAMMPS': pre_configure_hook_LAMMPS_zen4,
     'Score-P': pre_configure_hook_score_p,
