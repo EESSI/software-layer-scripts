@@ -1042,9 +1042,12 @@ def pre_configure_hook_LAMMPS_zen4_and_Aarch64_cuda(self, *args, **kwargs):
                             if dep['version'] in cuda_versions:
                                 cxxflags = os.getenv('CXXFLAGS', '')
                                 cxxflags = cxxflags.replace('-mcpu=native', '')
-                                # All ARM targets of 2Aug2023_update are build with ARMV80 or ARM81.
-                                # This is not the case for newer versions.
-                                cxxflags += ' -march=armv8-a+nosimd'
+                                if cpu_target == CPU_TARGET_AARCH64_GENERIC:
+                                    # For targets build with ARMV80
+                                    cxxflags += ' -march=armv7-a+nosimd'
+                                else:
+                                    # In 2Aug2023 all other targets are build with ARMV81
+                                    cxxflags += ' -march=armv8-a+nosimd'
                                 self.log.info("Setting CXXFLAGS to disable NEON: %s", cxxflags)
                                 env.setvar('CXXFLAGS', cxxflags)
 
