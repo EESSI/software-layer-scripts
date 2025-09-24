@@ -1003,7 +1003,7 @@ def pre_configure_hook_wrf_aarch64(self, *args, **kwargs):
         raise EasyBuildError("WRF-specific hook triggered for non-WRF easyconfig?!")
 
 
-def pre_configure_hook_LAMMPS_zen4_and_Aarch64_cuda(self, *args, **kwargs):
+def pre_configure_hook_LAMMPS_zen4_and_aarch64_cuda(self, *args, **kwargs):
     """
     pre-configure hook for LAMMPS:
     - set kokkos_arch on x86_64/amd/zen4 and aarch64/nvidia/grace
@@ -1031,7 +1031,7 @@ def pre_configure_hook_LAMMPS_zen4_and_Aarch64_cuda(self, *args, **kwargs):
                     self.cfg['kokkos_arch'] = 'ARMV81'
                 # To disable simd kokkos_arch need to be set to ARMV7
                 if self.cuda:
-                    self.cfg['kokkos_arch'] = 'NATIVE'
+                    self.cfg['kokkos_arch'] = 'ARMV7'
 
         # Disable SIMD for specific CUDA versions
         if self.version == '2Aug2023_update2':
@@ -1614,7 +1614,7 @@ PRE_CONFIGURE_HOOKS = {
     'PMIx': pre_configure_hook_pmix_ipv6,
     'PRRTE': pre_configure_hook_prrte_ipv6,
     'WRF': pre_configure_hook_wrf_aarch64,
-    'LAMMPS': pre_configure_hook_LAMMPS_zen4_and_Aarch64_cuda,
+    'LAMMPS': pre_configure_hook_LAMMPS_zen4_and_aarch64_cuda,
     'Score-P': pre_configure_hook_score_p,
     'VSEARCH': pre_configure_hook_vsearch,
     'CMake': pre_configure_hook_cmake_system,
