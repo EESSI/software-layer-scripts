@@ -67,6 +67,21 @@ EESSI_SUPPORTED_TOP_LEVEL_TOOLCHAINS = {
 }
 
 
+# Ensure that we don't print any messages in --terse mode
+# Note that --terse was introduced in EB 4.9.1
+orig_print_msg = print_msg
+orig_print_warning = print_warning
+
+def print_msg(*args, **kwargs):
+    if EASYBUILD_VERSION < '4.9.1' or not build_option('terse'):
+        orig_print_msg(*args, **kwargs)
+
+
+def print_warning(*args, **kwargs):
+    if EASYBUILD_VERSION < '4.9.1' or not build_option('terse'):
+        orig_print_warning(*args, **kwargs)
+
+
 def is_gcccore_1220_based(**kwargs):
 # ecname, ecversion, tcname, tcversion):
     """
@@ -139,6 +154,9 @@ def parse_hook(ec, *args, **kwargs):
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
     if cpu_target == CPU_TARGET_ZEN4:
         parse_hook_zen4_module_only(ec, eprefix)
+
+    # All A64FX builds for the 2022b toolchain should use a newer Rust version, as the original one does not work
+    parse_hook_bump_rust_version_in_2022b_for_a64fx(ec, eprefix)
 
     # inject the GPU property (if required)
     ec = inject_gpu_property(ec)
@@ -432,6 +450,26 @@ def parse_hook_openblas_relax_lapack_tests_num_errors(ec, eprefix):
                 print_msg("Not changing option %s for %s on non-AARCH64", cfg_option, ec.name)
     else:
         raise EasyBuildError("OpenBLAS-specific hook triggered for non-OpenBLAS easyconfig?!")
+
+
+def parse_hook_bump_rust_version_in_2022b_for_a64fx(ec, eprefix):
+    """
+    Replace Rust 1.65.0 build dependency by version 1.75.0 for A64FX builds,
+    because version 1.65.0 has build issues.
+    """
+    cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+    if cpu_target == CPU_TARGET_A64FX:
+        if is_gcccore_1220_based(ecname=ec['name'], ecversion=ec['version'],
+                                tcname=ec['toolchain']['name'], tcversion=ec['toolchain']['version']):
+
+            build_deps = ec['builddependencies']
+            rust_name = 'Rust'
+            rust_original_version = '1.65.0'
+            rust_new_version = '1.75.0'
+            for idx, build_dep in enumerate(build_deps):
+                if build_dep[0] == rust_name and build_dep[1] == rust_original_version:
+                    build_deps[idx] = (rust_name, rust_new_version)
+                    break
 
 
 def parse_hook_pybind11_replace_catch2(ec, eprefix):
@@ -880,6 +918,42 @@ def pre_configure_hook_openblas_optarch_generic(self, *args, **kwargs):
                     env.setvar('CFLAGS', cflags)
     else:
         raise EasyBuildError("OpenBLAS-specific hook triggered for non-OpenBLAS easyconfig?!")
+
+
+def pre_configure_hook_openmpi_ipv6(self, *args, **kwargs):
+    """
+    Pre-configure hook to enable IPv6 support in OpenMPI from EESSI 2025.06 onwards
+    """
+    if self.name == 'OpenMPI':
+        eessi_version = get_eessi_envvar('EESSI_VERSION')
+        if eessi_version and LooseVersion(eessi_version) >= '2025.06':
+            self.cfg.update('configopts', '--enable-ipv6')
+    else:
+        raise EasyBuildError("OpenMPI-specific hook triggered for non-OpenMPI easyconfig?!")
+
+
+def pre_configure_hook_pmix_ipv6(self, *args, **kwargs):
+    """
+    Pre-configure hook to enable IPv6 support in PMIx from EESSI 2025.06 onwards
+    """
+    if self.name == 'PMIx':
+        eessi_version = get_eessi_envvar('EESSI_VERSION')
+        if eessi_version and LooseVersion(eessi_version) >= '2025.06':
+            self.cfg.update('configopts', '--enable-ipv6')
+    else:
+        raise EasyBuildError("PMIx-specific hook triggered for non-PMIx easyconfig?!")
+
+
+def pre_configure_hook_prrte_ipv6(self, *args, **kwargs):
+    """
+    Pre-configure hook to enable IPv6 support in PRRTE from EESSI 2025.06 onwards
+    """
+    if self.name == 'PRRTE':
+        eessi_version = get_eessi_envvar('EESSI_VERSION')
+        if eessi_version and LooseVersion(eessi_version) >= '2025.06':
+            self.cfg.update('configopts', '--enable-ipv6')
+    else:
+        raise EasyBuildError("PRRTE-specific hook triggered for non-PRRTE easyconfig?!")
 
 
 def pre_configure_hook_libfabric_disable_psm3_x86_64_generic(self, *args, **kwargs):
@@ -1525,6 +1599,9 @@ PRE_CONFIGURE_HOOKS = {
     'ROCm-LLVM': pre_configure_hook_llvm,
     'MetaBAT': pre_configure_hook_metabat_filtered_zlib_dep,
     'OpenBLAS': pre_configure_hook_openblas_optarch_generic,
+    'OpenMPI': pre_configure_hook_openmpi_ipv6,
+    'PMIx': pre_configure_hook_pmix_ipv6,
+    'PRRTE': pre_configure_hook_prrte_ipv6,
     'WRF': pre_configure_hook_wrf_aarch64,
     'LAMMPS': pre_configure_hook_LAMMPS_zen4_and_Aarch64_cuda,
     'Score-P': pre_configure_hook_score_p,
