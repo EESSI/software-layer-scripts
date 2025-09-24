@@ -1027,8 +1027,13 @@ def pre_configure_hook_LAMMPS_zen4_and_Aarch64_cuda(self, *args, **kwargs):
                     self.cfg['kokkos_arch'] = 'ZEN3'
             elif get_cpu_architecture() == AARCH64:
                 if cpu_target == CPU_TARGET_NVIDIA_GRACE:
-                    # There is no support for NVIDA grace in LAMMPS yet so falling back to ARMV81
-                    self.cfg['kokkos_arch'] = 'ARMV81'
+                    # There is no support for NVIDA grace in LAMMPS yet so falling back to older kokkos_arch
+                    if self.cuda:
+                        # Need to fall back to ARMV7 for CUDA builds because of problem with cuda
+                        self.cfg['kokkos_arch'] = 'ARMV7'
+                    else:
+                        # There is no support for NVIDA grace in LAMMPS yet so falling back to ARMV81
+                        self.cfg['kokkos_arch'] = 'ARMV81'
 
         # Disable SIMD for specific CUDA versions
         if self.version == '2Aug2023_update2':
