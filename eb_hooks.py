@@ -1048,6 +1048,7 @@ def pre_configure_hook_LAMMPS_zen4_and_Aarch64_cuda(self, *args, **kwargs):
     else:
         raise EasyBuildError("LAMMPS-specific hook triggered for non-LAMMPS easyconfig?!")
 
+
 def pre_configure_hook_cmake_system(self, *args, **kwargs):
     """
     pre-configure hook for CMake built with SYSTEM toolchain:
