@@ -1,4 +1,5 @@
 # DO NOT MERGE
 # this is solely for testing the new hook on ARM + CUDA targets
 easyconfigs:
-  - LAMMPS-2Aug2023_update2-foss-2023a-kokkos-CUDA-12.1.1.eb
+  - LAMMPS-2Aug2023_update2-foss-2023a-kokkos-CUDA-12.1.1.eb:
+      include-easyblocks-from-pr: 3943
