@@ -1031,7 +1031,7 @@ def pre_configure_hook_LAMMPS_zen4_and_aarch64_cuda(self, *args, **kwargs):
                     self.cfg['kokkos_arch'] = 'ARMV81'
                 # To disable simd kokkos_arch need to be set to ARMV7
                 if self.cuda:
-                    self.cfg['kokkos_arch'] = 'NATIVE'
+                    self.cfg['kokkos_arch'] = 'ARMV70'
 
         # Disable SIMD for specific CUDA versions
         if self.version == '2Aug2023_update2':
@@ -1042,12 +1042,7 @@ def pre_configure_hook_LAMMPS_zen4_and_aarch64_cuda(self, *args, **kwargs):
                             if dep['version'] in cuda_versions:
                                 cxxflags = os.getenv('CXXFLAGS', '')
                                 cxxflags = cxxflags.replace('-mcpu=native', '')
-                                if cpu_target == CPU_TARGET_AARCH64_GENERIC:
-                                    # For targets build with ARMV80
-                                    cxxflags += ' -march=armv7-a+nosimd'
-                                else:
-                                    # In 2Aug2023 all other targets are build with ARMV81
-                                    cxxflags += ' -march=armv8-a+nosimd'
+                                cxxflags += ' -march=armv8-a+nosimd'
                                 self.log.info("Setting CXXFLAGS to disable NEON: %s", cxxflags)
                                 env.setvar('CXXFLAGS', cxxflags)
 
