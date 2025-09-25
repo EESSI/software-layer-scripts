@@ -1020,6 +1020,7 @@ def pre_configure_hook_LAMMPS_zen4_and_aarch64_cuda(self, *args, **kwargs):
     if self.name == 'LAMMPS':
 
         # Set kokkos_arch for LAMMPS version which do not have support for the target architecture
+        # This is no longer required with easybuild 5.1.2
         if self.version in ('2Aug2023_update2', '2Aug2023_update4', '29Aug2024'):
             if get_cpu_architecture() == X86_64:
                 if cpu_target == CPU_TARGET_ZEN4:
@@ -1029,12 +1030,6 @@ def pre_configure_hook_LAMMPS_zen4_and_aarch64_cuda(self, *args, **kwargs):
                 if cpu_target == CPU_TARGET_NVIDIA_GRACE:
                     # There is no support for NVIDA grace in LAMMPS yet so falling back to ARMV81
                     self.cfg['kokkos_arch'] = 'ARMV81'
-                # To disable simd kokkos_arch need to be set to ARMV7
-                if ('CUDA' in [dep['name'] for dep in deps]):
-                    for dep in deps:
-                        if 'CUDA' == dep['name']:
-                            if dep['version'] in cuda_versions:
-                                self.cfg['kokkos_arch'] = 'ARMV70'
 
         # Disable SIMD for specific CUDA versions
         if self.version == '2Aug2023_update2':
@@ -1043,6 +1038,7 @@ def pre_configure_hook_LAMMPS_zen4_and_aarch64_cuda(self, *args, **kwargs):
                     for dep in deps:
                         if 'CUDA' == dep['name']:
                             if dep['version'] in cuda_versions:
+                                self.cfg['kokkos_arch'] = 'ARMV70'
                                 cxxflags = os.getenv('CXXFLAGS', '')
                                 cxxflags = cxxflags.replace('-mcpu=native', '')
                                 cxxflags += ' -march=armv8-a+nosimd'
