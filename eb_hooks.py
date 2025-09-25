@@ -1013,10 +1013,6 @@ def pre_configure_hook_LAMMPS_zen4_and_aarch64_cuda(self, *args, **kwargs):
     # Get cpu_target for zen4 hook
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
 
-    # Get the dependencies to check CUDA
-    deps = self.cfg.dependencies()
-    cuda_versions = ('12.1.1')
-
     if self.name == 'LAMMPS':
 
         # Set kokkos_arch for LAMMPS version which do not have support for the target architecture
@@ -1034,10 +1030,11 @@ def pre_configure_hook_LAMMPS_zen4_and_aarch64_cuda(self, *args, **kwargs):
         # Disable SIMD for specific CUDA versions
         if self.version == '2Aug2023_update2':
             if get_cpu_architecture() == AARCH64:
-                if ('CUDA' in [dep['name'] for dep in deps]):
-                    for dep in deps:
+                if self.cuda:
+                    for dep in deps = self.cfg.dependencies():
                         if 'CUDA' == dep['name']:
-                            if dep['version'] in cuda_versions:
+                            # This was broken until CUDA 13.1
+                            if dep['version'] < LooseVersion('13.1'):
                                 self.cfg['kokkos_arch'] = 'ARMV70'
                                 cxxflags = os.getenv('CXXFLAGS', '')
                                 cxxflags = cxxflags.replace('-mcpu=native', '')
