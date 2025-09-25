@@ -1031,7 +1031,7 @@ def pre_configure_hook_LAMMPS_zen4_and_aarch64_cuda(self, *args, **kwargs):
                     self.cfg['kokkos_arch'] = 'ARMV81'
                 # To disable simd kokkos_arch need to be set to ARMV7
                 if self.cuda:
-                    self.cfg['kokkos_arch'] = 'ARMV7'
+                    self.cfg['kokkos_arch'] = 'NATIVE'
 
         # Disable SIMD for specific CUDA versions
         if self.version == '2Aug2023_update2':
