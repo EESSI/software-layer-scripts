@@ -14,6 +14,7 @@ conflict("EESSI")
 local eessi_version = myModuleVersion()
 local eessi_repo = "/cvmfs/software.eessi.io"
 local eessi_prefix = pathJoin(eessi_repo, "versions", eessi_version)
+local eessi_compat_prefix = pathJoin(eessi_prefix, "compat")
 local eessi_archdetect_prefix = pathJoin(eessi_prefix, "init")
 local eessi_os_type = "linux"
 -- for RISC-V clients we need to do some overrides, as things are stored in different CVMFS repositories
@@ -22,6 +23,7 @@ if (subprocess("uname -m"):gsub("\n$","") == "riscv64") then
         eessi_version = os.getenv("EESSI_VERSION_OVERRIDE") or "20240402"
         eessi_repo = "/cvmfs/riscv.eessi.io"
         eessi_prefix = pathJoin(eessi_repo, "versions", eessi_version)
+        eessi_compat_prefix = pathJoin(eessi_prefix, "compat")
         if mode() == "load" then
             LmodMessage("RISC-V architecture detected, but there is no RISC-V support yet in the production repository.\n" ..
                         "Automatically switching to version " .. eessi_version .. " of the RISC-V development repository " .. eessi_repo .. ".\n" ..
@@ -105,7 +107,7 @@ local archdetect_accel = archdetect_accel()
 local eessi_cpu_family = archdetect:match("([^/]+)")
 local eessi_software_subdir = archdetect
 -- eessi_eprefix is the base location of the compat layer, e.g., /cvmfs/software.eessi.io/versions/<EESSI_VERSION>/compat/linux/x86_64
-local eessi_eprefix = pathJoin(eessi_prefix, "compat", eessi_os_type, eessi_cpu_family)
+local eessi_eprefix = pathJoin(eessi_compat_prefix, eessi_os_type, eessi_cpu_family)
 -- eessi_software_path is the location of the software installations, e.g.,
 -- /cvmfs/software.eessi.io/versions/<EESSI_VERSION>/software/linux/x86_64/amd/zen3
 local eessi_software_path = pathJoin(eessi_prefix, "software", eessi_os_type, eessi_software_subdir)
