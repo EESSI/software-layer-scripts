@@ -1024,19 +1024,44 @@ def pre_configure_hook_wrf_aarch64(self, *args, **kwargs):
         raise EasyBuildError("WRF-specific hook triggered for non-WRF easyconfig?!")
 
 
-def pre_configure_hook_LAMMPS_zen4(self, *args, **kwargs):
+def pre_configure_hook_LAMMPS_zen4_and_aarch64_cuda(self, *args, **kwargs):
     """
     pre-configure hook for LAMMPS:
-    - set kokkos_arch on x86_64/amd/zen4
+    - set kokkos_arch on x86_64/amd/zen4 and aarch64/nvidia/grace
+    - Disable SIMD for Aarch64 + cuda builds
     """
 
+    # Get cpu_target for zen4 hook
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+
     if self.name == 'LAMMPS':
+        # Set kokkos_arch for LAMMPS version which do not have support for the target architecture
+        # This is no longer required with easybuild 5.1.2
         if self.version in ('2Aug2023_update2', '2Aug2023_update4', '29Aug2024'):
             if get_cpu_architecture() == X86_64:
                 if cpu_target == CPU_TARGET_ZEN4:
                     # There is no support for ZEN4 in LAMMPS yet so falling back to ZEN3
                     self.cfg['kokkos_arch'] = 'ZEN3'
+            elif get_cpu_architecture() == AARCH64:
+                if cpu_target == CPU_TARGET_NVIDIA_GRACE:
+                    # There is no support for NVIDA grace in LAMMPS yet so falling back to ARMV81
+                    self.cfg['kokkos_arch'] = 'ARMV81'
+
+        # Disable SIMD for specific CUDA versions
+        if self.version == '2Aug2023_update2':
+            if get_cpu_architecture() == AARCH64:
+                if self.cuda:
+                    for dep in self.cfg.dependencies():
+                        if 'CUDA' == dep['name']:
+                            # This was broken until CUDA 13.1
+                            if dep['version'] < LooseVersion('13.1'):
+                                self.cfg['kokkos_arch'] = 'ARMV70'
+                                cxxflags = os.getenv('CXXFLAGS', '')
+                                cxxflags = cxxflags.replace('-mcpu=native', '')
+                                cxxflags += ' -march=armv8-a+nosimd'
+                                self.log.info("Setting CXXFLAGS to disable NEON: %s", cxxflags)
+                                env.setvar('CXXFLAGS', cxxflags)
+
     else:
         raise EasyBuildError("LAMMPS-specific hook triggered for non-LAMMPS easyconfig?!")
 
@@ -1596,7 +1621,7 @@ PRE_CONFIGURE_HOOKS = {
     'PMIx': pre_configure_hook_pmix_ipv6,
     'PRRTE': pre_configure_hook_prrte_ipv6,
     'WRF': pre_configure_hook_wrf_aarch64,
-    'LAMMPS': pre_configure_hook_LAMMPS_zen4,
+    'LAMMPS': pre_configure_hook_LAMMPS_zen4_and_aarch64_cuda,
     'Score-P': pre_configure_hook_score_p,
     'VSEARCH': pre_configure_hook_vsearch,
     'CMake': pre_configure_hook_cmake_system,
