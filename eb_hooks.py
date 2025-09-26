@@ -636,34 +636,36 @@ def pre_fetch_hook_unsupported_modules(self, *args, **kwargs):
 def pre_module_hook_unsupported_module(self, *args, **kwargs):
     """Make module load-able during module step"""
     ignore_lmoderror_envvar = is_unsupported_module(self)
-    if ignore_lmoderror_envvar and hasattr(self, 'initial_environ'):
-        # Allow the module to be loaded in the module step (which uses initial environment)
-        print_msg(f"Setting {ignore_lmoderror_envvar} in initial environment")
-        self.initial_environ[ignore_lmoderror_envvar] = "1"
+    if ignore_lmoderror_envvar:
+        if hasattr(self, 'initial_environ'):
+            # Allow the module to be loaded in the module step (which uses initial environment)
+            print_msg(f"Setting {ignore_lmoderror_envvar} in initial environment")
+            self.initial_environ[ignore_lmoderror_envvar] = "1"
 
 
 def post_module_hook_unsupported_module(self, *args, **kwargs):
     """Revert changes from pre_fetch_hook_unsupported_modules"""
     ignore_lmoderror_envvar = is_unsupported_module(self)
-    if hasattr(self, EESSI_MODULE_ONLY_ATTR):
-        update_build_option('module_only', getattr(self, EESSI_MODULE_ONLY_ATTR))
-        print_msg("Restored original build option 'module_only' to %s" % getattr(self, EESSI_MODULE_ONLY_ATTR))
-    else:
-        raise EasyBuildError("Cannot restore module_only to it's original value: 'self' is missing attribute %s.",
-                             EESSI_MODULE_ONLY_ATTR)
+    if ignore_lmoderror_envvar:
+        if hasattr(self, EESSI_MODULE_ONLY_ATTR):
+            update_build_option('module_only', getattr(self, EESSI_MODULE_ONLY_ATTR))
+            print_msg("Restored original build option 'module_only' to %s" % getattr(self, EESSI_MODULE_ONLY_ATTR))
+        else:
+            raise EasyBuildError("Cannot restore module_only to it's original value: 'self' is missing attribute %s.",
+                                 EESSI_MODULE_ONLY_ATTR)
 
-    if hasattr(self, EESSI_FORCE_ATTR):
-        update_build_option('force', getattr(self, EESSI_FORCE_ATTR))
-        print_msg("Restored original build option 'force' to %s" % getattr(self, EESSI_FORCE_ATTR))
-    else:
-        raise EasyBuildError("Cannot restore force to it's original value: 'self' is misisng attribute %s.",
-                             EESSI_FORCE_ATTR)
+        if hasattr(self, EESSI_FORCE_ATTR):
+            update_build_option('force', getattr(self, EESSI_FORCE_ATTR))
+            print_msg("Restored original build option 'force' to %s" % getattr(self, EESSI_FORCE_ATTR))
+        else:
+            raise EasyBuildError("Cannot restore force to it's original value: 'self' is misisng attribute %s.",
+                                 EESSI_FORCE_ATTR)
 
-    # If the variable to allow loading is set, remove it
-    if ignore_lmoderror_envvar and hasattr(self, 'initial_environ'):
-        if self.initial_environ.get(ignore_lmoderror_envvar, False):
-            print_msg(f"Removing {ignore_lmoderror_envvar} in initial environment")
-            del self.initial_environ[ignore_lmoderror_envvar]
+        # If the variable to allow loading is set, remove it
+        if hasattr(self, 'initial_environ'):
+            if self.initial_environ.get(ignore_lmoderror_envvar, False):
+                print_msg(f"Removing {ignore_lmoderror_envvar} in initial environment")
+                del self.initial_environ[ignore_lmoderror_envvar]
 
 
 def post_easyblock_hook_copy_easybuild_subdir(self, *args, **kwargs):
@@ -1526,8 +1528,7 @@ def pre_module_hook(self, *args, **kwargs):
         PRE_MODULE_HOOKS[self.name](self, *args, **kwargs)
 
     # Always trigger this one, regardless of self.name
-    if is_unsupported_module(self):
-        pre_module_hook_unsupported_module(self, *args, **kwargs)
+    pre_module_hook_unsupported_module(self, *args, **kwargs)
 
 
 def post_module_hook(self, *args, **kwargs):
@@ -1536,8 +1537,7 @@ def post_module_hook(self, *args, **kwargs):
         POST_MODULE_HOOKS[self.name](self, *args, **kwargs)
 
     # Always trigger this one, regardless of self.name
-    if is_unsupported_module(self):
-        post_module_hook_unsupported_module(self, *args, **kwargs)
+    post_module_hook_unsupported_module(self, *args, **kwargs)
 
 
 # The post_easyblock_hook was introduced in EasyBuild 5.1.1.
