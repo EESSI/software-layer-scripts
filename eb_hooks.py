@@ -1014,7 +1014,6 @@ def pre_configure_hook_LAMMPS_zen4_and_aarch64_cuda(self, *args, **kwargs):
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
 
     if self.name == 'LAMMPS':
-
         # Set kokkos_arch for LAMMPS version which do not have support for the target architecture
         # This is no longer required with easybuild 5.1.2
         if self.version in ('2Aug2023_update2', '2Aug2023_update4', '29Aug2024'):
