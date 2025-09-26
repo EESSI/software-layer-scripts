@@ -1031,7 +1031,7 @@ def pre_configure_hook_LAMMPS_zen4_and_aarch64_cuda(self, *args, **kwargs):
         if self.version == '2Aug2023_update2':
             if get_cpu_architecture() == AARCH64:
                 if self.cuda:
-                    for dep in deps = self.cfg.dependencies():
+                    for dep in self.cfg.dependencies():
                         if 'CUDA' == dep['name']:
                             # This was broken until CUDA 13.1
                             if dep['version'] < LooseVersion('13.1'):
