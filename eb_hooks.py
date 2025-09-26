@@ -50,6 +50,7 @@ EESSI_INSTALLATION_REGEX = r"^/cvmfs/[^/]*.eessi.io/versions/"
 HOST_INJECTIONS_LOCATION = "/cvmfs/software.eessi.io/host_injections/"
 
 # Make sure a single environment variable name is used for this throughout the hooks
+EESSI_IGNORE_A64FX_RUST1650_ENVVAR="EESSI_IGNORE_LMOD_ERROR_A64FX_RUST1650"
 EESSI_IGNORE_ZEN4_GCC1220_ENVVAR="EESSI_IGNORE_LMOD_ERROR_ZEN4_GCC1220"
 
 STACK_REPROD_SUBDIR = 'reprod'
@@ -458,7 +459,14 @@ def parse_hook_bump_rust_version_in_2022b_for_a64fx(ec, eprefix):
     because version 1.65.0 has build issues.
     """
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+
     if cpu_target == CPU_TARGET_A64FX:
+        # For Rust 1.65.0 itself we inject an error message in the module file
+        if ec['name'] == 'Rust' and ec['version'] == '1.65.0':
+            errmsg = "Rust 1.65.0 is not supported on A64FX. Please use version 1.75.0 instead."
+            ec['modluafooter'] = 'if (not os.getenv("%s")) then LmodError("%s") end' % (EESSI_IGNORE_A64FX_RUST1650_ENVVAR, errmsg)
+
+        # For any builds that have a build dependency on Rust 1.65.0, we bump the version to 1.75.0
         if is_gcccore_1220_based(ecname=ec['name'], ecversion=ec['version'],
                                 tcname=ec['toolchain']['name'], tcversion=ec['toolchain']['version']):
 
@@ -554,9 +562,7 @@ def pre_fetch_hook(self, *args, **kwargs):
         PRE_FETCH_HOOKS[ec.name](self, *args, **kwargs)
 
     # Always trigger this one, regardless of self.name
-    cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
-    if cpu_target == CPU_TARGET_ZEN4:
-        pre_fetch_hook_zen4_gcccore1220(self, *args, **kwargs)
+    pre_fetch_hook_unsupported_modules(self, *args, **kwargs)
 
     # Always check the software installation path
     pre_fetch_hook_check_installation_path(self, *args, **kwargs)
@@ -590,13 +596,28 @@ def pre_fetch_hook_check_installation_path(self, *args, **kwargs):
                     )
 
 
-def pre_fetch_hook_zen4_gcccore1220(self, *args, **kwargs):
-    """Use --force --module-only if building a foss-2022b-based EasyConfig for Zen4.
-    This toolchain will not be supported on Zen4, so we will generate a modulefile
-    and have it print an LmodError.
+def is_unsupported_module(ec):
     """
-    if is_gcccore_1220_based(ecname=self.name, ecversion=self.version, tcname=self.toolchain.name,
-                             tcversion=self.toolchain.version):
+    Determine if the given module is unsupported in EESSI, and hence if a dummy module needs to be built that just prints an LmodError.
+    If true, this function returns the name of the environment variable that can be used to ignore that particular LmodError,
+    as this is still required to actually build the module itself (EasyBuild will load/test the module).
+    Otherwise, it returns False.
+    """
+    cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+
+    if cpu_target == CPU_TARGET_A64FX and ec.name == 'Rust' and ec.version == '1.65.0':
+        return EESSI_IGNORE_A64FX_RUST1650_ENVVAR
+    if cpu_target == CPU_TARGET_ZEN4 and is_gcccore_1220_based(ecname=ec.name, ecversion=ec.version, tcname=ec.toolchain.name, tcversion=ec.toolchain.version):
+        return EESSI_IGNORE_ZEN4_GCC1220_ENVVAR
+    return False
+
+
+def pre_fetch_hook_unsupported_modules(self, *args, **kwargs):
+    """Use --force --module-only if building a module for unsupported software,
+    e.g. foss-2022b-based EasyConfigs for Zen4.
+    We will generate a modulefile and have it print an LmodError.
+    """
+    if is_unsupported_module(self):
         if hasattr(self, EESSI_MODULE_ONLY_ATTR):
             raise EasyBuildError("'self' already has attribute %s! Can't use pre_fetch hook.",
                                  EESSI_MODULE_ONLY_ATTR)
@@ -612,20 +633,20 @@ def pre_fetch_hook_zen4_gcccore1220(self, *args, **kwargs):
         print_msg("Updated build option 'force' to 'True'")
 
 
-def pre_module_hook_zen4_gcccore1220(self, *args, **kwargs):
+def pre_module_hook_unsupported_module(self, *args, **kwargs):
     """Make module load-able during module step"""
-    if is_gcccore_1220_based(ecname=self.name, ecversion=self.version, tcname=self.toolchain.name,
-                             tcversion=self.toolchain.version):
+    ignore_lmoderror_envvar = is_unsupported_module(self)
+    if ignore_lmoderror_envvar:
         if hasattr(self, 'initial_environ'):
             # Allow the module to be loaded in the module step (which uses initial environment)
-            print_msg(f"Setting {EESSI_IGNORE_ZEN4_GCC1220_ENVVAR} in initial environment")
-            self.initial_environ[EESSI_IGNORE_ZEN4_GCC1220_ENVVAR] = "1"
+            print_msg(f"Setting {ignore_lmoderror_envvar} in initial environment")
+            self.initial_environ[ignore_lmoderror_envvar] = "1"
 
 
-def post_module_hook_zen4_gcccore1220(self, *args, **kwargs):
-    """Revert changes from pre_fetch_hook_zen4_gcccore1220"""
-    if is_gcccore_1220_based(ecname=self.name, ecversion=self.version, tcname=self.toolchain.name,
-                             tcversion=self.toolchain.version):
+def post_module_hook_unsupported_module(self, *args, **kwargs):
+    """Revert changes from pre_fetch_hook_unsupported_modules"""
+    ignore_lmoderror_envvar = is_unsupported_module(self)
+    if ignore_lmoderror_envvar:
         if hasattr(self, EESSI_MODULE_ONLY_ATTR):
             update_build_option('module_only', getattr(self, EESSI_MODULE_ONLY_ATTR))
             print_msg("Restored original build option 'module_only' to %s" % getattr(self, EESSI_MODULE_ONLY_ATTR))
@@ -642,9 +663,9 @@ def post_module_hook_zen4_gcccore1220(self, *args, **kwargs):
 
         # If the variable to allow loading is set, remove it
         if hasattr(self, 'initial_environ'):
-            if self.initial_environ.get(EESSI_IGNORE_ZEN4_GCC1220_ENVVAR, False):
-                print_msg(f"Removing {EESSI_IGNORE_ZEN4_GCC1220_ENVVAR} in initial environment")
-                del self.initial_environ[EESSI_IGNORE_ZEN4_GCC1220_ENVVAR]
+            if self.initial_environ.get(ignore_lmoderror_envvar, False):
+                print_msg(f"Removing {ignore_lmoderror_envvar} in initial environment")
+                del self.initial_environ[ignore_lmoderror_envvar]
 
 
 def post_easyblock_hook_copy_easybuild_subdir(self, *args, **kwargs):
@@ -1532,9 +1553,7 @@ def pre_module_hook(self, *args, **kwargs):
         PRE_MODULE_HOOKS[self.name](self, *args, **kwargs)
 
     # Always trigger this one, regardless of self.name
-    cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
-    if cpu_target == CPU_TARGET_ZEN4:
-        pre_module_hook_zen4_gcccore1220(self, *args, **kwargs)
+    pre_module_hook_unsupported_module(self, *args, **kwargs)
 
 
 def post_module_hook(self, *args, **kwargs):
@@ -1543,9 +1562,7 @@ def post_module_hook(self, *args, **kwargs):
         POST_MODULE_HOOKS[self.name](self, *args, **kwargs)
 
     # Always trigger this one, regardless of self.name
-    cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
-    if cpu_target == CPU_TARGET_ZEN4:
-        post_module_hook_zen4_gcccore1220(self, *args, **kwargs)
+    post_module_hook_unsupported_module(self, *args, **kwargs)
 
 
 # The post_easyblock_hook was introduced in EasyBuild 5.1.1.
