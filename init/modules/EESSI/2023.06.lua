@@ -23,7 +23,7 @@ if (subprocess("uname -m"):gsub("\n$","") == "riscv64") then
         eessi_version = os.getenv("EESSI_VERSION_OVERRIDE") or "20240402"
         eessi_repo = "/cvmfs/riscv.eessi.io"
         eessi_prefix = pathJoin(eessi_repo, "versions", eessi_version)
-	eessi_compat_prefix = pathJoin(eessi_prefix, "compat")
+        eessi_compat_prefix = pathJoin(eessi_prefix, "compat")
         if mode() == "load" then
             LmodMessage("RISC-V architecture detected, but there is no RISC-V support yet in the production repository.\n" ..
                         "Automatically switching to version " .. eessi_version .. " of the RISC-V development repository " .. eessi_repo .. ".\n" ..
