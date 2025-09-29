@@ -10,15 +10,25 @@
 
 export EESSI_VERSION_DEFAULT='__EESSI_VERSION_DEFAULT__'
 
-# use different defaults for RISC-V, as we want to redirect to the riscv.eessi.io repo
+# use different defaults for RISC-V clients
 if [[ $(uname -m) == "riscv64" ]]; then
-    export EESSI_CVMFS_REPO="${EESSI_CVMFS_REPO_OVERRIDE:=/cvmfs/riscv.eessi.io}"
-    export EESSI_VERSION="${EESSI_VERSION_OVERRIDE:=20240402}"
-    if [[ -z ${EESSI_SILENT+x} ]]; then
-        echo "RISC-V architecture detected, but there is no RISC-V support yet in the production repository."
-        echo "Automatically switching to version ${EESSI_VERSION} of the RISC-V development repository ${EESSI_CVMFS_REPO}."
-        echo "For more details about this repository, see https://www.eessi.io/docs/repositories/riscv.eessi.io/."
-        echo ""
+    export EESSI_VERSION="${EESSI_VERSION_OVERRIDE:=${EESSI_VERSION_DEFAULT}}"
+    if [[ "${EESSI_VERSION}" == "2023.06" ]] || [[ "${EESSI_VERSION}" == "20240402" ]]; then
+        export EESSI_VERSION="${EESSI_VERSION_OVERRIDE:=20240402}"
+        export EESSI_CVMFS_REPO="${EESSI_CVMFS_REPO_OVERRIDE:=/cvmfs/riscv.eessi.io}"
+        if [[ -z ${EESSI_SILENT+x} ]]; then
+            echo "RISC-V architecture detected, but there is no RISC-V support yet in the production repository."
+            echo "Automatically switching to version ${EESSI_VERSION} of the RISC-V development repository ${EESSI_CVMFS_REPO}."
+            echo "For more details about this repository, see https://www.eessi.io/docs/repositories/riscv.eessi.io/."
+            echo ""
+        fi
+    elif [[ "${EESSI_VERSION_DEFAULT}" == "2025.06" ]]; then
+        export EESSI_CVMFS_REPO="${EESSI_CVMFS_REPO_OVERRIDE:=/cvmfs/dev.eessi.io/riscv}"
+        export EESSI_COMPAT_LAYER_DIR="/cvmfs/software.eessi.io/versions/${EESSI_VERSION_DEFAULT}/compat/linux/$(uname -m)"
+        if [[ -z ${EESSI_SILENT+x} ]]; then
+            echo "This EESSI production version only provides a RISC-V compatibility layer,"
+            echo "software installations are provided by the EESSI development repository at ${EESSI_CVMFS_REPO}."
+        fi
     fi
 else
     export EESSI_CVMFS_REPO="${EESSI_CVMFS_REPO_OVERRIDE:=/cvmfs/software.eessi.io}"
