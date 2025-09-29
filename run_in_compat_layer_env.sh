@@ -56,6 +56,9 @@ fi
 if [ ! -z ${EASYBUILD_ROBOT_PATHS} ]; then
     INPUT="export EASYBUILD_ROBOT_PATHS=${EASYBUILD_ROBOT_PATHS}; ${INPUT}"
 fi
+if [ ! -z ${EESSI_INIT_PREFIX} ]; then
+    INPUT="export EESSI_INIT_PREFIX=${EESSI_INIT_PREFIX}; ${INPUT}"
+fi
 
 echo "Running '${INPUT}' in EESSI (${EESSI_CVMFS_REPO}) ${EESSI_VERSION} compatibility layer environment..."
 ${EESSI_COMPAT_LAYER_DIR}/startprefix <<< "${INPUT}"
