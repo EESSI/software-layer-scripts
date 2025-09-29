@@ -779,6 +779,18 @@ def pre_configure_hook_CUDA_Samples_test_remove(self, *args, **kwargs):
         raise EasyBuildError("CUDA-Samples-specific hook triggered for non-CUDA-Samples easyconfig?!")
 
 
+def pre_configure_hook_freexl(self, *args, **kwargs):
+    """
+    Pre-configure hook for FreeXL
+    - Workaround for a Zlib macro being renamed in Gentoo, see https://bugs.gentoo.org/383179
+      (solves "expected initializer before 'OF'" errors)
+    """
+    if self.name == 'FreeXL':
+        self.cfg.update('configopts', 'CPPFLAGS="-DOF=_Z_OF ${CPPFLAGS}"')
+    else:
+        raise EasyBuildError("FreeXL-specific hook triggered for non-FreeXL easyconfig?!")
+
+
 def pre_configure_hook_score_p(self, *args, **kwargs):
     """
     Pre-configure hook for Score-p
@@ -1611,6 +1623,7 @@ PRE_CONFIGURE_HOOKS = {
     'CUDA-Samples': pre_configure_hook_CUDA_Samples_test_remove,
     'GObject-Introspection': pre_configure_hook_gobject_introspection,
     'Extrae': pre_configure_hook_extrae,
+    'FreeXL': pre_configure_hook_freexl,
     'GROMACS': pre_configure_hook_gromacs,
     'libfabric': pre_configure_hook_libfabric_disable_psm3_x86_64_generic,
     'LLVM': pre_configure_hook_llvm,
