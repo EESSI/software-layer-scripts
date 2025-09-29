@@ -409,6 +409,26 @@ def parse_hook_cgal_toolchainopts_precise(ec, eprefix):
         raise EasyBuildError("CGAL-specific hook triggered for non-CGAL easyconfig?!")
 
 
+def parse_hook_grass(ec, *args, **kwargs):
+    """
+    Parse hook to remove filtered deps specific configopts lines for readline, zlib, and bzlib
+    """
+    if ec.name == 'GRASS':
+        # Configuration options to remove
+        options_to_remove = [
+            '--with-readline-libs=$EBROOTLIBREADLINE/lib --with-readline-includes=$EBROOTLIBREADLINE/include ',
+            '--with-zlib-libs=$EBROOTZLIB/lib --with-zlib-includes=$EBROOTZLIB/include ',
+            '--with-bzlib --with-bzlib-libs=$EBROOTBZIP2/lib --with-bzlib-includes=$EBROOTBZIP2/include '
+        ]
+        current_configopts = ec.get('configopts', '')
+        for option in options_to_remove:
+            current_configopts = current_configopts.replace(option, '')
+        ec['configopts'] = current_configopts.strip()
+        print_msg("Using custom configure options for %s", ec.name)
+    else:
+        raise EasyBuildError("GRASS-specific hook triggered for non-GRASS easyconfig?!")
+
+
 def parse_hook_fontconfig_add_fonts(ec, eprefix):
     """Inject --with-add-fonts configure option for fontconfig."""
     if ec.name == 'fontconfig':
@@ -1579,6 +1599,7 @@ else:
 PARSE_HOOKS = {
     'casacore': parse_hook_casacore_disable_vectorize,
     'CGAL': parse_hook_cgal_toolchainopts_precise,
+    'GRASS': parse_hook_grass,
     'fontconfig': parse_hook_fontconfig_add_fonts,
     'FreeImage': parse_hook_freeimage_aarch64,
     'grpcio': parse_hook_grpcio_zlib,
