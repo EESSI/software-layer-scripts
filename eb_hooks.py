@@ -740,6 +740,10 @@ def pre_configure_hook(self, *args, **kwargs):
     """Main pre-configure hook: trigger custom functions based on software name."""
     if self.name in PRE_CONFIGURE_HOOKS:
         PRE_CONFIGURE_HOOKS[self.name](self, *args, **kwargs)
+    # workaround for a Zlib macro being renamed in Gentoo, see https://bugs.gentoo.org/383179
+    # (solves "expected initializer before 'OF'" errors)
+    if self.name in ['FreeXL', 'libspatialite', 'VSEARCH']:
+        self.cfg.update('configopts', 'CPPFLAGS="-DOF=_Z_OF ${CPPFLAGS}"')
 
 
 def pre_configure_hook_BLIS_a64fx(self, *args, **kwargs):
@@ -779,18 +783,6 @@ def pre_configure_hook_CUDA_Samples_test_remove(self, *args, **kwargs):
         raise EasyBuildError("CUDA-Samples-specific hook triggered for non-CUDA-Samples easyconfig?!")
 
 
-def pre_configure_hook_freexl(self, *args, **kwargs):
-    """
-    Pre-configure hook for FreeXL
-    - Workaround for a Zlib macro being renamed in Gentoo, see https://bugs.gentoo.org/383179
-      (solves "expected initializer before 'OF'" errors)
-    """
-    if self.name == 'FreeXL':
-        self.cfg.update('configopts', 'CPPFLAGS="-DOF=_Z_OF ${CPPFLAGS}"')
-    else:
-        raise EasyBuildError("FreeXL-specific hook triggered for non-FreeXL easyconfig?!")
-
-
 def pre_configure_hook_score_p(self, *args, **kwargs):
     """
     Pre-configure hook for Score-p
@@ -812,18 +804,6 @@ def pre_configure_hook_score_p(self, *args, **kwargs):
 
     else:
         raise EasyBuildError("Score-P-specific hook triggered for non-Score-P easyconfig?!")
-
-
-def pre_configure_hook_vsearch(self, *args, **kwargs):
-    """
-    Pre-configure hook for VSEARCH
-    - Workaround for a Zlib macro being renamed in Gentoo, see https://bugs.gentoo.org/383179
-      (solves "expected initializer before 'OF'" errors)
-    """
-    if self.name == 'VSEARCH':
-        self.cfg.update('configopts', 'CPPFLAGS="-DOF=_Z_OF ${CPPFLAGS}"')
-    else:
-        raise EasyBuildError("VSEARCH-specific hook triggered for non-VSEARCH easyconfig?!")
 
 
 def pre_configure_hook_extrae(self, *args, **kwargs):
@@ -1623,7 +1603,6 @@ PRE_CONFIGURE_HOOKS = {
     'CUDA-Samples': pre_configure_hook_CUDA_Samples_test_remove,
     'GObject-Introspection': pre_configure_hook_gobject_introspection,
     'Extrae': pre_configure_hook_extrae,
-    'FreeXL': pre_configure_hook_freexl,
     'GROMACS': pre_configure_hook_gromacs,
     'libfabric': pre_configure_hook_libfabric_disable_psm3_x86_64_generic,
     'LLVM': pre_configure_hook_llvm,
@@ -1636,7 +1615,6 @@ PRE_CONFIGURE_HOOKS = {
     'WRF': pre_configure_hook_wrf_aarch64,
     'LAMMPS': pre_configure_hook_LAMMPS_zen4_and_aarch64_cuda,
     'Score-P': pre_configure_hook_score_p,
-    'VSEARCH': pre_configure_hook_vsearch,
     'CMake': pre_configure_hook_cmake_system,
 }
 
