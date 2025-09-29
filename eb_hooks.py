@@ -741,6 +741,11 @@ def pre_configure_hook(self, *args, **kwargs):
     if self.name in PRE_CONFIGURE_HOOKS:
         PRE_CONFIGURE_HOOKS[self.name](self, *args, **kwargs)
 
+    # workaround for a Zlib macro being renamed in Gentoo, see https://bugs.gentoo.org/383179
+    # (solves "expected initializer before 'OF'" errors)
+    if self.name in ['FreeXL', 'libspatialite', 'VSEARCH']:
+        self.cfg.update('configopts', 'CPPFLAGS="-DOF=_Z_OF ${CPPFLAGS}"')
+
 
 def pre_configure_hook_BLIS_a64fx(self, *args, **kwargs):
     """
@@ -800,18 +805,6 @@ def pre_configure_hook_score_p(self, *args, **kwargs):
 
     else:
         raise EasyBuildError("Score-P-specific hook triggered for non-Score-P easyconfig?!")
-
-
-def pre_configure_hook_vsearch(self, *args, **kwargs):
-    """
-    Pre-configure hook for VSEARCH
-    - Workaround for a Zlib macro being renamed in Gentoo, see https://bugs.gentoo.org/383179
-      (solves "expected initializer before 'OF'" errors)
-    """
-    if self.name == 'VSEARCH':
-        self.cfg.update('configopts', 'CPPFLAGS="-DOF=_Z_OF ${CPPFLAGS}"')
-    else:
-        raise EasyBuildError("VSEARCH-specific hook triggered for non-VSEARCH easyconfig?!")
 
 
 def pre_configure_hook_extrae(self, *args, **kwargs):
@@ -1623,7 +1616,6 @@ PRE_CONFIGURE_HOOKS = {
     'WRF': pre_configure_hook_wrf_aarch64,
     'LAMMPS': pre_configure_hook_LAMMPS_zen4_and_aarch64_cuda,
     'Score-P': pre_configure_hook_score_p,
-    'VSEARCH': pre_configure_hook_vsearch,
     'CMake': pre_configure_hook_cmake_system,
 }
 
