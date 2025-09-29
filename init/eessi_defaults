@@ -12,7 +12,7 @@ export EESSI_VERSION_DEFAULT='__EESSI_VERSION_DEFAULT__'
 
 # use different defaults for RISC-V clients
 if [[ $(uname -m) == "riscv64" ]]; then
-    export EESSI_VERSION="${EESSI_VERSION_OVERRIDE:=${EESSI_VERSION_DEFAULT}}"
+    export EESSI_VERSION="${EESSI_VERSION_OVERRIDE:-${EESSI_VERSION_DEFAULT}}"
     if [[ "${EESSI_VERSION}" == "2023.06" ]] || [[ "${EESSI_VERSION}" == "20240402" ]]; then
         export EESSI_VERSION="${EESSI_VERSION_OVERRIDE:=20240402}"
         export EESSI_CVMFS_REPO="${EESSI_CVMFS_REPO_OVERRIDE:=/cvmfs/riscv.eessi.io}"
