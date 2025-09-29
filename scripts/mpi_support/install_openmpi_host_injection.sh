@@ -115,6 +115,10 @@ inject_mpi() {
 
     local host_injection_mpi_path
 
+    # To avoid ldd warnings
+    exec 3>&2
+    exec 2>/dev/null
+
     host_injection_mpi_path=${EESSI_SOFTWARE_PATH/versions/host_injections}
     host_injection_mpi_path+="/rpath_overrides/OpenMPI/system/lib"
 
@@ -136,11 +140,18 @@ inject_mpi() {
     local temp_inject_path="${tmpdir}/mpi_inject"
     mkdir ${temp_inject_path}
 
-    # Get all library files from openmpi dir
-    find ${MPI_PATH} -type f -name "*.so*" -exec cp {} ${temp_inject_path} \;
+    # Array for MPI libs
+    mpi_libs=("libmpi.so*" "libmpi_mpifh.so*" "libmpi_usempi_tkr.so*" \
+              "libmpi_usempi_ignore_tkr.so*" "libmpi_usempif08.so*" \
+              "libmpi_cxx.so*" "libmpi_java.so*" "liboshmem.so*" \
+              "libmca*.so*" "mca_*.so*")
 
+    # Get all library files from MPI array
+    for lib in "${mpi_libs[@]}"; do
+      find ${MPI_PATH} -type f -name "$lib" -exec cp {} ${temp_inject_path} \;
     # Copy library links to host injection path
-    find ${MPI_PATH} -type l -name "*.so*" -exec cp -P {} ${host_injection_mpi_path} \;
+      find ${MPI_PATH} -type l -name "$lib" -exec cp -P {} ${host_injection_mpi_path} \;
+    done
 
     # Get MPI libs dependencies from system ldd
     local libname libpath pmixpath
@@ -228,6 +239,8 @@ inject_mpi() {
         fi
 
     done < <(find ${temp_inject_path} -type f)
+
+    exec 2>&3
 
     # Sanity check MPI injection
     local sanity=1
