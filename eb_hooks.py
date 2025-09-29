@@ -740,6 +740,7 @@ def pre_configure_hook(self, *args, **kwargs):
     """Main pre-configure hook: trigger custom functions based on software name."""
     if self.name in PRE_CONFIGURE_HOOKS:
         PRE_CONFIGURE_HOOKS[self.name](self, *args, **kwargs)
+
     # workaround for a Zlib macro being renamed in Gentoo, see https://bugs.gentoo.org/383179
     # (solves "expected initializer before 'OF'" errors)
     if self.name in ['FreeXL', 'libspatialite', 'VSEARCH']:
