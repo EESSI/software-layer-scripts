@@ -784,6 +784,24 @@ def pre_configure_hook_CUDA_Samples_test_remove(self, *args, **kwargs):
         raise EasyBuildError("CUDA-Samples-specific hook triggered for non-CUDA-Samples easyconfig?!")
 
 
+def pre_configure_hook_grass(self, *args, **kwargs):
+    """
+    Pre-configure hook for GRASS to remove filtered deps specific configopts lines for readline, zlib, and bzlib
+    """
+    if self.name == 'GRASS':
+        # determine path to Prefix installation in compat layer via $EPREFIX
+        eprefix = get_eessi_envvar('EPREFIX')
+
+        # Dependencies for which the configuration options need to be replaced
+        filtered_deps = ['readline', 'zlib', 'bzlib']
+        for dep in filtered_deps:
+            self.cfg['configopts'] = re.sub(fr'--with-{dep}-includes=\S*', f'--with-{dep}-includes=$EPREFIX/usr/include', self.cfg['configopts'])
+            self.cfg['configopts'] = re.sub(fr'--with-{dep}-libs=\S*', f'--with-{dep}-libs=$EPREFIX/usr/lib64', self.cfg['configopts'])
+        print_msg("Using custom configure options for %s", self.name)
+    else:
+        raise EasyBuildError("GRASS-specific hook triggered for non-GRASS easyconfig?!")
+
+
 def pre_configure_hook_score_p(self, *args, **kwargs):
     """
     Pre-configure hook for Score-p
@@ -1604,6 +1622,7 @@ PRE_CONFIGURE_HOOKS = {
     'CUDA-Samples': pre_configure_hook_CUDA_Samples_test_remove,
     'GObject-Introspection': pre_configure_hook_gobject_introspection,
     'Extrae': pre_configure_hook_extrae,
+    'GRASS': pre_configure_hook_grass,
     'GROMACS': pre_configure_hook_gromacs,
     'libfabric': pre_configure_hook_libfabric_disable_psm3_x86_64_generic,
     'LLVM': pre_configure_hook_llvm,
