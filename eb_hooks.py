@@ -736,26 +736,27 @@ def post_prepare_hook_highway_handle_test_compilation_issues(self, *args, **kwar
                 update_build_option('optarch', self.orig_optarch)
 
 
-def pre_prepare_hook_llvm_a64fx(self, *args, **kwargs):
+def pre_prepare_hook_llvm15_a64fx(self, *args, **kwargs):
     """
-    Solve issues with compiling LLVM on A64FX by changing the optarch build option.
+    Solve issues with compiling LLVM 15.0.5 on A64FX by changing the optarch build option.
+    Rust 1.65.0 also includes LLVM 15, so we do the same for that application.
     cfr. https://github.com/EESSI/software-layer/issues/1213
     """
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
-    if self.name == 'LLVM' and self.version == '15.0.5' and cpu_target == CPU_TARGET_A64FX:
-        self.orig_optarch = build_option('optarch')
-        update_build_option('optarch', 'march=armv8.2-a')
-    else:
-        raise EasyBuildError("LLVM-specific hook triggered for non-Highway easyconfig?!")
+    if cpu_target == CPU_TARGET_A64FX:
+        if (self.name == 'LLVM' and self.version == '15.0.5') or (self.name == 'Rust' and self.version == '1.65.0'):
+            self.orig_optarch = build_option('optarch')
+            update_build_option('optarch', 'march=armv8.2-a')
 
 
-def post_prepare_hook_llvm_a64fx(self, *args, **kwargs):
+def post_prepare_hook_llvm15_a64fx(self, *args, **kwargs):
     """
-    Post-prepare hook for LLVM to reset optarch build option.
+    Post-prepare hook for LLVM 15 to reset optarch build option.
     """
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
-    if self.name == 'LLVM' and self.version == '15.0.5' and cpu_target == CPU_TARGET_A64FX:
-        update_build_option('optarch', self.orig_optarch)
+    if cpu_target == CPU_TARGET_A64FX:
+        if (self.name == 'LLVM' and self.version == '15.0.5') or (self.name == 'Rust' and self.version == '1.65.0'):
+            update_build_option('optarch', self.orig_optarch)
 
 
 def pre_configure_hook(self, *args, **kwargs):
@@ -1632,13 +1633,15 @@ PRE_FETCH_HOOKS = {}
 
 PRE_PREPARE_HOOKS = {
     'Highway': pre_prepare_hook_highway_handle_test_compilation_issues,
-    'LLVM': pre_prepare_hook_llvm_a64fx,
+    'LLVM': post_prepare_hook_llvm15_a64fx,
+    'Rust': post_prepare_hook_llvm15_a64fx,
 }
 
 POST_PREPARE_HOOKS = {
     'GCCcore': post_prepare_hook_gcc_prefixed_ld_rpath_wrapper,
     'Highway': post_prepare_hook_highway_handle_test_compilation_issues,
-    'LLVM': post_prepare_hook_llvm_a64fx,
+    'LLVM': post_prepare_hook_llvm15_a64fx,
+    'Rust': post_prepare_hook_llvm15_a64fx,
 }
 
 PRE_CONFIGURE_HOOKS = {
