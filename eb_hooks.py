@@ -1200,7 +1200,7 @@ def pre_test_hook_ignore_failing_tests_SciPybundle(self, *args, **kwargs):
     """
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
     scipy_bundle_versions_nv1 = ('2021.10', '2023.02', '2023.07', '2023.11')
-    scipy_bundle_versions_a64fx = ('2023.06', '2023.07', '2023.11')
+    scipy_bundle_versions_a64fx = ('2023.02', '2023.07', '2023.11')
     scipy_bundle_versions_nvidia_grace = ('2023.02', '2023.07', '2023.11')
     if self.name == 'SciPy-bundle':
         if cpu_target == CPU_TARGET_NEOVERSE_V1 and self.version in scipy_bundle_versions_nv1:
