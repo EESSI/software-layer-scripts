@@ -1600,8 +1600,8 @@ PRE_FETCH_HOOKS = {}
 
 PRE_PREPARE_HOOKS = {
     'Highway': pre_prepare_hook_highway_handle_test_compilation_issues,
-    'LLVM': post_prepare_hook_llvm15_a64fx,
-    'Rust': post_prepare_hook_llvm15_a64fx,
+    'LLVM': pre_prepare_hook_llvm15_a64fx,
+    'Rust': pre_prepare_hook_llvm15_a64fx,
 }
 
 POST_PREPARE_HOOKS = {
