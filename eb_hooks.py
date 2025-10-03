@@ -50,7 +50,6 @@ EESSI_INSTALLATION_REGEX = r"^/cvmfs/[^/]*.eessi.io/versions/"
 HOST_INJECTIONS_LOCATION = "/cvmfs/software.eessi.io/host_injections/"
 
 # Make sure a single environment variable name is used for this throughout the hooks
-EESSI_IGNORE_A64FX_RUST1650_ENVVAR="EESSI_IGNORE_LMOD_ERROR_A64FX_RUST1650"
 EESSI_IGNORE_ZEN4_GCC1220_ENVVAR="EESSI_IGNORE_LMOD_ERROR_ZEN4_GCC1220"
 
 STACK_REPROD_SUBDIR = 'reprod'
@@ -155,9 +154,6 @@ def parse_hook(ec, *args, **kwargs):
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
     if cpu_target == CPU_TARGET_ZEN4:
         parse_hook_zen4_module_only(ec, eprefix)
-
-    # All A64FX builds for the 2022b toolchain should use a newer Rust version, as the original one does not work
-    parse_hook_bump_rust_version_in_2022b_for_a64fx(ec, eprefix)
 
     # inject the GPU property (if required)
     ec = inject_gpu_property(ec)
@@ -453,33 +449,6 @@ def parse_hook_openblas_relax_lapack_tests_num_errors(ec, eprefix):
         raise EasyBuildError("OpenBLAS-specific hook triggered for non-OpenBLAS easyconfig?!")
 
 
-def parse_hook_bump_rust_version_in_2022b_for_a64fx(ec, eprefix):
-    """
-    Replace Rust 1.65.0 build dependency by version 1.75.0 for A64FX builds,
-    because version 1.65.0 has build issues.
-    """
-    cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
-
-    if cpu_target == CPU_TARGET_A64FX:
-        # For Rust 1.65.0 itself we inject an error message in the module file
-        if ec['name'] == 'Rust' and ec['version'] == '1.65.0':
-            errmsg = "Rust 1.65.0 is not supported on A64FX. Please use version 1.75.0 instead."
-            ec['modluafooter'] = 'if (not os.getenv("%s")) then LmodError("%s") end' % (EESSI_IGNORE_A64FX_RUST1650_ENVVAR, errmsg)
-
-        # For any builds that have a build dependency on Rust 1.65.0, we bump the version to 1.75.0
-        if is_gcccore_1220_based(ecname=ec['name'], ecversion=ec['version'],
-                                tcname=ec['toolchain']['name'], tcversion=ec['toolchain']['version']):
-
-            build_deps = ec['builddependencies']
-            rust_name = 'Rust'
-            rust_original_version = '1.65.0'
-            rust_new_version = '1.75.0'
-            for idx, build_dep in enumerate(build_deps):
-                if build_dep[0] == rust_name and build_dep[1] == rust_original_version:
-                    build_deps[idx] = (rust_name, rust_new_version)
-                    break
-
-
 def parse_hook_pybind11_replace_catch2(ec, eprefix):
     """
     Replace Catch2 build dependency in pybind11 easyconfigs with one that doesn't use system toolchain.
@@ -605,8 +574,6 @@ def is_unsupported_module(ec):
     """
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
 
-    if cpu_target == CPU_TARGET_A64FX and ec.name == 'Rust' and ec.version == '1.65.0':
-        return EESSI_IGNORE_A64FX_RUST1650_ENVVAR
     if cpu_target == CPU_TARGET_ZEN4 and is_gcccore_1220_based(ecname=ec.name, ecversion=ec.version, tcname=ec.toolchain.name, tcversion=ec.toolchain.version):
         return EESSI_IGNORE_ZEN4_GCC1220_ENVVAR
     return False
