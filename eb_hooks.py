@@ -1138,7 +1138,7 @@ def pre_test_hook_ignore_failing_tests_SciPybundle(self, *args, **kwargs):
         FAILED scipy/spatial/tests/test_distance.py::TestPdist::test_pdist_correlation_iris
         FAILED scipy/spatial/tests/test_distance.py::TestPdist::test_pdist_correlation_iris_float32
         = 2 failed, 54409 passed, 3016 skipped, 223 xfailed, 13 xpassed, 10917 warnings in 892.04s (0:14:52) =
-    In version 2023.07 on a64fx, 4 failing tests in scipy 1.11.1:
+    In version 2023.02 + 2023.07 on a64fx, 4 failing tests in scipy (version 1.10.1, 1.11.1):
         FAILED scipy/optimize/tests/test_linprog.py::TestLinprogIPSparse::test_bug_6139
         FAILED scipy/optimize/tests/test_linprog.py::TestLinprogIPSparsePresolve::test_bug_6139
         FAILED scipy/spatial/tests/test_distance.py::TestPdist::test_pdist_correlation_iris
@@ -1200,7 +1200,7 @@ def pre_test_hook_ignore_failing_tests_SciPybundle(self, *args, **kwargs):
     """
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
     scipy_bundle_versions_nv1 = ('2021.10', '2023.02', '2023.07', '2023.11')
-    scipy_bundle_versions_a64fx = ('2023.07', '2023.11')
+    scipy_bundle_versions_a64fx = ('2023.06', '2023.07', '2023.11')
     scipy_bundle_versions_nvidia_grace = ('2023.02', '2023.07', '2023.11')
     if self.name == 'SciPy-bundle':
         if cpu_target == CPU_TARGET_NEOVERSE_V1 and self.version in scipy_bundle_versions_nv1:
@@ -1262,16 +1262,21 @@ def pre_single_extension_isoband(ext, *args, **kwargs):
 
 def pre_single_extension_numpy(ext, *args, **kwargs):
     """
-    Pre-extension hook for numpy, to change -march=native to -march=armv8.4-a for numpy 1.24.2
-    when building for aarch64/neoverse_v1 CPU target.
+    Pre-extension hook for numpy:
+      - change -march=native to -march=armv8.4-a for numpy 1.24.2 when building for aarch64/neoverse_v1 CPU target
+      - change -march=native to -march=armv8.2-a for numpy 1.24.2 when building for aarch64/a64fx CPU target
     """
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
-    if ext.name == 'numpy' and ext.version == '1.24.2' and cpu_target == CPU_TARGET_NEOVERSE_V1:
+    if ext.name == 'numpy' and ext.version == '1.24.2':
         # note: this hook is called before build environment is set up (by calling toolchain.prepare()),
         # so environment variables like $CFLAGS are not defined yet
         # unsure which of these actually matter for numpy, so changing all of them
-        ext.orig_optarch = build_option('optarch')
-        update_build_option('optarch', 'march=armv8.4-a')
+        if cpu_target == CPU_TARGET_NEOVERSE_V1:
+            ext.orig_optarch = build_option('optarch')
+            update_build_option('optarch', 'march=armv8.4-a')
+        if cpu_target == CPU_TARGET_A64FX:
+            ext.orig_optarch = build_option('optarch')
+            update_build_option('optarch', 'march=armv8.2-a')
 
 
 def post_single_extension_numpy(ext, *args, **kwargs):
@@ -1279,7 +1284,7 @@ def post_single_extension_numpy(ext, *args, **kwargs):
     Post-extension hook for numpy, to reset 'optarch' build option.
     """
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
-    if ext.name == 'numpy' and ext.version == '1.24.2' and cpu_target == CPU_TARGET_NEOVERSE_V1:
+    if ext.name == 'numpy' and ext.version == '1.24.2' and cpu_target in [CPU_TARGET_A64FX, CPU_TARGET_NEOVERSE_V1]:
         update_build_option('optarch', ext.orig_optarch)
 
 
