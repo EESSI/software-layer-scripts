@@ -55,14 +55,20 @@ for shell in ${SHELLS[@]}; do
 		# Test 4: Load EasyBuild module and check version
 		# eb --version outputs: "This is EasyBuild 5.1.1 (framework: 5.1.1, easyblocks: 5.1.1) on host ..."
     if [ "$shell" = "csh" ]; then
-      command="$shell -c 'source init/lmod/$shell >& /dev/null; module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; eb --version | cut -d \" \" -f4'"
+      echo "source init/lmod/$shell 2> /dev/null" > ~/.cshrc
+      cat ~/.cshrc
+      $shell -l <<< "alias"
+      command="$shell -l <<< 'module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; eb --version | cut -d \" \" -f4'"
     else
 		command="$shell -c 'source init/lmod/$shell 2>/dev/null; module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; eb --version | cut -d \" \" -f4'"
     fi
 		assert "$command" "$EXPECTED_EASYBUILD_VERSION"
 		# Test 5: Load EasyBuild module and check path
     if [ "$shell" = "csh" ]; then
-      EASYBUILD_PATH=$($shell -c "source init/lmod/$shell >& /dev/null; module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; which eb")
+      echo "source init/lmod/$shell 2> /dev/null" > ~/.cshrc
+      cat ~/.cshrc
+      $shell -l <<< "alias"
+      EASYBUILD_PATH=$($shell -l "module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; which eb")
     else
 		EASYBUILD_PATH=$($shell -c "source init/lmod/$shell 2>/dev/null; module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; which eb")
     fi
