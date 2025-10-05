@@ -59,5 +59,8 @@ jobs:
         run: |
           export EESSI_VERSION=${{matrix.EESSI_VERSION}}
           export EXPECTED_EASYBUILD_VERSION=${{matrix.EXPECTED_EASYBUILD_VERSION}}
+          echo "==============================================="
+          cat .github/workflows/scripts/test_init_scripts.sh
+          echo "==============================================="
           .github/workflows/scripts/test_init_scripts.sh "bash" "zsh" "ksh" "fish" "csh"
 
