@@ -53,12 +53,8 @@ for shell in ${SHELLS[@]}; do
 		# TEST 4: Load EasyBuild module and check version
 		# eb --version outputs: "This is EasyBuild 5.1.1 (framework: 5.1.1, easyblocks: 5.1.1) on host ..."
     if [ "$shell" = "csh" ]; then
-      echo "source init/lmod/$shell >& /dev/null" > ~/.cshrc
-      echo "TEST COMMANDS (just module load)"
-      $shell -c "module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}"
-      echo "TEST COMMANDS (module load and eb --version ...)"
-      $shell -c "module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; eb --version | cut -d \" \" -f4"
-      command="$shell -c 'module load EasyBuild/${EXPECTED_EASYBUILD_VERSION} >& /dev/null; eb --version | cut -d \" \" -f4'"
+      echo "source init/lmod/$shell" > ~/.cshrc
+      command="$shell -c 'module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; eb --version' | cut -d \" \" -f4"
     else
 		command="$shell -c 'source init/lmod/$shell 2>/dev/null; module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; eb --version | cut -d \" \" -f4'"
     fi
