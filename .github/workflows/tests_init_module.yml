@@ -46,7 +46,7 @@ jobs:
       - name: Install missing shells
         run: |
           sudo apt update
-          sudo apt install zsh ksh fish
+          sudo apt install zsh ksh fish tcsh
           echo "# INIT ZSH" > ~/.zshrc
 
       - name: Run tests for available shells
