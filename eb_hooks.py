@@ -1690,6 +1690,7 @@ PARALLELISM_LIMITS = {
     # software-specific limits
     'libxc': {
         '*': (divide_by_factor, 2),
+        CPU_TARGET_A64FX: (set_maximum, 12),
     },
     'MBX': {
         '*': (divide_by_factor, 2),
