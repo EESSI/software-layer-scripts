@@ -41,7 +41,9 @@ for shell in ${SHELLS[@]}; do
       # we work around this by creating a temporary .cshrc file (which sources
       # the init script), and then use a here-string to specify the command to
       # be run; the output is then processed as for other shells
-      echo "source init/lmod/$shell 2> /dev/null" > .cshrc
+      echo "source init/lmod/$shell 2> /dev/null" > ~/.cshrc
+      cat ~/.cshrc
+      $shell -l <<< "alias"
       MODULE_SECTIONS=($($shell -l <<< "module ov" 2>&1 | grep -e '---'))
     else
 		MODULE_SECTIONS=($($shell -c "source init/lmod/$shell 2>/dev/null; module ov 2>&1 | grep -e '---'"))
