@@ -41,7 +41,7 @@ for shell in ${SHELLS[@]}; do
       # we work around this by creating a temporary .cshrc file (which sources
       # the init script), and then use a here-string to specify the command to
       # be run; the output is then processed as for other shells
-      echo "source init/lmod/$shell 2> /dev/null" > ~/.cshrc
+      echo "source init/lmod/$shell >& /dev/null" > ~/.cshrc
       cat ~/.cshrc
       $shell -l <<< "alias" 2> /dev/null
       MODULE_SECTIONS=($($shell -l <<< "module ov" 2>&1 | grep -e '---'))
@@ -55,7 +55,7 @@ for shell in ${SHELLS[@]}; do
 		# Test 4: Load EasyBuild module and check version
 		# eb --version outputs: "This is EasyBuild 5.1.1 (framework: 5.1.1, easyblocks: 5.1.1) on host ..."
     if [ "$shell" = "csh" ]; then
-      echo "source init/lmod/$shell 2> /dev/null" > ~/.cshrc
+      echo "source init/lmod/$shell >& /dev/null" > ~/.cshrc
       cat ~/.cshrc
       $shell -l <<< "alias" 2> /dev/null
       command="$shell -l <<< 'module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; eb --version | cut -d \" \" -f4'"
@@ -65,7 +65,7 @@ for shell in ${SHELLS[@]}; do
 		assert "$command" "$EXPECTED_EASYBUILD_VERSION"
 		# Test 5: Load EasyBuild module and check path
     if [ "$shell" = "csh" ]; then
-      echo "source init/lmod/$shell 2> /dev/null" > ~/.cshrc
+      echo "source init/lmod/$shell >& /dev/null" > ~/.cshrc
       cat ~/.cshrc
       $shell -l <<< "alias" 2> /dev/null
       EASYBUILD_PATH=$($shell -l <<< "module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; which eb")
