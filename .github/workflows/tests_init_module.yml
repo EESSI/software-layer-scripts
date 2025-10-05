@@ -45,6 +45,9 @@ jobs:
 
       - name: Install missing shells
         run: |
+          # avoid processing triggers for man-db (seems to slow down installation)
+          echo "set man-db/auto-update false" | sudo debconf-communicate
+          sudo dpkg-reconfigure man-db
           sudo apt update
           sudo apt install zsh ksh fish tcsh
           echo "# INIT ZSH" > ~/.zshrc
