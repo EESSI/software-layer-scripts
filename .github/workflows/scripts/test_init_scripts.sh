@@ -20,7 +20,7 @@ if [ ! -d assert.sh ]; then
 fi
 . assert.sh/assert.sh
 
-TEST_SHELLS=("bash" "zsh" "fish" "ksh")
+TEST_SHELLS=("bash" "zsh" "fish" "ksh" "csh")
 SHELLS=$@
 
 for shell in ${SHELLS[@]}; do
