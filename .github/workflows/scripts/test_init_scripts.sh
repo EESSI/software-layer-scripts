@@ -33,14 +33,16 @@ for shell in ${SHELLS[@]}; do
   else
 		# TEST 1: Source Script and check Module Output
     expected="Module for EESSI/$EESSI_VERSION loaded successfully"
-    if [ "$shell" = "csh" ]; then
-      assert "$shell -c 'source init/lmod/$shell' |& " "${expected}"
-    else
 		assert "$shell -c 'source init/lmod/$shell' 2>&1 " "${expected}"
-    fi
 		# TEST 2: Check if module overviews first section is the loaded EESSI module
     if [ "$shell" = "csh" ]; then
-      MODULE_SECTIONS=($($shell -c "source init/lmod/$shell >& /dev/null; module ov |& | grep -e '---'"))
+      # module is defined as alias, but aliases are only retained in interactive shells
+      # we work around this by running 'csh -l', however with '-l' we cannot add '-c'
+      # we work around this by creating a temporary .cshrc file (which sources
+      # the init script), and then use a here-string to specify the command to
+      # be run; the output is then processed as for other shells
+      echo "source init/lmod/$shell 2> /dev/null" > .cshrc
+      MODULE_SECTIONS=($($shell -l <<< "module ov" 2>&1 | grep -e '---'"))
     else
 		MODULE_SECTIONS=($($shell -c "source init/lmod/$shell 2>/dev/null; module ov 2>&1 | grep -e '---'"))
     fi
