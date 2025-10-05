@@ -43,7 +43,7 @@ for shell in ${SHELLS[@]}; do
       # be run; the output is then processed as for other shells
       echo "source init/lmod/$shell 2> /dev/null" > ~/.cshrc
       cat ~/.cshrc
-      $shell -l <<< "alias"
+      $shell -l <<< "alias" 2> /dev/null
       MODULE_SECTIONS=($($shell -l <<< "module ov" 2>&1 | grep -e '---'))
     else
 		MODULE_SECTIONS=($($shell -c "source init/lmod/$shell 2>/dev/null; module ov 2>&1 | grep -e '---'"))
@@ -57,7 +57,7 @@ for shell in ${SHELLS[@]}; do
     if [ "$shell" = "csh" ]; then
       echo "source init/lmod/$shell 2> /dev/null" > ~/.cshrc
       cat ~/.cshrc
-      $shell -l <<< "alias"
+      $shell -l <<< "alias" 2> /dev/null
       command="$shell -l <<< 'module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; eb --version | cut -d \" \" -f4'"
     else
 		command="$shell -c 'source init/lmod/$shell 2>/dev/null; module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; eb --version | cut -d \" \" -f4'"
@@ -67,8 +67,8 @@ for shell in ${SHELLS[@]}; do
     if [ "$shell" = "csh" ]; then
       echo "source init/lmod/$shell 2> /dev/null" > ~/.cshrc
       cat ~/.cshrc
-      $shell -l <<< "alias"
-      EASYBUILD_PATH=$($shell -l "module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; which eb")
+      $shell -l <<< "alias" 2> /dev/null
+      EASYBUILD_PATH=$($shell -l <<< "module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; which eb")
     else
 		EASYBUILD_PATH=$($shell -c "source init/lmod/$shell 2>/dev/null; module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; which eb")
     fi
