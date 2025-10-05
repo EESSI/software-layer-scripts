@@ -9,14 +9,14 @@ if (! $?EESSI_VERSION) then
 endif
 # Path to top-level module tree
 setenv MODULEPATH "${EESSI_CVMFS_REPO}/versions/${EESSI_VERSION}/init/modules"
-source "${EESSI_CVMFS_REPO}/versions/${EESSI_VERSION}/compat/linux/$(uname -m)/usr/share/Lmod/init/csh"
+source "${EESSI_CVMFS_REPO}/versions/${EESSI_VERSION}/compat/linux/`uname -m`/usr/share/Lmod/init/csh"
 
 if (! $?__Init_Default_Modules ) then
-    setenv __Init_Default_Modules 1;
+    setenv __Init_Default_Modules 1
 
-    ## ability to predefine elsewhere the default list
+    # ability to predefine elsewhere the default list
     if (! $?LMOD_SYSTEM_DEFAULT_MODULES) then
-        setenv LMOD_SYSTEM_DEFAULT_MODULES "EESSI/$EESSI_VERSION"
+        setenv LMOD_SYSTEM_DEFAULT_MODULES "EESSI/${EESSI_VERSION}"
     endif
     module --initial_load --no_redirect restore
 else
