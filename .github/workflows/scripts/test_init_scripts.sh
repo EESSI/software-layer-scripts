@@ -50,20 +50,20 @@ for shell in ${SHELLS[@]}; do
 		assert_raises 'echo "${MODULE_SECTIONS[1]}" | grep -E "$PATTERN"'
 		# TEST 3: Check if module overviews second section is the EESSI init module
 		assert "echo ${MODULE_SECTIONS[4]}" "/cvmfs/software.eessi.io/versions/$EESSI_VERSION/init/modules"
-		# Test 4: Load EasyBuild module and check version
+		# TEST 4: Load EasyBuild module and check version
 		# eb --version outputs: "This is EasyBuild 5.1.1 (framework: 5.1.1, easyblocks: 5.1.1) on host ..."
     if [ "$shell" = "csh" ]; then
       echo "source init/lmod/$shell >& /dev/null" > ~/.cshrc
       echo "TEST COMMANDS (just module load)"
-      $shell -l <<< "module load EasyBuild/${EXPECTED_EASYBUILD_VERSION} >& /dev/null"
+      $shell -c "module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}"
       echo "TEST COMMANDS (module load and eb --version ...)"
-      $shell -l <<< "module load EasyBuild/${EXPECTED_EASYBUILD_VERSION} >& /dev/null; eb --version | cut -d \" \" -f4"
-      command="$shell -l <<< 'module load EasyBuild/${EXPECTED_EASYBUILD_VERSION} >& /dev/null; eb --version | cut -d \" \" -f4'"
+      $shell -c "module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; eb --version | cut -d \" \" -f4"
+      command="$shell -c 'module load EasyBuild/${EXPECTED_EASYBUILD_VERSION} >& /dev/null; eb --version | cut -d \" \" -f4'"
     else
 		command="$shell -c 'source init/lmod/$shell 2>/dev/null; module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; eb --version | cut -d \" \" -f4'"
     fi
 		assert "$command" "$EXPECTED_EASYBUILD_VERSION"
-		# Test 5: Load EasyBuild module and check path
+		# TEST 5: Load EasyBuild module and check path
     if [ "$shell" = "csh" ]; then
       echo "source init/lmod/$shell >& /dev/null" > ~/.cshrc
       EASYBUILD_PATH=$($shell -l <<< "module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; which eb")
