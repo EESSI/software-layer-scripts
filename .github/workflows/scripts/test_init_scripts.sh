@@ -55,10 +55,10 @@ for shell in ${SHELLS[@]}; do
     if [ "$shell" = "csh" ]; then
       echo "source init/lmod/$shell >& /dev/null" > ~/.cshrc
       echo "TEST COMMANDS (just module load)"
-      $shell -l <<< "module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}"
+      $shell -l <<< "module load EasyBuild/${EXPECTED_EASYBUILD_VERSION} >& /dev/null"
       echo "TEST COMMANDS (module load and eb --version ...)"
-      $shell -l <<< "module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; eb --version | cut -d \" \" -f4"
-      command="$shell -l <<< 'module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; eb --version | cut -d \" \" -f4'"
+      $shell -l <<< "module load EasyBuild/${EXPECTED_EASYBUILD_VERSION} >& /dev/null; eb --version | cut -d \" \" -f4"
+      command="$shell -l <<< 'module load EasyBuild/${EXPECTED_EASYBUILD_VERSION} >& /dev/null; eb --version | cut -d \" \" -f4'"
     else
 		command="$shell -c 'source init/lmod/$shell 2>/dev/null; module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; eb --version | cut -d \" \" -f4'"
     fi
