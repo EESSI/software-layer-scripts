@@ -10,6 +10,7 @@ jobs:
   basic_checks:
     runs-on: ubuntu-22.04
     strategy:
+      fail-fast: false
       matrix:
         include:
           - eessi_version: '2023.06'
