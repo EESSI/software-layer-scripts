@@ -79,6 +79,7 @@ jobs:
           check_disallowed_env_prefix EASYBUILD_
 
           # Configure for CVMFS install
+          echo "Checking EESSI-extend CVMFS install"
           export EESSI_CVMFS_INSTALL=1
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild
           # check some common EasyBuild settings
@@ -110,6 +111,7 @@ jobs:
           unset EESSI_CVMFS_INSTALL
 
           # Now configure for a site
+          echo "Checking EESSI-extend site install"
           export EESSI_SITE_INSTALL=1
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild
           # check some specific envvars
@@ -123,6 +125,7 @@ jobs:
           unset EESSI_SITE_INSTALL
 
           # Now for a project
+          echo "Checking EESSI-extend project install"
           export EESSI_PROJECT_INSTALL="$MY_INSTALLATION_PATH"
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild
           # check some specific envvars
@@ -138,6 +141,7 @@ jobs:
           unset EESSI_PROJECT_INSTALL
 
           # Now for a user
+          echo "Checking EESSI-extend user install"
           export EESSI_USER_INSTALL="$MY_INSTALLATION_PATH/$USER"
           mkdir -p $EESSI_USER_INSTALL  # must exist
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild
@@ -174,10 +178,12 @@ jobs:
           check_disallowed_env_prefix EASYBUILD_
 
           # Configure for CVMFS install
+          echo "Checking EESSI-extend CVMFS install"
           export EESSI_CVMFS_INSTALL=1
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild
           check_env_var "EASYBUILD_INSTALLPATH" "$EESSI_SOFTWARE_PATH"  # installation path should be the same unless we ask for an explicit GPU installation
-          check_env_var "EASYBUILD_CUDA_COMPUTE_CAPABILITIES" ""
+          check_env_var "EASYBUILD_CUDA_COMPUTE_CAPABILITIES" "$STORED_CUDA_CC"
+          module unload EESSI-extend
           export EESSI_ACCELERATOR_INSTALL=1
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild # reload for an actual GPU installation
           check_env_var "EASYBUILD_INSTALLPATH" "${EESSI_SOFTWARE_PATH}/${EESSI_ACCELERATOR_TARGET_OVERRIDE}"
@@ -189,10 +195,12 @@ jobs:
           unset EESSI_CVMFS_INSTALL
 
           # Now configure for a site
+          echo "Checking EESSI-extend site install"
           export EESSI_SITE_INSTALL=1
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild
           check_env_var "EASYBUILD_INSTALLPATH" "$EESSI_SITE_SOFTWARE_PATH"  # installation path should be the same unless we ask for an explicit GPU installation
           check_env_var "EASYBUILD_CUDA_COMPUTE_CAPABILITIES" ""
+          module unload EESSI-extend
           export EESSI_ACCELERATOR_INSTALL=1
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild # reload for an actual GPU installation
           check_env_var "EASYBUILD_INSTALLPATH" "${EESSI_SITE_SOFTWARE_PATH}/${EESSI_ACCELERATOR_TARGET_OVERRIDE}"
@@ -204,11 +212,13 @@ jobs:
           unset EESSI_SITE_INSTALL
 
           # Now for a project
+          echo "Checking EESSI-extend project install"
           export EESSI_PROJECT_INSTALL="$MY_INSTALLATION_PATH"
           export EXPECTED_INSTALLATION_PATH="$MY_INSTALLATION_PATH/versions/$EESSI_VERSION/software/linux/$EESSI_SOFTWARE_SUBDIR"
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild
           check_env_var "EASYBUILD_INSTALLPATH" "$EXPECTED_INSTALLATION_PATH"  # installation path should be the same unless we ask for an explicit GPU installation
           check_env_var "EASYBUILD_CUDA_COMPUTE_CAPABILITIES" ""
+          module unload EESSI-extend
           export EESSI_ACCELERATOR_INSTALL=1
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild # reload for an GPU actual installation
           check_env_var "EASYBUILD_INSTALLPATH" "$EXPECTED_INSTALLATION_PATH"  # installation path should be the same for project case
@@ -220,6 +230,7 @@ jobs:
           unset EESSI_PROJECT_INSTALL
 
           # Now for a user
+          echo "Checking EESSI-extend user install"
           export EESSI_USER_INSTALL="$MY_INSTALLATION_PATH/$USER"
           mkdir -p $EESSI_USER_INSTALL  # must exist
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild
@@ -228,6 +239,7 @@ jobs:
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild
           check_env_var "EASYBUILD_INSTALLPATH" "$EXPECTED_INSTALLATION_PATH"  # installation path should be the same unless we ask for an explicit GPU installation
           check_env_var "EASYBUILD_CUDA_COMPUTE_CAPABILITIES" ""
+          module unload EESSI-extend
           export EESSI_ACCELERATOR_INSTALL=1
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild # reload for an actual GPU installation
           check_env_var "EASYBUILD_INSTALLPATH" "$EXPECTED_INSTALLATION_PATH"  # installation path should be the same for user case
