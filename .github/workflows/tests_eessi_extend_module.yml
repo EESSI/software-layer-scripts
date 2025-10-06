@@ -182,7 +182,7 @@ jobs:
           export EESSI_CVMFS_INSTALL=1
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild
           check_env_var "EASYBUILD_INSTALLPATH" "$EESSI_SOFTWARE_PATH"  # installation path should be the same unless we ask for an explicit GPU installation
-          check_env_var "EASYBUILD_CUDA_COMPUTE_CAPABILITIES" ""
+          check_env_var "EASYBUILD_CUDA_COMPUTE_CAPABILITIES" "$STORED_CUDA_CC"
           module unload EESSI-extend
           export EESSI_ACCELERATOR_INSTALL=1
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild # reload for an actual GPU installation
