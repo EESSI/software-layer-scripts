@@ -182,11 +182,13 @@ jobs:
           export EESSI_CVMFS_INSTALL=1
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild
           check_env_var "EASYBUILD_INSTALLPATH" "$EESSI_SOFTWARE_PATH"  # installation path should be the same unless we ask for an explicit GPU installation
+          check_env_var "EESSI_ACCELERATOR_TARGET" "$STORED_EESSI_ACCELERATOR_TARGET_OVERRIDE"
           check_env_var "EASYBUILD_CUDA_COMPUTE_CAPABILITIES" "$STORED_CUDA_CC"
           module unload EESSI-extend
           export EESSI_ACCELERATOR_INSTALL=1
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild # reload for an actual GPU installation
           check_env_var "EASYBUILD_INSTALLPATH" "${EESSI_SOFTWARE_PATH}/${EESSI_ACCELERATOR_TARGET_OVERRIDE}"
+          check_env_var "EESSI_ACCELERATOR_TARGET" "$STORED_EESSI_ACCELERATOR_TARGET_OVERRIDE"
           check_env_var "EASYBUILD_CUDA_COMPUTE_CAPABILITIES" "$STORED_CUDA_CC"
           # unload and make sure the environment is clean again
           module unload EESSI-extend
@@ -199,11 +201,13 @@ jobs:
           export EESSI_SITE_INSTALL=1
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild
           check_env_var "EASYBUILD_INSTALLPATH" "$EESSI_SITE_SOFTWARE_PATH"  # installation path should be the same unless we ask for an explicit GPU installation
+          check_env_var "EESSI_ACCELERATOR_TARGET" "$STORED_EESSI_ACCELERATOR_TARGET_OVERRIDE"
           check_env_var "EASYBUILD_CUDA_COMPUTE_CAPABILITIES" "$STORED_CUDA_CC"
           module unload EESSI-extend
           export EESSI_ACCELERATOR_INSTALL=1
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild # reload for an actual GPU installation
           check_env_var "EASYBUILD_INSTALLPATH" "${EESSI_SITE_SOFTWARE_PATH}/${EESSI_ACCELERATOR_TARGET_OVERRIDE}"
+          check_env_var "EESSI_ACCELERATOR_TARGET" "$STORED_EESSI_ACCELERATOR_TARGET_OVERRIDE"
           check_env_var "EASYBUILD_CUDA_COMPUTE_CAPABILITIES" "$STORED_CUDA_CC"
           # unload and make sure the environment is clean again
           module unload EESSI-extend
@@ -217,11 +221,13 @@ jobs:
           export EXPECTED_INSTALLATION_PATH="$MY_INSTALLATION_PATH/versions/$EESSI_VERSION/software/linux/$EESSI_SOFTWARE_SUBDIR"
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild
           check_env_var "EASYBUILD_INSTALLPATH" "$EXPECTED_INSTALLATION_PATH"  # installation path should be the same unless we ask for an explicit GPU installation
+          check_env_var "EESSI_ACCELERATOR_TARGET" "$STORED_EESSI_ACCELERATOR_TARGET_OVERRIDE"
           check_env_var "EASYBUILD_CUDA_COMPUTE_CAPABILITIES" "$STORED_CUDA_CC"
           module unload EESSI-extend
           export EESSI_ACCELERATOR_INSTALL=1
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild # reload for an GPU actual installation
           check_env_var "EASYBUILD_INSTALLPATH" "$EXPECTED_INSTALLATION_PATH"  # installation path should be the same for project case
+          check_env_var "EESSI_ACCELERATOR_TARGET" "$STORED_EESSI_ACCELERATOR_TARGET_OVERRIDE"
           check_env_var "EASYBUILD_CUDA_COMPUTE_CAPABILITIES" "$STORED_CUDA_CC"
           # unload and make sure the environment is clean again
           module unload EESSI-extend
@@ -238,11 +244,13 @@ jobs:
           export EXPECTED_INSTALLATION_PATH="$MY_INSTALLATION_PATH/$USER/versions/$EESSI_VERSION/software/linux/$EESSI_SOFTWARE_SUBDIR"
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild
           check_env_var "EASYBUILD_INSTALLPATH" "$EXPECTED_INSTALLATION_PATH"  # installation path should be the same unless we ask for an explicit GPU installation
+          check_env_var "EESSI_ACCELERATOR_TARGET" "$STORED_EESSI_ACCELERATOR_TARGET_OVERRIDE"
           check_env_var "EASYBUILD_CUDA_COMPUTE_CAPABILITIES" "$STORED_CUDA_CC"
           module unload EESSI-extend
           export EESSI_ACCELERATOR_INSTALL=1
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild # reload for an actual GPU installation
           check_env_var "EASYBUILD_INSTALLPATH" "$EXPECTED_INSTALLATION_PATH"  # installation path should be the same for user case
+          check_env_var "EESSI_ACCELERATOR_TARGET" "$STORED_EESSI_ACCELERATOR_TARGET_OVERRIDE"
           check_env_var "EASYBUILD_CUDA_COMPUTE_CAPABILITIES" "$STORED_CUDA_CC"
           # unload and make sure the environment is clean again
           module unload EESSI-extend
