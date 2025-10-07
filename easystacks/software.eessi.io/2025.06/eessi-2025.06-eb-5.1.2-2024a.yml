@@ -1,2 +1,5 @@
 easyconfigs:
+  - LLVM-18.1.8-GCCcore-13.3.0-minimal.eb:
+      options:
+        include-easyblocks-from-commit: c1c31c5ccd7fad783e70fa5c6af5dfc3129e4e0f
   - Mesa-24.1.3-GCCcore-13.3.0.eb
