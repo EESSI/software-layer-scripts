@@ -429,6 +429,20 @@ def parse_hook_grpcio_zlib(ec, ecprefix):
         raise EasyBuildError("grpcio-specific hook triggered for a non-grpcio easyconfig?!")
 
 
+def parse_hook_mesa_use_llvm_minimal(ec, eprefix):
+    """
+    Replace Mesa dependency on LLVM 18.1.8 by one on LLVM 18.1.8-minimal,
+    as the full LLVM 18.1.8 installation does not have sysroot support.
+    """
+    if ec.name == 'Mesa' and ec.version == '24.1.3':
+        deps = ec['dependencies']
+        llvm_name, llvm_version = ('LLVM', '18.1.8')
+        for idx, dep in enumerate(deps):
+            if dep[0] == llvm_name and dep[1] == llvm_version:
+                deps[idx] = (llvm_name, llvm_version, '-minimal')
+                break
+
+
 def parse_hook_openblas_relax_lapack_tests_num_errors(ec, eprefix):
     """Relax number of failing numerical LAPACK tests for aarch64/neoverse_v1 CPU target for OpenBLAS < 0.3.23"""
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
@@ -1595,6 +1609,7 @@ PARSE_HOOKS = {
     'fontconfig': parse_hook_fontconfig_add_fonts,
     'FreeImage': parse_hook_freeimage_aarch64,
     'grpcio': parse_hook_grpcio_zlib,
+    'Mesa': parse_hook_mesa_use_llvm_minimal,
     'OpenBLAS': parse_hook_openblas_relax_lapack_tests_num_errors,
     'pybind11': parse_hook_pybind11_replace_catch2,
     'Qt5': parse_hook_qt5_check_qtwebengine_disable,
