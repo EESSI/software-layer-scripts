@@ -1703,9 +1703,6 @@ PARALLELISM_LIMITS = {
     # Deucalion has 32GB HBM for 48 cores per node
     CPU_TARGET_A64FX: (divide_by_factor, 4),
     # software-specific limits
-    'CP2K': {
-        CPU_TARGET_A64FX: (set_maximum, 6),
-    },
     'libxc': {
         '*': (divide_by_factor, 2),
         CPU_TARGET_A64FX: (set_maximum, 12),
@@ -1713,6 +1710,9 @@ PARALLELISM_LIMITS = {
     'MBX': {
         '*': (divide_by_factor, 2),
     },
+    'QuantumESPRESSO': {
+        CPU_TARGET_A64FX: (set_maximum, 6),
+    }
     'TensorFlow': {
         '*': (divide_by_factor, 2),
         CPU_TARGET_A64FX: (set_maximum, 8),
