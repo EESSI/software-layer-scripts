@@ -1712,7 +1712,7 @@ PARALLELISM_LIMITS = {
     },
     'QuantumESPRESSO': {
         CPU_TARGET_A64FX: (set_maximum, 6),
-    }
+    },
     'TensorFlow': {
         '*': (divide_by_factor, 2),
         CPU_TARGET_A64FX: (set_maximum, 8),
