@@ -725,7 +725,7 @@ def pre_prepare_hook_llvm_a64fx(self, *args, **kwargs):
     """
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
     if cpu_target == CPU_TARGET_A64FX:
-        if (self.name == 'LLVM' and self.version in ['14.0.6', '15.0.5'] or (self.name == 'Rust' and self.version == '1.65.0'):
+        if (self.name == 'LLVM' and self.version in ['14.0.6', '15.0.5']) or (self.name == 'Rust' and self.version == '1.65.0'):
             self.orig_optarch = build_option('optarch')
             update_build_option('optarch', 'march=armv8.2-a')
 
@@ -736,7 +736,7 @@ def post_prepare_hook_llvm_a64fx(self, *args, **kwargs):
     """
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
     if cpu_target == CPU_TARGET_A64FX:
-        if (self.name == 'LLVM' and self.version in ['14.0.6', '15.0.5'] or (self.name == 'Rust' and self.version == '1.65.0'):
+        if (self.name == 'LLVM' and self.version in ['14.0.6', '15.0.5']) or (self.name == 'Rust' and self.version == '1.65.0'):
             update_build_option('optarch', self.orig_optarch)
 
 
