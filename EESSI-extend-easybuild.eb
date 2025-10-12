@@ -81,7 +81,7 @@ modextravars = {
 # EASYBUILD_GROUP_WRITABLE_INSTALLDIR
 # EASYBUILD_UMASK
 # EASYBUILD_STICKY_BIT
-modluafooter = """
+local_modluafooter = """
 if (mode() == "load") then
   -- Use a working directory for temporary build files
   if (os.getenv("WORKING_DIR") == nil) then
@@ -215,14 +215,15 @@ if not ( isloaded("EasyBuild") ) then
     load(latest("EasyBuild"))
 end
 easybuild_version = os.getenv("EBVERSIONEASYBUILD") or easybuild_version
-eessi_version = os.getenv("EESSI_VERSION") or "2023.06"
+eessi_version = os.getenv("EESSI_VERSION") or "{_template_version}"
 
 -- Set environment variables that are EasyBuild version specific
 -- Do unload unconditionally, so that even if EB versions were switched in the meantime, this gets unset
 -- This avoids issues where EESSI-extend is first loaded with EB => 5.1 (which set these vars)
 -- but then EB is swapped for a version < 5.1 and then EESSI-extend is unloaded (which would not unset
 -- these vars if we did it conditional on the EB version)
-if mode() == "unload" or mode() == "dependencyCk" or convertToCanonical(easybuild_version) >= convertToCanonical("5.1") then
+if mode() == "unload" or mode() == "dependencyCk" or
+   ( easybuild_version ~= nil and convertToCanonical(easybuild_version) >= convertToCanonical("5.1") ) then
   setenv ("EASYBUILD_STRICT_RPATH_SANITY_CHECK", "1")
   setenv ("EASYBUILD_CUDA_SANITY_CHECK_ERROR_ON_FAILED_CHECKS", "1")
   setenv ("EASYBUILD_FAIL_ON_MOD_FILES_GCCCORE", "1")
@@ -235,5 +236,7 @@ if mode() == "unload" or mode() == "dependencyCk" or convertToCanonical(easybuil
   end
 end
 """
+
+modluafooter = local_modluafooter.format(_template_version=version)
 
 moduleclass = 'devel'
