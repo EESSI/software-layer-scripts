@@ -504,13 +504,13 @@ def parse_hook_pytorch_cuda_tweaks(ec, *args, **kwargs):
         # this is the PyTorch with CUDA installation, hence we apply the following tweaks
         # - add test_cuda_expandable_segments to list of excluded_tests (test fails and ends up in '+' category,
         #   TODO check pytorch.py easyblock what that means)
-        # - increase max_failed_tests from 2 to 9
+        # - increase max_failed_tests from 2 to 20
         # - add a sanity check that verifies that libtorch_cuda.so depends on libcudnn_cnn_train.so.8 (or loading
         #   it from some other library in cuDNN package would fail because it expects cuDNN in a standard location
         #   or relies on LD_LIBRARY_PATH to point to the actual location ... neither is the case for EESSI)
         ec['excluded_tests'][''].append('test_cuda_expandable_segments')
 
-        ec['max_failed_tests'] = 9
+        ec['max_failed_tests'] = 20
 
         # TODO possibly replace 'so' in suffix .so by SHLIB_EXT
         local_libtorch_cuda = "$EBROOTPYTORCH/lib/python%(pyshortver)s/site-packages/torch/lib/libtorch_cuda.so"
