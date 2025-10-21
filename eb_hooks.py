@@ -511,6 +511,7 @@ def parse_hook_pytorch_cuda_tweaks(ec, *args, **kwargs):
         ec['excluded_tests'][''].append('test_cuda_expandable_segments')
 
         ec['max_failed_tests'] = 20
+        ec.update('max_failed_tests', '20')
 
         # TODO possibly replace 'so' in suffix .so by SHLIB_EXT
         local_libtorch_cuda = "$EBROOTPYTORCH/lib/python%(pyshortver)s/site-packages/torch/lib/libtorch_cuda.so"
