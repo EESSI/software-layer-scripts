@@ -353,4 +353,4 @@ jobs:
           [ "$LD_LIBRARY_PATH" = "$FAKE_PATH" ] || (echo "LD_LIBRARY_PATH is not $FAKE_PATH but $LD_LIBRARY_PATH" && exit 1)
           # Make sure things are back as we expect afterwards
           module purge
-          [ "$LD_LIBRARY_PATH" = "$INITIAL_LD_LIBRARY__PATH" ] || (echo "LD_LIBRARY_PATH is not $INITIAL_LD_LIBRARY_PATH but $LD_LIBRARY_PATH" && exit 1)
+          [ "$LD_LIBRARY_PATH" = "$INITIAL_LD_LIBRARY__PATH" ] || (echo "LD_LIBRARY_PATH is not" $(echo "$INITAL_LD_LIBRARY_PATH" | od -c) "but" $(echo "$LD_LIBRARY_PATH" | od -c) && exit 1)
