@@ -215,7 +215,7 @@ end
 append_path ("EESSI_DEFAULT_HOST_LD_LIBRARY_PATH", os.getenv("LD_LIBRARY_PATH") or "")
 -- on unload the variable will no longer exist
 if mode() == "load" then
-    -- remove any standard paths
+    -- remove any standard paths that can interfere with the compat layer
     remove_path ("EESSI_DEFAULT_HOST_LD_LIBRARY_PATH", "/lib")
     remove_path ("EESSI_DEFAULT_HOST_LD_LIBRARY_PATH", "/lib64")
     remove_path ("EESSI_DEFAULT_HOST_LD_LIBRARY_PATH", "/usr/lib")
