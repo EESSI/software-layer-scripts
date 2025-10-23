@@ -210,12 +210,6 @@ if os.getenv("EESSI_MODULE_STICKY") then
     load_message = load_message .. " (requires '--force' option to unload or purge)"
 end
 
--- make sure we are using a known locale
-pushenv ("LANG", "C.utf8")
-pushenv ("LC_ALL", "C.utf8")
-pushenv ("LC_CTYPE", "C.utf8")
-pushenv ("LC_MESSAGES", "C.utf8")
-
 -- Filter system paths from LD_LIBRARY_PATH
 -- Needs to be reversible so first make a copy
 append_path ("EESSI_DEFAULT_HOST_LD_LIBRARY_PATH", os.getenv("LD_LIBRARY_PATH") or "")
