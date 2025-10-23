@@ -210,6 +210,31 @@ if os.getenv("EESSI_MODULE_STICKY") then
     load_message = load_message .. " (requires '--force' option to unload or purge)"
 end
 
+-- make sure we are using a known locale
+pushenv ("LANG", "C.utf8")
+pushenv ("LC_ALL", "C.utf8")
+pushenv ("LC_CTYPE", "C.utf8")
+pushenv ("LC_MESSAGES", "C.utf8")
+
+-- avoid lesspipe problems on Debian system
+pushenv ("LESSOPEN", "")
+
+-- Filter system paths from LD_LIBRARY_PATH
+-- Needs to be reversible so first make a copy
+append_path ("EESSI_DEFAULT_HOST_LD_LIBRARY_PATH", os.getenv("LD_LIBRARY_PATH") or "")
+-- on unload the variable will no longer exist
+if mode() == "load" then
+    -- remove any standard paths
+    remove_path ("EESSI_DEFAULT_HOST_LD_LIBRARY_PATH", "/lib")
+    remove_path ("EESSI_DEFAULT_HOST_LD_LIBRARY_PATH", "/lib64")
+    remove_path ("EESSI_DEFAULT_HOST_LD_LIBRARY_PATH", "/usr/lib")
+    remove_path ("EESSI_DEFAULT_HOST_LD_LIBRARY_PATH", "/usr/lib64")
+    remove_path ("EESSI_DEFAULT_HOST_LD_LIBRARY_PATH", "/usr/local/lib")
+    remove_path ("EESSI_DEFAULT_HOST_LD_LIBRARY_PATH", "/usr/local/lib64")
+end
+-- now we can use pushenv to retain/restore the original value
+pushenv ("LD_LIBRARY_PATH", os.getenv("EESSI_DEFAULT_HOST_LD_LIBRARY_PATH") or "")
+
 if mode() == "load" then
     LmodMessage(load_message)
 end
