@@ -216,9 +216,6 @@ pushenv ("LC_ALL", "C.utf8")
 pushenv ("LC_CTYPE", "C.utf8")
 pushenv ("LC_MESSAGES", "C.utf8")
 
--- avoid lesspipe problems on Debian system
-pushenv ("LESSOPEN", "")
-
 -- Filter system paths from LD_LIBRARY_PATH
 -- Needs to be reversible so first make a copy
 append_path ("EESSI_DEFAULT_HOST_LD_LIBRARY_PATH", os.getenv("LD_LIBRARY_PATH") or "")
