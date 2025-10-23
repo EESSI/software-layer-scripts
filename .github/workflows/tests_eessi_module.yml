@@ -212,9 +212,6 @@ jobs:
           module unuse .github/workflows/modules
           module avail
 
-          # Set a (safe) locale
-          export LC_ALL=C
-
           # Store the initial environment (ignoring Lmod tables and internal stack varibles)
           env | grep -v _ModuleTable | grep -v __LMOD_STACK | sort > "${initial_env_file}"
 
