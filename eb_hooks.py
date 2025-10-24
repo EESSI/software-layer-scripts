@@ -917,6 +917,7 @@ def pre_configure_hook_llvm(self, *args, **kwargs):
         for software in ('zlib', 'ncurses'):
             var_name = get_software_root_env_var_name(software)
             env.setvar(var_name, os.path.join(eprefix, 'usr'))
+            self.deps.append(software)
     else:
         raise EasyBuildError("LLVM-specific hook triggered for non-LLVM easyconfig?!")
 
