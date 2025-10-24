@@ -1,4 +1,3 @@
-# define default values for some EESSI_* environment variables
 #
 # This file is part of the EESSI software layer,
 # see https://github.com/EESSI/software-layer
@@ -10,11 +9,11 @@
 
 export EESSI_VERSION_DEFAULT='__EESSI_VERSION_DEFAULT__'
 
+export EESSI_VERSION="${EESSI_VERSION_OVERRIDE:=${EESSI_VERSION_DEFAULT}}"
+
 # use different defaults for RISC-V clients
 if [[ $(uname -m) == "riscv64" ]]; then
-    export EESSI_VERSION="${EESSI_VERSION_OVERRIDE:-${EESSI_VERSION_DEFAULT}}"
     if [[ "${EESSI_VERSION}" == "2023.06" ]] || [[ "${EESSI_VERSION}" == "20240402" ]]; then
-        export EESSI_VERSION="${EESSI_VERSION_OVERRIDE:=20240402}"
         export EESSI_CVMFS_REPO="${EESSI_CVMFS_REPO_OVERRIDE:=/cvmfs/riscv.eessi.io}"
         export EESSI_INIT_PREFIX="${EESSI_CVMFS_REPO}/versions/${EESSI_VERSION}/init"
         if [[ -z ${EESSI_SILENT+x} ]]; then
@@ -23,10 +22,10 @@ if [[ $(uname -m) == "riscv64" ]]; then
             echo "For more details about this repository, see https://www.eessi.io/docs/repositories/riscv.eessi.io/."
             echo ""
         fi
-    elif [[ "${EESSI_VERSION_DEFAULT}" == "2025.06" ]]; then
+    elif [[ "${EESSI_VERSION}" == "2025.06"* ]]; then
         export EESSI_CVMFS_REPO="${EESSI_CVMFS_REPO_OVERRIDE:=/cvmfs/dev.eessi.io/riscv}"
-        export EESSI_COMPAT_LAYER_DIR="/cvmfs/software.eessi.io/versions/${EESSI_VERSION_DEFAULT}/compat/linux/$(uname -m)"
-        export EESSI_INIT_PREFIX="/cvmfs/software.eessi.io/versions/${EESSI_VERSION_DEFAULT}/init"
+        export EESSI_COMPAT_LAYER_DIR="/cvmfs/software.eessi.io/versions/${EESSI_VERSION}/compat/linux/$(uname -m)"
+        export EESSI_INIT_PREFIX="/cvmfs/software.eessi.io/versions/${EESSI_VERSION}/init"
         if [[ -z ${EESSI_SILENT+x} ]]; then
             echo "This EESSI production version only provides a RISC-V compatibility layer,"
             echo "software installations are provided by the EESSI development repository at ${EESSI_CVMFS_REPO}."
@@ -34,7 +33,6 @@ if [[ $(uname -m) == "riscv64" ]]; then
     fi
 else
     export EESSI_CVMFS_REPO="${EESSI_CVMFS_REPO_OVERRIDE:=/cvmfs/software.eessi.io}"
-    export EESSI_VERSION="${EESSI_VERSION_OVERRIDE:=${EESSI_VERSION_DEFAULT}}"
     export EESSI_INIT_PREFIX="${EESSI_CVMFS_REPO}/versions/${EESSI_VERSION}/init"
 fi
 # use archdetect by default, unless otherwise specified
