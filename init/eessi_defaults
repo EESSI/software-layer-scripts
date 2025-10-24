@@ -23,6 +23,7 @@ if [[ $(uname -m) == "riscv64" ]]; then
             echo "For more details about this repository, see https://www.eessi.io/docs/repositories/riscv.eessi.io/."
             echo ""
         fi
+    # allow for version suffixes in 2025.06 (e.g. 2025.06-001)
     elif [[ "${EESSI_VERSION}" == "2025.06"* ]]; then
         export EESSI_CVMFS_REPO="${EESSI_CVMFS_REPO_OVERRIDE:=/cvmfs/dev.eessi.io/riscv}"
         export EESSI_COMPAT_LAYER_DIR="/cvmfs/software.eessi.io/versions/${EESSI_VERSION_DEFAULT}/compat/linux/$(uname -m)"
