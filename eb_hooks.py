@@ -418,13 +418,17 @@ def parse_hook_fontconfig_add_fonts(ec, eprefix):
 
 def parse_hook_grpcio_zlib(ec, ecprefix):
     """Adjust preinstallopts to use ZLIB from compat layer."""
-    if ec.name == 'grpcio' and ec.version in ['1.57.0']:
-        exts_list = ec['exts_list']
-        original_preinstallopts = (exts_list[0][2])['preinstallopts']
-        original_option = "GRPC_PYTHON_BUILD_SYSTEM_ZLIB=True"
-        new_option = "GRPC_PYTHON_BUILD_SYSTEM_ZLIB=False"
-        (exts_list[0][2])['preinstallopts'] = original_preinstallopts.replace(original_option, new_option, 1)
-        print_msg("Modified the easyconfig to use compat ZLIB with GRPC_PYTHON_BUILD_SYSTEM_ZLIB=False")
+    if ec.name == 'grpcio':
+        target_list = ['1.57.0', '1.67.1', '1.70.0']
+        if ec.version in target_list:
+            exts_list = ec['exts_list']
+            original_preinstallopts = (exts_list[0][2])['preinstallopts']
+            original_option = "GRPC_PYTHON_BUILD_SYSTEM_ZLIB=True"
+            new_option = "GRPC_PYTHON_BUILD_SYSTEM_ZLIB=False"
+            (exts_list[0][2])['preinstallopts'] = original_preinstallopts.replace(original_option, new_option, 1)
+            print_msg("Modified the easyconfig to use compat ZLIB with GRPC_PYTHON_BUILD_SYSTEM_ZLIB=False")
+        else:
+            print_warning("%s version %s not in target list %s, not applying hook", ec.name, ec.version, target_list)
     else:
         raise EasyBuildError("grpcio-specific hook triggered for a non-grpcio easyconfig?!")
 
