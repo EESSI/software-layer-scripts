@@ -149,7 +149,7 @@ else
 
       # make sure the the software and modules directory exist
       # (since it's expected by init/eessi_environment_variables when using archdetect and by the EESSI module)
-      mkdir -p ${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/{modules,software}
+      mkdir -p -v ${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/{modules,software}
 
       # If EESSI_ACCELERATOR_TARGET_OVERRIDE is defined, we are building for an accelerator target
       # In that case, make sure the modulepath for the accelerator subdir exists, otherwise the EESSI module will not
@@ -160,7 +160,7 @@ else
           # Note that ${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/${EESSI_ACCELERATOR_TARGET_OVERRIDE}/modules/all
           # is only the correct path if EESSI_ACCEL_SOFTWARE_SUBDIR_OVERRIDE is not set
           if [ -z $EESSI_ACCEL_SOFTWARE_SUBDIR_OVERRIDE ]; then
-              mkdir -p ${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/${EESSI_ACCELERATOR_TARGET_OVERRIDE}/modules/all
+              mkdir -p -v ${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/${EESSI_ACCELERATOR_TARGET_OVERRIDE}/modules/all
           else
               # At runtime, one might want to use a different CPU subdir for a given accelerator. E.g. one could use
               # a zen2 CPU subdir on a zen4 node if the required GPU software isn't available in the zen4 tree.
