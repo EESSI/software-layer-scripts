@@ -149,7 +149,7 @@ else
 
       # make sure the the software and modules directory exist
       # (since it's expected by init/eessi_environment_variables when using archdetect and by the EESSI module)
-      mkdir -p ${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/{modules,software}
+      mkdir -p -v ${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/{modules,software}
 
       # If EESSI_ACCELERATOR_TARGET_OVERRIDE is defined, we are building for an accelerator target
       # In that case, make sure the modulepath for the accelerator subdir exists, otherwise the EESSI module will not
@@ -160,7 +160,7 @@ else
           # Note that ${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/${EESSI_ACCELERATOR_TARGET_OVERRIDE}/modules/all
           # is only the correct path if EESSI_ACCEL_SOFTWARE_SUBDIR_OVERRIDE is not set
           if [ -z $EESSI_ACCEL_SOFTWARE_SUBDIR_OVERRIDE ]; then
-              mkdir -p ${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/${EESSI_ACCELERATOR_TARGET_OVERRIDE}/modules/all
+              mkdir -p -v ${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/${EESSI_ACCELERATOR_TARGET_OVERRIDE}/modules/all
           else
               # At runtime, one might want to use a different CPU subdir for a given accelerator. E.g. one could use
               # a zen2 CPU subdir on a zen4 node if the required GPU software isn't available in the zen4 tree.
@@ -368,7 +368,9 @@ else
 fi
 
 # use PR patch file to determine in which easystack files stuff was added
-changed_easystacks=$(cat ${pr_diff} | grep '^+++' | cut -f2 -d' ' | sed 's@^[a-z]/@@g' | grep 'easystacks/.*yml$' | egrep -v 'known-issues|missing') 
+# Note that we exclude the scripts/gpu_support/ dir, since those are not meant to be built in the
+# software-layer, but they are helper easystacks for installing e.g. CUDA in host_injections
+changed_easystacks=$(cat ${pr_diff} | grep '^+++' | cut -f2 -d' ' | sed 's@^[a-z]/@@g' | grep 'easystacks/.*yml$' | egrep -v 'known-issues|missing' | (grep -v "scripts/gpu_support/" || true)) 
 if [ -z "${changed_easystacks}" ]; then
     echo "No missing installations, party time!"  # Ensure the bot report success, as there was nothing to be build here
 else
