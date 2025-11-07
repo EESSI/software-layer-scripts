@@ -225,6 +225,7 @@ else
     fatal_error "Failed to list ReFrame tests with command: reframe ${REFRAME_ARGS} --list"
 fi
 
+export PRTE_MCA_rmaps_default_mapping_policy=:oversubscribe
 # Run all tests
 echo "Running tests: reframe ${REFRAME_ARGS} --run"
 reframe ${REFRAME_ARGS} --run
