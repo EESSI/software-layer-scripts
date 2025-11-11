@@ -265,6 +265,7 @@ BUILD_TMPDIR=$(grep ' as tmp directory ' ${build_outerr} | cut -d ' ' -f 2)
 TARBALL_STEP_ARGS+=("--resume" "${BUILD_TMPDIR}")
 
 timestamp=$(date +%s)
+# determine compression/extension for tarball, check in order of preference
 if [[ -x "$(command -v zstd)" ]]; then
     tarball_extension="tar.zst"
 elif [[ -x "$(command -v gzip)" ]]; then
