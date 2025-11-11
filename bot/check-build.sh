@@ -479,11 +479,11 @@ if [[ $USE_CHECK_BUILD_ARTEFACTS_SCRIPT -eq 0 ]]; then
         size_mib=$((${size} >> 20))
         tmpfile=$(mktemp --tmpdir=. tarfiles.XXXX)
         if [[ "${TARBALL}" == *.tar.zst ]]; then
-          tar tf --use-compress-program=zstd ${TARBALL} > ${tmpfile}
+          tar --use-compress-program=zstd -tf ${TARBALL} > ${tmpfile}
         elif [[ "${TARBALL}" == *.tar.gz ]]; then
-          tar tf --use-compress-program=gzip ${TARBALL} > ${tmpfile}
+          tar --use-compress-program=gzip -tf ${TARBALL} > ${tmpfile}
         elif [[ "${TARBALL}" == *.tar ]]; then
-          tar tf ${TARBALL} > ${tmpfile}
+          tar -tf ${TARBALL} > ${tmpfile}
         else
           echo "ERROR: Unsupported tarball extension!" >&2
           exit 1
