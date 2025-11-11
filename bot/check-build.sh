@@ -478,7 +478,16 @@ if [[ $USE_CHECK_BUILD_ARTEFACTS_SCRIPT -eq 0 ]]; then
         size="$(stat --dereference --printf=%s ${TARBALL})"
         size_mib=$((${size} >> 20))
         tmpfile=$(mktemp --tmpdir=. tarfiles.XXXX)
-        tar tf ${TARBALL} > ${tmpfile}
+        if [[ "${TARBALL}" == *.tar.zst ]]; then
+          tar tf --use-compress-program=zstd ${TARBALL} > ${tmpfile}
+        elif [[ "${TARBALL}" == *.tar.gz ]]; then
+          tar tf --use-compress-program=gzip ${TARBALL} > ${tmpfile}
+        elif [[ "${TARBALL}" == *.tar ]]; then
+          tar tf ${TARBALL} > ${tmpfile}
+        else
+          echo "ERROR: Unsupported tarball extension!" >&2
+          exit 1
+        fi
         entries=$(cat ${tmpfile} | wc -l)
         # determine prefix from job config: VERSION/software/OS_TYPE/CPU_FAMILY/ARCHITECTURE
         # e.g., 2023.06/software/linux/x86_64/intel/skylake_avx512
