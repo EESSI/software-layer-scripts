@@ -27,6 +27,12 @@ jobs:
       - name: Check out software-layer repository
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 
+      - name: Avoid processing man-db trigger
+        run: |
+          # avoid processing trigger for man-db (seems to slow down installation)
+          echo "set man-db/auto-update false" | sudo debconf-communicate
+          sudo dpkg-reconfigure man-db
+
       - name: Mount EESSI CernVM-FS pilot repository
         uses: cvmfs-contrib/github-action-cvmfs@55899ca74cf78ab874bdf47f5a804e47c198743c # v4.0
         with:
@@ -46,7 +52,7 @@ jobs:
       - name: Install missing shells
         run: |
           sudo apt update
-          sudo apt install zsh ksh fish
+          sudo apt install zsh ksh fish tcsh
           echo "# INIT ZSH" > ~/.zshrc
 
       - name: Run tests for available shells

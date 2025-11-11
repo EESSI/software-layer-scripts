@@ -171,7 +171,11 @@ echo "ReFrame config file used:"
 cat "${RFM_CONFIG_FILES}"
 
 # Workaround for https://github.com/EESSI/software-layer/pull/467#issuecomment-1973341966
-export PSM3_DEVICES='self,shm'  # this is enough, since we only run single node for now
+# export PSM3_DEVICES='self,shm'  # this is enough, since we only run single node for now
+# The above one stopped working in 2025.06, see
+# https://github.com/EESSI/software-layer-scripts/pull/121
+# Disable the psm3 provider instead:
+export FI_PROVIDER="^psm3"
 
 # Check we can run reframe
 reframe --version

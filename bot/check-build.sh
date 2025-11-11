@@ -503,7 +503,7 @@ if [[ $USE_CHECK_BUILD_ARTEFACTS_SCRIPT -eq 0 ]]; then
         modules_entries=$(grep "${prefix}/modules" ${tmpfile})
         software_entries=$(grep "${prefix}/software" ${tmpfile})
         reprod_entries=$(grep "${prefix}/reprod" ${tmpfile})
-        reprod_shortened=$(echo "${reprod_entries}" | sed -e "s@${prefix}/reprod/@@" | awk -F/ '{if (NR >= 4) {print $1 "/" $2 "/" $3}}' | sort -u)
+        reprod_shortened=$(echo "${reprod_entries}" | sed -e "s@${prefix}/reprod/@@" | awk -F/ '{if (NF >= 4) {print $1 "/" $2 "/" $3}}' | sort -u)
         other_entries=$(cat ${tmpfile} | grep -v "${prefix}/modules" | grep -v "${prefix}/software" | grep -v "${prefix}/reprod")
         other_shortened=$(echo "${other_entries}" | sed -e "s@^.*${prefix}/@@" | sort -u)
         modules=$(echo "${modules_entries}" | grep "/all/.*/.*lua$" | sed -e 's@^.*/\([^/]*/[^/]*.lua\)$@\1@' | sort -u)

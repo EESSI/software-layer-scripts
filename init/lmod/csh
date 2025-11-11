@@ -1,19 +1,24 @@
 # Choose an EESSI CVMFS repository
-if (! $?EESSI_CVMFS_REPO) then; set EESSI_CVMFS_REPO = "/cvmfs/software.eessi.io"; endif
+if (! $?EESSI_CVMFS_REPO) then
+    set EESSI_CVMFS_REPO = "/cvmfs/software.eessi.io"
+endif
 # Choose an EESSI version
 setenv EESSI_VERSION_DEFAULT "__EESSI_VERSION_DEFAULT__"
-if (! $?EESSI_VERSION) then; set EESSI_VERSION = "${EESSI_VERSION_DEFAULT}"; endif
+if (! $?EESSI_VERSION) then
+    set EESSI_VERSION = "${EESSI_VERSION_DEFAULT}"
+endif
 # Path to top-level module tree
 setenv MODULEPATH "${EESSI_CVMFS_REPO}/versions/${EESSI_VERSION}/init/modules"
-source "${EESSI_CVMFS_REPO}/versions/${EESSI_VERSION}/compat/linux/$(uname -m)/usr/share/Lmod/init/csh"
+source "${EESSI_CVMFS_REPO}/versions/${EESSI_VERSION}/compat/linux/`uname -m`/usr/share/Lmod/init/csh"
 
 if (! $?__Init_Default_Modules ) then
-	setenv __Init_Default_Modules 1;
+    setenv __Init_Default_Modules 1
 
-	## ability to predefine elsewhere the default list
-	if (! $?LMOD_SYSTEM_DEFAULT_MODULES) then; setenv LMOD_SYSTEM_DEFAULT_MODULES "EESSI/$EESSI_VERSION"; endif
-	module --initial_load --no_redirect restore
+    # ability to predefine elsewhere the default list
+    if (! $?LMOD_SYSTEM_DEFAULT_MODULES) then
+        setenv LMOD_SYSTEM_DEFAULT_MODULES "EESSI/${EESSI_VERSION}"
+    endif
+    module --initial_load --no_redirect restore
 else
-	module refresh
+    module refresh
 endif
-
