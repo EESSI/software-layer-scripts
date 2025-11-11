@@ -171,6 +171,18 @@ else
 fi
 echo "bot/build.sh: EESSI_ACCELERATOR_TARGET_OVERRIDE='${EESSI_ACCELERATOR_TARGET_OVERRIDE}'"
 
+# check if CPU architecture of the build host matches our expectation
+lscpu_flags_line=$(lscpu | grep "Flags:")
+# strip leading "Flags:" and spaces, and put result in a bash array
+if [[ $lscpu_flags =~ Flags:\ (.*) ]]; then lscpu_flags=(${BASH_REMATCH[1]}); fi
+# for now, just print
+echo "bot/build.sh: CPU flags=${lscpu_flags[@]}"
+# todo: an actual comparison with a reference bash array, e.g. through
+# diff_result=$(diff <(printf "%s\n" "${lscpu_flags[@]}" | sort) <(printf "%s\n" "${lscpu_flags_ref[@]}" | sort))
+# if [ ! -z "$diff_result" ]; then
+#    echo "bot/build.sh: ERROR: difference between reported lscpu flags and reference for this ($EESSI_SOFTWARE_SUBDIR_OVERRIDE) CPU architecture. This could mean an incorrect build host was used to build for this target.
+# fi
+
 # get EESSI_OS_TYPE from .architecture.os_type in ${JOB_CFG_FILE} (default: linux)
 EESSI_OS_TYPE=$(cfg_get_value "architecture" "os_type")
 export EESSI_OS_TYPE=${EESSI_OS_TYPE:-linux}
