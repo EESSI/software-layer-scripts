@@ -265,6 +265,13 @@ BUILD_TMPDIR=$(grep ' as tmp directory ' ${build_outerr} | cut -d ' ' -f 2)
 TARBALL_STEP_ARGS+=("--resume" "${BUILD_TMPDIR}")
 
 timestamp=$(date +%s)
+if [[ -x "$(command -v zstd)" ]]; then
+    tarball_extension="tar.zst"
+elif [[ -x "$(command -v gzip)" ]]; then
+    tarball_extension="tar.gz"
+else
+    tarball_extension="tar"
+fi
 # to set EESSI_VERSION we need to source init/eessi_defaults now
 source $software_layer_dir/init/eessi_defaults
 # Note: if ${EESSI_DEV_PROJECT} is defined (building for dev.eessi.io), then we 
@@ -272,9 +279,9 @@ source $software_layer_dir/init/eessi_defaults
 # then used at the ingestion stage. If ${EESSI_DEV_PROJECT} is not defined, nothing is
 # appended
 if [[ -z ${EESSI_ACCELERATOR_TARGET_OVERRIDE} ]]; then
-    export TARBALL=$(printf "eessi-%s-software-%s-%s-%b%d.tar.zst" ${EESSI_VERSION} ${EESSI_OS_TYPE} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE//\//-} ${EESSI_DEV_PROJECT:+$EESSI_DEV_PROJECT-} ${timestamp})
+    export TARBALL=$(printf "eessi-%s-software-%s-%s-%b%d.${tarball_extension}" ${EESSI_VERSION} ${EESSI_OS_TYPE} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE//\//-} ${EESSI_DEV_PROJECT:+$EESSI_DEV_PROJECT-} ${timestamp})
 else
-    export TARBALL=$(printf "eessi-%s-software-%s-%s-%s-%b%d.tar.zst" ${EESSI_VERSION} ${EESSI_OS_TYPE} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE//\//-} ${EESSI_ACCELERATOR_TARGET_OVERRIDE//\//-} ${EESSI_DEV_PROJECT:+$EESSI_DEV_PROJECT-} ${timestamp})
+    export TARBALL=$(printf "eessi-%s-software-%s-%s-%s-%b%d.${tarball_extension}" ${EESSI_VERSION} ${EESSI_OS_TYPE} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE//\//-} ${EESSI_ACCELERATOR_TARGET_OVERRIDE//\//-} ${EESSI_DEV_PROJECT:+$EESSI_DEV_PROJECT-} ${timestamp})
 fi
 
 # Export EESSI_DEV_PROJECT to use it (if needed) when making tarball
