@@ -183,6 +183,22 @@ else
     fatal_error "Failed to run 'reframe --version'"
 fi
 
+# Check if the partition specified by RFM_SYSTEM is in the config file
+# Redirect to /dev/null because we don't want to print an ERROR, we want to try a fallback
+reframe --show-config | grep -v "could not find a configuration entry for the requested system/partition combination" > /dev/null
+if [[ $? -eq 1 ]]; then
+    # There was a match by grep, so we failed to find the system/partition combination
+    # Try the previous approach for backwards compatibility
+    # This fallback can be scrapped once all bots have adopted the new naming convention
+    # (i.e. using the node_type name from app.cfg) for ReFrame partitions
+    # Get the correct partition name
+    REFRAME_PARTITION_NAME=${EESSI_SOFTWARE_SUBDIR//\//_}
+    if [ ! -z "$EESSI_ACCELERATOR_TARGET_OVERRIDE" ]; then
+        REFRAME_PARTITION_NAME=${REFRAME_PARTITION_NAME}_${EESSI_ACCELERATOR_TARGET_OVERRIDE//\//_}
+    fi
+    echo "Constructed partition name based on EESSI_SOFTWARE_SUBDIR and EESSI_ACCELERATOR_TARGET: ${REFRAME_PARTITION_NAME}"
+fi    
+
 # Get the subset of test names based on the test mapping and tags (e.g. CI, 1_node)
 module_list="module_files.list.txt"
 mapping_config="tests/eessi_test_mapping/software_to_tests.yml"
