@@ -199,6 +199,7 @@ if [[ $? -eq 1 ]]; then
         REFRAME_PARTITION_NAME=${REFRAME_PARTITION_NAME}_${EESSI_ACCELERATOR_TARGET_OVERRIDE//\//_}
     fi
     echo "Constructed partition name based on EESSI_SOFTWARE_SUBDIR and EESSI_ACCELERATOR_TARGET: ${REFRAME_PARTITION_NAME}"
+    export RFM_SYSTEM="BotBuildTests:${REFRAME_PARTITION_NAME}"
 fi    
 
 # Log the config for this partition:
