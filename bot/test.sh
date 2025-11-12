@@ -100,7 +100,7 @@ if [[ ! -z ${SINGULARITY_CACHEDIR} ]]; then
 fi
 
 # try to determine tmp directory from build job
-RESUME_DIR=$(grep 'Using .* as tmp directory' slurm-${SLURM_JOBID}.out | head -1 | awk '{print $2}')
+RESUME_DIR=$(grep 'Using .* as tmp directory' slurm-${SLURM_JOBID}.out | head -n 1 | awk '{print $2}')
 
 if [[ -z ${RESUME_DIR} ]]; then
   RESUME_TGZ=${PWD}/previous_tmp/build_step/$(ls previous_tmp/build_step)
