@@ -192,6 +192,8 @@ if [[ $? -eq 1 ]]; then
     # This fallback can be scrapped once all bots have adopted the new naming convention
     # (i.e. using the node_type name from app.cfg) for ReFrame partitions
     # Get the correct partition name
+    echo "Falling back to old naming scheme for REFRAME_PARTITION_NAME."
+    echo "This naming scheme is deprecated, please update your partition names in the ReFrame config file."
     REFRAME_PARTITION_NAME=${EESSI_SOFTWARE_SUBDIR//\//_}
     if [ ! -z "$EESSI_ACCELERATOR_TARGET_OVERRIDE" ]; then
         REFRAME_PARTITION_NAME=${REFRAME_PARTITION_NAME}_${EESSI_ACCELERATOR_TARGET_OVERRIDE//\//_}
