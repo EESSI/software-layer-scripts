@@ -13,6 +13,7 @@
 display_help() {
   echo "usage: $0 [OPTIONS]"
   echo "  -g | --generic         -  instructs script to test for generic architecture target"
+  echo "  -p | --partition       -  the partition name on which to test (used by ReFrame to load the right config)"
   echo "  -h | --help            -  display this usage information"
   echo "  -x | --http-proxy URL  -  provides URL for the environment variable http_proxy"
   echo "  -y | --https-proxy URL -  provides URL for the environment variable https_proxy"
@@ -25,6 +26,10 @@ while [[ $# -gt 0 ]]; do
     -g|--generic)
       DETECTION_PARAMETERS="--generic"
       shift
+      ;;
+    -p|--partition)
+      REFRAME_PARTITION_NAME="${2}"
+      shift 2
       ;;
     -h|--help)
       display_help  # Call your function
@@ -152,13 +157,6 @@ fi
 export RFM_CHECK_SEARCH_PATH=$TESTSUITEPREFIX/eessi/testsuite/tests
 export RFM_CHECK_SEARCH_RECURSIVE=1
 export RFM_PREFIX=$PWD/reframe_runs
-
-# Get the correct partition name
-REFRAME_PARTITION_NAME=${EESSI_SOFTWARE_SUBDIR//\//_}
-if [ ! -z "$EESSI_ACCELERATOR_TARGET_OVERRIDE" ]; then
-    REFRAME_PARTITION_NAME=${REFRAME_PARTITION_NAME}_${EESSI_ACCELERATOR_TARGET_OVERRIDE//\//_}
-fi
-echo "Constructed partition name based on EESSI_SOFTWARE_SUBDIR and EESSI_ACCELERATOR_TARGET: ${REFRAME_PARTITION_NAME}"
 
 # Set the reframe system name, including partition
 export RFM_SYSTEM="BotBuildTests:${REFRAME_PARTITION_NAME}"
