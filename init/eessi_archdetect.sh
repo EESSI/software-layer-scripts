@@ -181,7 +181,7 @@ accelpath() {
         nvidia_smi_out=$(mktemp -p /tmp nvidia_smi_out.XXXXX)
         nvidia-smi --query-gpu=gpu_name,count,driver_version,compute_cap --format=csv,noheader 2>&1 > $nvidia_smi_out
         if [[ $? -eq 0 ]]; then
-            nvidia_smi_info=$(head -1 $nvidia_smi_out)
+            nvidia_smi_info=$(head -n 1 $nvidia_smi_out)
             cuda_cc=$(echo $nvidia_smi_info | sed 's/, /,/g' | cut -f4 -d, | sed 's/\.//g')
             log "DEBUG" "accelpath: CUDA compute capability '${cuda_cc}' derived from nvidia-smi output '${nvidia_smi_info}'"
             res="accel/nvidia/cc${cuda_cc}"

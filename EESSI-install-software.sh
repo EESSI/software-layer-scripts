@@ -207,7 +207,7 @@ fi
 
 # the install_scripts.sh script relies on knowing the location of the PR diff
 # assume there's only one diff file that corresponds to the PR patch file
-pr_diff=$(ls [0-9]*.diff | head -1)
+pr_diff=$(ls [0-9]*.diff | head -n 1)
 export PR_DIFF="$PWD/$pr_diff"
 
 # Only run install_scripts.sh if not in dev.eessi.io for security
