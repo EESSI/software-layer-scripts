@@ -689,3 +689,4 @@ symlink_mode
 
 # If everything went OK, show success message
 echo_green "Host NVIDIA GPU drivers linked successfully for EESSI"
+
