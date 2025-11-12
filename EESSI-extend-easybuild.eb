@@ -176,7 +176,8 @@ end
 setenv ("EASYBUILD_SYSROOT", sysroot)
 setenv ("EASYBUILD_PREFIX", pathJoin(working_dir, "easybuild"))
 setenv ("EASYBUILD_INSTALLPATH", easybuild_installpath)
-setenv ("EASYBUILD_HOOKS", pathJoin(os.getenv("EESSI_PREFIX"), "init", "easybuild", "eb_hooks.py"))
+eessi_init_prefix = os.getenv("EESSI_INIT_PREFIX") or pathJoin(os.getenv("EESSI_PREFIX"), "init")
+setenv ("EASYBUILD_HOOKS", pathJoin(eessi_init_prefix, "easybuild", "eb_hooks.py"))
 
 -- Make sure to use the general umask that allows a global read
 setenv ("EASYBUILD_UMASK", "022")
@@ -235,6 +236,13 @@ if mode() == "unload" or mode() == "dependencyCk" or convertToCanonical(easybuil
     setenv ("EASYBUILD_SEARCH_PATH_CPP_HEADERS", "include_paths")
   end
 end
+
+-- Avoid locale related problems by (temporarily) overwriting the locale with one we know exists ('locale -a')
+pushenv ("LANG", "C.utf8")
+pushenv ("LC_ALL", "C.utf8")
+pushenv ("LC_CTYPE", "C.utf8")
+pushenv ("LC_MESSAGES", "C.utf8")
+
 """
 
 moduleclass = 'devel'
