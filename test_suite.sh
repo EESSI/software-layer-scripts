@@ -199,6 +199,9 @@ if [[ $? -eq 1 ]]; then
     echo "Constructed partition name based on EESSI_SOFTWARE_SUBDIR and EESSI_ACCELERATOR_TARGET: ${REFRAME_PARTITION_NAME}"
 fi    
 
+# Log the config for this partition:
+reframe --show-config
+
 # Get the subset of test names based on the test mapping and tags (e.g. CI, 1_node)
 module_list="module_files.list.txt"
 mapping_config="tests/eessi_test_mapping/software_to_tests.yml"
