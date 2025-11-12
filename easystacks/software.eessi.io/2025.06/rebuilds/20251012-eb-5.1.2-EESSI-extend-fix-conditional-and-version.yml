@@ -1,0 +1,7 @@
+# 2025-10-12
+# Running 'module show EESSI-extend/2025.06-easybuild' throws an error. It seems
+# 'easybuild_version' is nil and therefore an conditional expression cannot be
+# evaluated. Also, it seems not correct that the eessi_version is set to
+# "2023.06" if the environment variable EESSI_VERSION is not set.
+easyconfigs:
+  - EESSI-extend-easybuild.eb
