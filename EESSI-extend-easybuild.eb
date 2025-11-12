@@ -227,6 +227,7 @@ if mode() == "unload" or mode() == "dependencyCk" or convertToCanonical(easybuil
   setenv ("EASYBUILD_CUDA_SANITY_CHECK_ERROR_ON_FAILED_CHECKS", "1")
   setenv ("EASYBUILD_FAIL_ON_MOD_FILES_GCCCORE", "1")
   setenv ("EASYBUILD_LOCAL_VAR_NAMING_CHECK", "error")
+  setenv ("EASYBUILD_PARALLEL_EXTENSIONS_INSTALL", "1")
   -- Set environment variables that are EESSI version specific
   if convertToCanonical(eessi_version) > convertToCanonical("2023.06") then
     setenv ("EASYBUILD_PREFER_PYTHON_SEARCH_PATH", "EBPYTHONPREFIXES")
