@@ -105,6 +105,15 @@ if (eessi_accelerator_target ~= nil) then
   else
     LmodError("Incorrect value for $EESSI_ACCELERATOR_TARGET: " .. eessi_accelerator_target)
   end
+
+  -- If architectures are 9.0, 10.0 or 12.0, enable architecture or family-specific optimizations
+  if easybuild_cuda_compute_capabilities == '9.0' then
+    easybuild_cuda_compute_capabilities = '9.0a'
+  elseif easybuild_cuda_compute_capabilities == '10.0' then
+    easybuild_cuda_compute_capabilities = '10.0f'
+  elseif easybuild_cuda_compute_capabilities == '12.0' then
+    easybuild_cuda_compute_capabilities = '12.0f'
+  end
 end
 
 -- Some environment variables affect behaviour, let's gather them once
