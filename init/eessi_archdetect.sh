@@ -219,3 +219,4 @@ case "$ARGUMENT" in
     "accelpath") accelpath; exit;;
     *) echo "$USAGE"; log "ERROR" "Missing <action> argument (possible actions: 'cpupath', 'accelpath')";;
 esac
+

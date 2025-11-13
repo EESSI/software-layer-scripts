@@ -177,3 +177,4 @@ if [ -d $EESSI_PREFIX ]; then
 else
   error "EESSI repository at $EESSI_PREFIX not found!"
 fi
+
