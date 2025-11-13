@@ -96,9 +96,12 @@ sysroot = os.getenv("EESSI_EPREFIX")
 -- Check if we have GPU capabilities and configure CUDA compute capabilities
 eessi_accelerator_target = os.getenv("EESSI_ACCELERATOR_TARGET")
 if (eessi_accelerator_target ~= nil) then
-  cuda_compute_capability = string.match(eessi_accelerator_target, "^accel/nvidia/cc([0-9][0-9])$")
+  cuda_compute_capability = string.match(eessi_accelerator_target, "^accel/nvidia/cc([0-9]+)$")
   if (cuda_compute_capability ~= nil) then
-    easybuild_cuda_compute_capabilities = cuda_compute_capability:sub(1, 1) ..  "." .. cuda_compute_capability:sub(2, 2)
+    -- The last digit should be the minor version, insert a dot in the one-but-last position
+    major_version = cuda_compute_capability:sub(1, #cuda_compute_capability - 1)
+    minor_version = cuda_compute_capability:sub(#cuda_compute_capability)
+    easybuild_cuda_compute_capabilities = string.format("%s.%s", major_version, minor_version)
   else
     LmodError("Incorrect value for $EESSI_ACCELERATOR_TARGET: " .. eessi_accelerator_target)
   end
