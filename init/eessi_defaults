@@ -9,7 +9,15 @@
 
 export EESSI_VERSION_DEFAULT='__EESSI_VERSION_DEFAULT__'
 
-export EESSI_VERSION="${EESSI_VERSION_OVERRIDE:=${EESSI_VERSION_DEFAULT}}"
+# if $EESSI_VERSION_OVERRIDE is set and has a suffix, e.g. 2025.06-001,
+# we split it into EESSI_VERSION (2025.06) and EESSI_SOFTWARE_LAYER_VERSION_SUFFIX (-001)
+if [[ "${EESSI_VERSION_OVERRIDE}" == *-* ]]; then
+    export EESSI_VERSION=${EESSI_VERSION_OVERRIDE%-*}
+    export EESSI_SOFTWARE_LAYER_VERSION_SUFFIX="-${EESSI_VERSION_OVERRIDE#*-}"
+else
+    export EESSI_VERSION="${EESSI_VERSION_OVERRIDE:=${EESSI_VERSION_DEFAULT}}"
+    export EESSI_SOFTWARE_LAYER_VERSION_SUFFIX=""
+fi
 
 # use different defaults for RISC-V clients
 if [[ $(uname -m) == "riscv64" ]]; then
