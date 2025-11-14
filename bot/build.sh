@@ -176,7 +176,7 @@ lscpu > _bot_job${SLURM_JOB_ID}.lscpu
 cat /etc/os-release > _bot_job${SLURM_JOB_ID}.os
 
 # Also: fetch CPU flags into an array, so that we can implement a hard check against a reference
-lscpu_flags_line=$(lscpu | grep "Flags:")
+lscpu_flags_line=$(lscpu | grep "Flags:" || echo "")
 # strip leading "Flags:" and spaces, and put result in a bash array
 if [[ $lscpu_flags =~ Flags:\ (.*) ]]; then lscpu_flags=(${BASH_REMATCH[1]}); fi
 # for now, just print
