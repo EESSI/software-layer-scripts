@@ -17,7 +17,7 @@
 
 #  - SUCCESS (all of)
 #    - working directory contains slurm-JOBID.out file
-#    - working directory contains eessi*tar.gz
+#    - working directory contains eessi*tar*
 #    - no message FATAL
 #    - no message ERROR
 #    - no message FAILED
@@ -165,19 +165,19 @@ if [[ ${SLURM_OUTPUT_FOUND} -eq 1 ]]; then
 fi
 
 if [[ $USE_CHECK_BUILD_ARTEFACTS_SCRIPT -eq 0 ]]; then
-    TGZ=-1
+    TARBALL_CREATED=-1
     TARBALL=
     if [[ ${SLURM_OUTPUT_FOUND} -eq 1 ]]; then
-      GP_tgz_created="\.tar\.gz created!"
-      grep_out=$(grep -v "^>> searching for " ${job_dir}/${job_out} | grep "${GP_tgz_created}" | sort -u)
+      GP_tarball_created="\.tar.* created!"
+      grep_out=$(grep -v "^>> searching for " ${job_dir}/${job_out} | grep "${GP_tarball_created}" | sort -u)
       if [[ $? -eq 0 ]]; then
-          TGZ=1
+          TARBALL_CREATED=1
           TARBALL=$(echo ${grep_out} | sed -e 's@^.*/\(eessi[^/ ]*\) .*$@\1@')
       else
-          TGZ=0
+          TARBALL_CREATED=0
       fi
       # have to be careful to not add searched for pattern into slurm out file
-      [[ ${VERBOSE} -ne 0 ]] && echo ">> searching for '"${GP_tgz_created}"'"
+      [[ ${VERBOSE} -ne 0 ]] && echo ">> searching for '"${GP_tarball_created}"'"
       [[ ${VERBOSE} -ne 0 ]] && echo "${grep_out}"
     fi
 fi
@@ -190,7 +190,7 @@ fi
 [[ ${VERBOSE} -ne 0 ]] && echo "  REQ_MISSING: $([[ $MISSING -eq 1 ]] && echo 'yes' || echo 'no') (no)"
 [[ ${VERBOSE} -ne 0 ]] && echo "  NO_MISSING.: $([[ $NO_MISSING -eq 1 ]] && echo 'yes' || echo 'no') (yes)"
 if [[ $USE_CHECK_BUILD_ARTEFACTS_SCRIPT -eq 0 ]]; then
-    [[ ${VERBOSE} -ne 0 ]] && echo "  TGZ_CREATED: $([[ $TGZ -eq 1 ]] && echo 'yes' || echo 'no') (yes)"
+    [[ ${VERBOSE} -ne 0 ]] && echo "  TARBALL_CREATED: $([[ $TARBALL -eq 1 ]] && echo 'yes' || echo 'no') (yes)"
 fi
 
 # Here, we try to do some additional analysis on the output file
@@ -219,7 +219,7 @@ if [[ ${SLURM_OUTPUT_FOUND} -eq 1 ]] && \
    [[ ${FAILED} -eq 0 ]] && \
    [[ ${MISSING} -eq 0 ]] && \
    [[ ${NO_MISSING} -eq 1 ]] && \
-   [[ $USE_CHECK_BUILD_ARTEFACTS_SCRIPT -ne 0 || ${TGZ} -eq 1 ]] && \
+   [[ $USE_CHECK_BUILD_ARTEFACTS_SCRIPT -ne 0 || ${TARBALL_CREATED} -eq 1 ]] && \
    [[ $USE_CHECK_BUILD_ARTEFACTS_SCRIPT -ne 0 || -n ${TARBALL} ]]; then
     # SUCCESS
     status="SUCCESS"
@@ -429,9 +429,9 @@ failure_msg="no message matching <code>${GP_no_missing}</code>"
 comment_details_list=${comment_details_list}$(add_detail ${NO_MISSING} 1 "${success_msg}" "${failure_msg}")
 
 if [[ $USE_CHECK_BUILD_ARTEFACTS_SCRIPT -eq 0 ]]; then
-    success_msg="found message matching <code>${GP_tgz_created}</code>"
-    failure_msg="no message matching <code>${GP_tgz_created}</code>"
-    comment_details_list=${comment_details_list}$(add_detail ${TGZ} 1 "${success_msg}" "${failure_msg}")
+    success_msg="found message matching <code>${GP_tarball_created}</code>"
+    failure_msg="no message matching <code>${GP_tarball_created}</code>"
+    comment_details_list=${comment_details_list}$(add_detail ${TARBALL_CREATED} 1 "${success_msg}" "${failure_msg}")
 fi
 
 # Now, do the actual replacement of __DETAILS_FMT__
@@ -478,7 +478,16 @@ if [[ $USE_CHECK_BUILD_ARTEFACTS_SCRIPT -eq 0 ]]; then
         size="$(stat --dereference --printf=%s ${TARBALL})"
         size_mib=$((${size} >> 20))
         tmpfile=$(mktemp --tmpdir=. tarfiles.XXXX)
-        tar tf ${TARBALL} > ${tmpfile}
+        if [[ "${TARBALL}" == *.tar.zst ]]; then
+          tar --use-compress-program=zstd -tf ${TARBALL} > ${tmpfile}
+        elif [[ "${TARBALL}" == *.tar.gz ]]; then
+          tar --use-compress-program=gzip -tf ${TARBALL} > ${tmpfile}
+        elif [[ "${TARBALL}" == *.tar ]]; then
+          tar -tf ${TARBALL} > ${tmpfile}
+        else
+          echo "ERROR: Unsupported tarball extension!" >&2
+          exit 1
+        fi
         entries=$(cat ${tmpfile} | wc -l)
         # determine prefix from job config: VERSION/software/OS_TYPE/CPU_FAMILY/ARCHITECTURE
         # e.g., 2023.06/software/linux/x86_64/intel/skylake_avx512

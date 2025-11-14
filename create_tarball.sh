@@ -12,7 +12,7 @@ eessi_tmpdir=$1
 eessi_version=$2
 cpu_arch_subdir=$3
 accel_subdir=$4
-target_tgz=$5
+target_tarball=$5
 
 tmpdir=`mktemp -d`
 echo ">> tmpdir: $tmpdir"
@@ -114,10 +114,9 @@ fi
 
 topdir=${cvmfs_repo}/versions/
 
-echo ">> Creating tarball ${target_tgz} from ${topdir}..."
-tar cfvz ${target_tgz} -C ${topdir} --files-from=${files_list}
-
-echo ${target_tgz} created!
+echo ">> Creating tarball ${target_tarball} from ${topdir}..."
+tar cavf ${target_tarball} -C ${topdir} --files-from=${files_list}
+echo ${target_tarball} created!
 
 echo ">> Cleaning up tmpdir ${tmpdir}..."
 rm -r ${tmpdir}
