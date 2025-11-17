@@ -892,6 +892,7 @@ def pre_configure_hook_gromacs(self, *args, **kwargs):
     if self.name == 'GROMACS':
         cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
         if (
+            (LooseVersion(self.version) <= LooseVersion('2024.1') and cpu_target == CPU_TARGET_A64FX) or
             (LooseVersion(self.version) <= LooseVersion('2024.1') and cpu_target == CPU_TARGET_NEOVERSE_V1) or
             (LooseVersion(self.version) <= LooseVersion('2024.4') and cpu_target == CPU_TARGET_NVIDIA_GRACE)
         ):
