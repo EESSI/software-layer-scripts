@@ -27,6 +27,7 @@ jobs:
           - aarch64/google/axion/GCP-axion
           - riscv64/sifive/premier-Ubuntu24
           - riscv64/spacemit/bananaf3-Armbian
+          - riscv64/spacemit/bananaf3-k6.6
           # commented out since these targets are currently not supported in software.eessi.io repo
           # (and some tests assume that the corresponding subdirectory in software layer is there)
           # - ppc64le/power9le/unknown-power9le
