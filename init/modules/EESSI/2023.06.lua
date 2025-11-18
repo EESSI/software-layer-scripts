@@ -22,9 +22,9 @@ local eessi_os_type = "linux"
 if (subprocess("uname -m"):gsub("\n$","") == "riscv64") then
     if (eessi_version == "2023.06" or eessi_version == "20240402") then
         eessi_version_override = os.getenv("EESSI_VERSION_OVERRIDE") or ""
-        i_suffix = string.find(eessi_version_override, '-')
-        if i_suffix then
-            eessi_software_layer_version_suffix = string.sub(eessi_version_override, i_suffix)
+        index_suffix = string.find(eessi_version_override, '-')
+        if index_suffix then
+            eessi_software_layer_version_suffix = string.sub(eessi_version_override, index_suffix)
         end
         eessi_repo = "/cvmfs/riscv.eessi.io"
         eessi_prefix = pathJoin(eessi_repo, "versions", eessi_version .. eessi_software_layer_version_suffix)
