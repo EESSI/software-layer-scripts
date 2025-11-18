@@ -883,27 +883,6 @@ def pre_configure_hook_gobject_introspection(self, *args, **kwargs):
         raise EasyBuildError("GObject-Introspection-specific hook triggered for non-GObject-Introspection easyconfig?!")
 
 
-def pre_configure_hook_gromacs(self, *args, **kwargs):
-    """
-    Pre-configure hook for GROMACS:
-    - avoid building with SVE instructions on Neoverse V1 as workaround for failing tests,
-      see https://gitlab.com/gromacs/gromacs/-/issues/5057 + https://gitlab.com/eessi/support/-/issues/47
-    """
-    if self.name == 'GROMACS':
-        cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
-        if (
-            (LooseVersion(self.version) <= LooseVersion('2024.1') and cpu_target == CPU_TARGET_NEOVERSE_V1) or
-            (LooseVersion(self.version) <= LooseVersion('2024.4') and cpu_target == CPU_TARGET_NVIDIA_GRACE)
-        ):
-            self.cfg.update('configopts', '-DGMX_SIMD=ARM_NEON_ASIMD')
-            print_msg(
-                "Avoiding use of SVE instructions for GROMACS %s by using ARM_NEON_ASIMD as GMX_SIMD value",
-                self.version
-                )
-    else:
-        raise EasyBuildError("GROMACS-specific hook triggered for non-GROMACS easyconfig?!")
-
-
 def pre_configure_hook_llvm(self, *args, **kwargs):
     """Adjust internal configure options for the LLVM EasyBlock to reinstate filtered out dependencies.
     In the LLVM EasyBlock, most checks concerning loaded modules are performed at the configure_step.
@@ -1647,7 +1626,6 @@ PRE_CONFIGURE_HOOKS = {
     'GObject-Introspection': pre_configure_hook_gobject_introspection,
     'Extrae': pre_configure_hook_extrae,
     'GRASS': pre_configure_hook_grass,
-    #'GROMACS': pre_configure_hook_gromacs,
     'libfabric': pre_configure_hook_libfabric_disable_psm3_x86_64_generic,
     'LLVM': pre_configure_hook_llvm,
     'ROCm-LLVM': pre_configure_hook_llvm,
