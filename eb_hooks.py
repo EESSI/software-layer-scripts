@@ -1647,7 +1647,7 @@ PRE_CONFIGURE_HOOKS = {
     'GObject-Introspection': pre_configure_hook_gobject_introspection,
     'Extrae': pre_configure_hook_extrae,
     'GRASS': pre_configure_hook_grass,
-    'GROMACS': pre_configure_hook_gromacs,
+    #'GROMACS': pre_configure_hook_gromacs,
     'libfabric': pre_configure_hook_libfabric_disable_psm3_x86_64_generic,
     'LLVM': pre_configure_hook_llvm,
     'ROCm-LLVM': pre_configure_hook_llvm,
