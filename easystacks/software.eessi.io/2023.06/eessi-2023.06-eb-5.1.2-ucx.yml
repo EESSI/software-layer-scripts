@@ -1,0 +1,4 @@
+easyconfigs:
+  - UCX-1.13.1-GCCcore-12.2.0.eb
+  - UCX-1.14.1-GCCcore-12.3.0.eb
+  - UCX-1.15.0-GCCcore-13.2.0.eb
