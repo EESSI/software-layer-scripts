@@ -502,7 +502,9 @@ def parse_hook_qt5_check_qtwebengine_disable(ec, eprefix):
 def parse_hook_ucx_eprefix(ec, eprefix):
     """Make UCX aware of compatibility layer via additional configuration options."""
     if ec.name == 'UCX':
-        ec.update('configopts', '--with-sysroot=%s' % eprefix)
+        # Don't enable --with-sysroot, as it will prefix library paths in .la files
+        # with a = sign, causing weird issues for applications that depend on UCX (and use libtool)
+        # ec.update('configopts', '--with-sysroot=%s' % eprefix)
         ec.update('configopts', '--with-rdmacm=%s' % os.path.join(eprefix, 'usr'))
         print_msg("Using custom configure options for %s: %s", ec.name, ec['configopts'])
     else:
