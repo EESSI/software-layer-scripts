@@ -2,7 +2,4 @@ easyconfigs:
   - UCX-1.16.0-GCCcore-13.3.0.eb:
       options:
         rebuild: True
-  - UCX-1.18.0-GCCcore-14.2.0.eb:
-      options:
-        rebuild: True
-
+  - Cgl-0.60.8-foss-2024a.eb
