@@ -189,6 +189,10 @@ EESSI_OS_TYPE=$(cfg_get_value "architecture" "os_type")
 export EESSI_OS_TYPE=${EESSI_OS_TYPE:-linux}
 echo "bot/test.sh: EESSI_OS_TYPE='${EESSI_OS_TYPE}'"
 
+# Get node_type from .architecture.node_type in ${JOB_CFG_FILE}
+export BOT_NODE_TYPE=$(cfg_get_value "architecture" "node_type")
+echo "bot/test.sh: BOT_NODE_TYPE='${BOT_NODE_TYPE}"
+
 # prepare arguments to eessi_container.sh common to build and tarball steps
 declare -a COMMON_ARGS=()
 COMMON_ARGS+=("--verbose")
@@ -236,6 +240,9 @@ if [[ ${EESSI_SOFTWARE_SUBDIR_OVERRIDE} =~ .*/generic$ ]]; then
 fi
 if [[ ${SHARED_FS_PATH} ]]; then
     TEST_SUITE_ARGS+=("--shared-fs-path" "${SHARED_FS_PATH}")
+fi
+if [[ ${BOT_NODE_TYPE} ]]; then
+    TEST_SUITE_ARGS+=("--partition" "${BOT_NODE_TYPE}")
 fi
 # [[ ! -z ${BUILD_LOGS_DIR} ]] && TEST_SUITE_ARGS+=("--build-logs-dir" "${BUILD_LOGS_DIR}")
 # [[ ! -z ${SHARED_FS_PATH} ]] && TEST_SUITE_ARGS+=("--shared-fs-path" "${SHARED_FS_PATH}")
