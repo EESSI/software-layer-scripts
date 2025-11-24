@@ -249,6 +249,8 @@ fi
 
 # avoid that pyc files for EasyBuild are stored in EasyBuild installation directory
 export PYTHONPYCACHEPREFIX=$TMPDIR/pycache
+# force Python's stdout and stderr streams to be unbuffered
+export PYTHONUNBUFFERED=1
 
 # if we run the script for the first time, e.g., to start building for a new
 #   stack, we need to ensure certain files are present in
