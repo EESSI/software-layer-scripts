@@ -114,6 +114,9 @@ cpupath(){
     local cpu_vendor=$(get_cpuinfo "vendor[ _]id")
     if [ "${cpu_vendor}" == "" ]; then
         cpu_vendor=$(get_cpuinfo "cpu[ _]implementer")
+        if [ "${cpu_vendor}" == "" ]; then
+            cpu_vendor=$(get_cpuinfo "mvendorid")
+        fi
     fi
     log "DEBUG" "cpupath: CPU vendor of host system: '$cpu_vendor'"
   
@@ -129,6 +132,9 @@ cpupath(){
     # on 64-bit POWER, we need to look at 'cpu' field
     elif [ "${machine_type}" == "ppc64le" ]; then
         cpu_flag_tag='cpu'
+    # on 64-bit RISC-V, we need to look at 'isa' field
+    elif [ "${machine_type}" == "riscv64" ]; then
+        cpu_flag_tag='isa'
     else
         cpu_flag_tag='flags'
     fi
