@@ -1711,4 +1711,7 @@ PARALLELISM_LIMITS = {
     'Qt5': {
         CPU_TARGET_A64FX: (set_maximum, 8),
     },
+    'jax': {
+        '*': (divide_by_factor, 2),
+    },
 }
