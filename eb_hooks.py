@@ -418,13 +418,17 @@ def parse_hook_fontconfig_add_fonts(ec, eprefix):
 
 def parse_hook_grpcio_zlib(ec, ecprefix):
     """Adjust preinstallopts to use ZLIB from compat layer."""
-    if ec.name == 'grpcio' and ec.version in ['1.57.0']:
-        exts_list = ec['exts_list']
-        original_preinstallopts = (exts_list[0][2])['preinstallopts']
-        original_option = "GRPC_PYTHON_BUILD_SYSTEM_ZLIB=True"
-        new_option = "GRPC_PYTHON_BUILD_SYSTEM_ZLIB=False"
-        (exts_list[0][2])['preinstallopts'] = original_preinstallopts.replace(original_option, new_option, 1)
-        print_msg("Modified the easyconfig to use compat ZLIB with GRPC_PYTHON_BUILD_SYSTEM_ZLIB=False")
+    if ec.name == 'grpcio':
+        target_list = ['1.57.0', '1.67.1', '1.70.0']
+        if ec.version in target_list:
+            exts_list = ec['exts_list']
+            original_preinstallopts = (exts_list[0][2])['preinstallopts']
+            original_option = "GRPC_PYTHON_BUILD_SYSTEM_ZLIB=True"
+            new_option = "GRPC_PYTHON_BUILD_SYSTEM_ZLIB=False"
+            (exts_list[0][2])['preinstallopts'] = original_preinstallopts.replace(original_option, new_option, 1)
+            print_msg("Modified the easyconfig to use compat ZLIB with GRPC_PYTHON_BUILD_SYSTEM_ZLIB=False")
+        else:
+            print_warning("%s version %s not in target list %s, not applying hook", ec.name, ec.version, target_list)
     else:
         raise EasyBuildError("grpcio-specific hook triggered for a non-grpcio easyconfig?!")
 
@@ -498,7 +502,9 @@ def parse_hook_qt5_check_qtwebengine_disable(ec, eprefix):
 def parse_hook_ucx_eprefix(ec, eprefix):
     """Make UCX aware of compatibility layer via additional configuration options."""
     if ec.name == 'UCX':
-        ec.update('configopts', '--with-sysroot=%s' % eprefix)
+        # Don't enable --with-sysroot, as it will prefix library paths in .la files
+        # with a = sign, causing weird issues for applications that depend on UCX (and use libtool)
+        # ec.update('configopts', '--with-sysroot=%s' % eprefix)
         ec.update('configopts', '--with-rdmacm=%s' % os.path.join(eprefix, 'usr'))
         print_msg("Using custom configure options for %s: %s", ec.name, ec['configopts'])
     else:
@@ -879,27 +885,6 @@ def pre_configure_hook_gobject_introspection(self, *args, **kwargs):
         raise EasyBuildError("GObject-Introspection-specific hook triggered for non-GObject-Introspection easyconfig?!")
 
 
-def pre_configure_hook_gromacs(self, *args, **kwargs):
-    """
-    Pre-configure hook for GROMACS:
-    - avoid building with SVE instructions on Neoverse V1 as workaround for failing tests,
-      see https://gitlab.com/gromacs/gromacs/-/issues/5057 + https://gitlab.com/eessi/support/-/issues/47
-    """
-    if self.name == 'GROMACS':
-        cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
-        if (
-            (LooseVersion(self.version) <= LooseVersion('2024.1') and cpu_target == CPU_TARGET_NEOVERSE_V1) or
-            (LooseVersion(self.version) <= LooseVersion('2024.4') and cpu_target == CPU_TARGET_NVIDIA_GRACE)
-        ):
-            self.cfg.update('configopts', '-DGMX_SIMD=ARM_NEON_ASIMD')
-            print_msg(
-                "Avoiding use of SVE instructions for GROMACS %s by using ARM_NEON_ASIMD as GMX_SIMD value",
-                self.version
-                )
-    else:
-        raise EasyBuildError("GROMACS-specific hook triggered for non-GROMACS easyconfig?!")
-
-
 def pre_configure_hook_llvm(self, *args, **kwargs):
     """Adjust internal configure options for the LLVM EasyBlock to reinstate filtered out dependencies.
     In the LLVM EasyBlock, most checks concerning loaded modules are performed at the configure_step.
@@ -1149,7 +1134,8 @@ def pre_test_hook_ignore_failing_tests_SciPybundle(self, *args, **kwargs):
         FAILED optimize/tests/test_linprog.py::TestLinprogIPSparse::test_bug_6139 - A...
         FAILED optimize/tests/test_linprog.py::TestLinprogIPSparsePresolve::test_bug_6139
         = 2 failed, 30554 passed, 2064 skipped, 10992 deselected, 76 xfailed, 7 xpassed, 40 warnings in 380.27s (0:06:20) =
-    In versions 2023.02 + 2023.07 + 2023.11 on neoverse_v1, 2 failing tests in scipy (versions 1.10.1, 1.11.1, 1.11.4):
+    In versions 2023.02 + 2023.07 + 2023.11 + 2024.05 on neoverse_v1, 2 failing tests in scipy (versions 1.10.1, 1.11.1,
+    1.11.4, 1.13.1):
         FAILED scipy/spatial/tests/test_distance.py::TestPdist::test_pdist_correlation_iris
         FAILED scipy/spatial/tests/test_distance.py::TestPdist::test_pdist_correlation_iris_float32
         = 2 failed, 54409 passed, 3016 skipped, 223 xfailed, 13 xpassed, 10917 warnings in 892.04s (0:14:52) =
@@ -1159,6 +1145,11 @@ def pre_test_hook_ignore_failing_tests_SciPybundle(self, *args, **kwargs):
         FAILED scipy/spatial/tests/test_distance.py::TestPdist::test_pdist_correlation_iris
         FAILED scipy/spatial/tests/test_distance.py::TestPdist::test_pdist_correlation_iris_float32
         = 4 failed, 54407 passed, 3016 skipped, 223 xfailed, 13 xpassed, 10917 warnings in 6068.43s (1:41:08) =
+    In version 2024.05 on a64fx, 3 failing tests in scipy (version 1.13.1):
+        FAILED scipy/optimize/tests/test_minimize_constrained.py::TestTrustRegionConstr::test_list_of_problems
+        FAILED scipy/spatial/tests/test_distance.py::TestPdist::test_pdist_correlation_iris
+        FAILED scipy/spatial/tests/test_distance.py::TestPdist::test_pdist_correlation_iris_float32
+        = 3 failed, 61426 passed, 2620 skipped, 244 xfailed, 15 xpassed, 47 warnings in 6641.17s (1:50:41) =
     In version 2023.07 + 2023.11 on grace, 2 failing tests in scipy (versions 1.11.1,  1.11.4):
         FAILED scipy/optimize/tests/test_linprog.py::TestLinprogIPSparse::test_bug_6139
         FAILED scipy/optimize/tests/test_linprog.py::TestLinprogIPSparsePresolve::test_bug_6139
@@ -1214,8 +1205,8 @@ def pre_test_hook_ignore_failing_tests_SciPybundle(self, *args, **kwargs):
     (in previous versions we were not as strict yet on the numpy/SciPy tests)
     """
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
-    scipy_bundle_versions_nv1 = ('2021.10', '2023.02', '2023.07', '2023.11')
-    scipy_bundle_versions_a64fx = ('2023.02', '2023.07', '2023.11')
+    scipy_bundle_versions_nv1 = ('2021.10', '2023.02', '2023.07', '2023.11', '2024.05')
+    scipy_bundle_versions_a64fx = ('2023.02', '2023.07', '2023.11', '2024.05')
     scipy_bundle_versions_nvidia_grace = ('2023.02', '2023.07', '2023.11')
     if self.name == 'SciPy-bundle':
         if cpu_target == CPU_TARGET_NEOVERSE_V1 and self.version in scipy_bundle_versions_nv1:
@@ -1638,7 +1629,6 @@ PRE_CONFIGURE_HOOKS = {
     'GObject-Introspection': pre_configure_hook_gobject_introspection,
     'Extrae': pre_configure_hook_extrae,
     'GRASS': pre_configure_hook_grass,
-    'GROMACS': pre_configure_hook_gromacs,
     'libfabric': pre_configure_hook_libfabric_disable_psm3_x86_64_generic,
     'LLVM': pre_configure_hook_llvm,
     'ROCm-LLVM': pre_configure_hook_llvm,

@@ -96,11 +96,23 @@ sysroot = os.getenv("EESSI_EPREFIX")
 -- Check if we have GPU capabilities and configure CUDA compute capabilities
 eessi_accelerator_target = os.getenv("EESSI_ACCELERATOR_TARGET")
 if (eessi_accelerator_target ~= nil) then
-  cuda_compute_capability = string.match(eessi_accelerator_target, "^accel/nvidia/cc([0-9][0-9])$")
+  cuda_compute_capability = string.match(eessi_accelerator_target, "^accel/nvidia/cc([0-9]+)$")
   if (cuda_compute_capability ~= nil) then
-    easybuild_cuda_compute_capabilities = cuda_compute_capability:sub(1, 1) ..  "." .. cuda_compute_capability:sub(2, 2)
+    -- The last digit should be the minor version, insert a dot in the one-but-last position
+    major_version = cuda_compute_capability:sub(1, #cuda_compute_capability - 1)
+    minor_version = cuda_compute_capability:sub(#cuda_compute_capability)
+    easybuild_cuda_compute_capabilities = string.format("%s.%s", major_version, minor_version)
   else
     LmodError("Incorrect value for $EESSI_ACCELERATOR_TARGET: " .. eessi_accelerator_target)
+  end
+
+  -- If architectures are 9.0, 10.0 or 12.0, enable architecture or family-specific optimizations
+  if easybuild_cuda_compute_capabilities == '9.0' then
+    easybuild_cuda_compute_capabilities = '9.0a'
+  elseif easybuild_cuda_compute_capabilities == '10.0' then
+    easybuild_cuda_compute_capabilities = '10.0f'
+  elseif easybuild_cuda_compute_capabilities == '12.0' then
+    easybuild_cuda_compute_capabilities = '12.0f'
   end
 end
 
@@ -228,6 +240,7 @@ if mode() == "unload" or mode() == "dependencyCk" or convertToCanonical(easybuil
   setenv ("EASYBUILD_CUDA_SANITY_CHECK_ERROR_ON_FAILED_CHECKS", "1")
   setenv ("EASYBUILD_FAIL_ON_MOD_FILES_GCCCORE", "1")
   setenv ("EASYBUILD_LOCAL_VAR_NAMING_CHECK", "error")
+  setenv ("EASYBUILD_PARALLEL_EXTENSIONS_INSTALL", "1")
   -- Set environment variables that are EESSI version specific
   if convertToCanonical(eessi_version) > convertToCanonical("2023.06") then
     setenv ("EASYBUILD_PREFER_PYTHON_SEARCH_PATH", "EBPYTHONPREFIXES")
