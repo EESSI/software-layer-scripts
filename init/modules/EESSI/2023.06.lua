@@ -16,13 +16,18 @@ local eessi_repo = "/cvmfs/software.eessi.io"
 local eessi_prefix = pathJoin(eessi_repo, "versions", eessi_version)
 local eessi_compat_prefix = pathJoin(eessi_prefix, "compat")
 local eessi_init_prefix = pathJoin(eessi_prefix, "init")
+local eessi_software_layer_version_suffix = ""
 local eessi_os_type = "linux"
 -- for RISC-V clients we need to do some overrides, as things are stored in different CVMFS repositories
 if (subprocess("uname -m"):gsub("\n$","") == "riscv64") then
     if (eessi_version == "2023.06" or eessi_version == "20240402") then
-        eessi_version = os.getenv("EESSI_VERSION_OVERRIDE") or "20240402"
+        eessi_version_override = os.getenv("EESSI_VERSION_OVERRIDE") or ""
+        index_suffix = string.find(eessi_version_override, '-')
+        if index_suffix then
+            eessi_software_layer_version_suffix = string.sub(eessi_version_override, index_suffix)
+        end
         eessi_repo = "/cvmfs/riscv.eessi.io"
-        eessi_prefix = pathJoin(eessi_repo, "versions", eessi_version)
+        eessi_prefix = pathJoin(eessi_repo, "versions", eessi_version .. eessi_software_layer_version_suffix)
         eessi_compat_prefix = pathJoin(eessi_prefix, "compat")
         if mode() == "load" then
             LmodMessage("RISC-V architecture detected, but there is no RISC-V support yet in the production repository.\n" ..
@@ -139,6 +144,8 @@ prepend_path("PATH", pathJoin(eessi_eprefix, "bin"))
 eessiDebug("Adding " .. pathJoin(eessi_eprefix, "bin") .. " to PATH")
 prepend_path("PATH", pathJoin(eessi_eprefix, "usr", "bin"))
 eessiDebug("Adding " .. pathJoin(eessi_eprefix, "usr", "bin") .. " to PATH")
+setenv("EESSI_SOFTWARE_LAYER_VERSION_SUFFIX", eessi_software_layer_version_suffix)
+eessiDebug("Setting EESSI_SOFTWARE_LAYER_VERSION_SUFFIX to " .. eessi_software_layer_version_suffix)
 setenv("EESSI_SOFTWARE_PATH", eessi_software_path)
 eessiDebug("Setting EESSI_SOFTWARE_PATH to " .. eessi_software_path)
 setenv("EESSI_MODULEPATH", eessi_module_path)

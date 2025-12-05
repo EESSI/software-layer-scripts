@@ -165,11 +165,11 @@ accelpath() {
     # If EESSI_ACCELERATOR_TARGET_OVERRIDE is set, use it
     log "DEBUG" "accelpath: Override variable set as '$EESSI_ACCELERATOR_TARGET_OVERRIDE' "
     if [ ! -z $EESSI_ACCELERATOR_TARGET_OVERRIDE ]; then
-        if [[ "$EESSI_ACCELERATOR_TARGET_OVERRIDE" =~ ^accel/nvidia/cc[0-9][0-9]$ ]]; then
+        if [[ "$EESSI_ACCELERATOR_TARGET_OVERRIDE" =~ ^accel/nvidia/cc[0-9]+$ ]]; then
             echo ${EESSI_ACCELERATOR_TARGET_OVERRIDE}
             return 0
         else
-            log "ERROR" "Value of \$EESSI_ACCELERATOR_TARGET_OVERRIDE should match 'accel/nvidia/cc[0-9[0-9]', but it does not: '$EESSI_ACCELERATOR_TARGET_OVERRIDE'"
+            log "ERROR" "Value of \$EESSI_ACCELERATOR_TARGET_OVERRIDE should match 'accel/nvidia/cc[0-9]+', but it does not: '$EESSI_ACCELERATOR_TARGET_OVERRIDE'"
         fi
         return 0
     fi
@@ -181,7 +181,7 @@ accelpath() {
         nvidia_smi_out=$(mktemp -p /tmp nvidia_smi_out.XXXXX)
         nvidia-smi --query-gpu=gpu_name,count,driver_version,compute_cap --format=csv,noheader 2>&1 > $nvidia_smi_out
         if [[ $? -eq 0 ]]; then
-            nvidia_smi_info=$(head -1 $nvidia_smi_out)
+            nvidia_smi_info=$(head -n 1 $nvidia_smi_out)
             cuda_cc=$(echo $nvidia_smi_info | sed 's/, /,/g' | cut -f4 -d, | sed 's/\.//g')
             log "DEBUG" "accelpath: CUDA compute capability '${cuda_cc}' derived from nvidia-smi output '${nvidia_smi_info}'"
             res="accel/nvidia/cc${cuda_cc}"
@@ -219,3 +219,4 @@ case "$ARGUMENT" in
     "accelpath") accelpath; exit;;
     *) echo "$USAGE"; log "ERROR" "Missing <action> argument (possible actions: 'cpupath', 'accelpath')";;
 esac
+
