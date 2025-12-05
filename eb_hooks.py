@@ -897,12 +897,24 @@ def pre_configure_hook_llvm(self, *args, **kwargs):
     into pointing to the compat layer.
     """
     if self.name in ['LLVM', 'ROCm-LLVM']:
+        from easybuild.easyblocks.generic.bundle import Bundle
+        from easybuild.easyblocks.llvm import EB_LLVM
+
         eprefix = get_eessi_envvar('EPREFIX')
 
-        for software in ('zlib', 'ncurses'):
-            var_name = get_software_root_env_var_name(software)
-            env.setvar(var_name, os.path.join(eprefix, 'usr'))
-            self.deps.append(software)
+        def recursive_set_deps(item, softwares):
+            if isinstance(item, (list, tuple)):
+                for item in item:
+                    recursive_set_deps(item, softwares)
+            elif isinstance(item, Bundle):
+                recursive_set_deps(item.comp_instances, softwares)
+            elif isinstance(item, EB_LLVM):
+                for sftw in softwares:
+                    var_name = get_software_root_env_var_name(sftw)
+                    env.setvar(var_name, os.path.join(eprefix, 'usr'))
+                    item.deps.append(sftw)
+
+        recursive_set_deps(self, softwares=('zlib', 'ncurses'))
     else:
         raise EasyBuildError("LLVM-specific hook triggered for non-LLVM easyconfig?!")
 
