@@ -902,6 +902,7 @@ def pre_configure_hook_llvm(self, *args, **kwargs):
         for software in ('zlib', 'ncurses'):
             var_name = get_software_root_env_var_name(software)
             env.setvar(var_name, os.path.join(eprefix, 'usr'))
+            self.deps.append(software)
     else:
         raise EasyBuildError("LLVM-specific hook triggered for non-LLVM easyconfig?!")
 
@@ -1696,6 +1697,9 @@ PARALLELISM_LIMITS = {
     'libxc': {
         '*': (divide_by_factor, 2),
         CPU_TARGET_A64FX: (set_maximum, 12),
+    },
+    'LLVM': {
+        '*': (divide_by_factor, 2),
     },
     'MBX': {
         '*': (divide_by_factor, 2),
