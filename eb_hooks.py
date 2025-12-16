@@ -64,6 +64,7 @@ EESSI_SUPPORTED_TOP_LEVEL_TOOLCHAINS = {
         {'name': 'foss', 'version': '2024a'},
         {'name': 'foss', 'version': '2025a'},
         {'name': 'foss', 'version': '2025b'},
+        {'name': 'lfoss', 'version': '2025b'},
     ],
 }
 
