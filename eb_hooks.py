@@ -63,8 +63,13 @@ EESSI_SUPPORTED_TOP_LEVEL_TOOLCHAINS = {
     '2025.06': [
         {'name': 'foss', 'version': '2024a'},
         {'name': 'foss', 'version': '2025a'},
+        {'name': 'foss', 'version': '2025b'},
     ],
 }
+if EASYBUILD_VERSION >= '5.2.0':
+    EESSI_SUPPORTED_TOP_LEVEL_TOOLCHAINS['2025.06'].append(
+        {'name': 'lfoss', 'version': '2025b'}
+    )
 
 
 # Ensure that we don't print any messages in --terse mode
