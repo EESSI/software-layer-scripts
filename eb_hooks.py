@@ -1722,8 +1722,8 @@ PARALLELISM_LIMITS = {
     },
     'Qt6': {
         CPU_TARGET_A64FX: (set_maximum, 8),
-        CPU_TARGET_AARCH64_GENERIC: (set_maximum, 12),
-        CPU_TARGET_NEOVERSE_N1: (set_maximum, 12),
-        CPU_TARGET_NEOVERSE_V1: (set_maximum, 12),
+        CPU_TARGET_AARCH64_GENERIC: (divide_by_factor, 2),
+        CPU_TARGET_NEOVERSE_N1: (divide_by_factor, 2),
+        CPU_TARGET_NEOVERSE_V1: (divide_by_factor, 2),
     },
 }
