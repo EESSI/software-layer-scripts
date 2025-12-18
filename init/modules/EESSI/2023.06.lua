@@ -35,9 +35,13 @@ if (subprocess("uname -m"):gsub("\n$","") == "riscv64") then
                         "For more details about this repository, see https://www.eessi.io/docs/repositories/riscv.eessi.io/.")
         end
     elseif (eessi_version == "2025.06") then
+        eessi_version_override = os.getenv("EESSI_VERSION_OVERRIDE") or ""
+        index_suffix = string.find(eessi_version_override, '-')
+        if index_suffix then
+            eessi_software_layer_version_suffix = string.sub(eessi_version_override, index_suffix)
+        end
         eessi_repo = "/cvmfs/dev.eessi.io/riscv"
-        eessi_version = os.getenv("EESSI_VERSION_OVERRIDE") or eessi_version
-        eessi_prefix = pathJoin(eessi_repo, "versions", eessi_version)
+        eessi_prefix = pathJoin(eessi_repo, "versions", eessi_version .. eessi_software_layer_version_suffix)
         if mode() == "load" then
             LmodMessage("This EESSI production version only provides a RISC-V compatibility layer,\n" ..
                         "software installations are provided by the EESSI development repository at " .. eessi_repo .. ".\n")
