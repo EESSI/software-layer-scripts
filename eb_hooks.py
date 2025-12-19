@@ -278,6 +278,9 @@ def post_ready_hook(self, *args, **kwargs):
             self.cfg.parallel = new_parallel
         else:
             self.cfg['parallel'] = new_parallel
+        # also update the "parallel" template value
+        self.cfg.template_values['parallel'] = new_parallel
+        self.cfg.generate_template_values()
         msg = "limiting parallelism to %s (was %s, derived parallelism %s) for %s on %s "
         msg+ "to avoid out-of-memory failures during building/testing"
         print_msg(msg % (new_parallel, curr_parallel, session_parallel, self.name, cpu_target), log=self.log)
