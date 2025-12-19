@@ -329,6 +329,19 @@ def post_prepare_hook_gcc_prefixed_ld_rpath_wrapper(self, *args, **kwargs):
         config_guess = obtain_config_guess()
         system_type, _ = run_cmd(config_guess, log_all=True)
         cmd_prefix = '%s-' % system_type.strip()
+        if cmd_prefix.startswith('riscv64-unknown-'):
+            # The 2025.06 compatibility layer for RISC-V is built with CHOST=riscv64-pc-linux-gnu,
+            # while config.guess returns riscv64-unknown-linux-gnu.
+            # If we can't find an ld with the original cmd_prefix, but can find one with the -pc- prefix,
+            # we simply override the original cmd_prefix.
+            eprefix = get_eessi_envvar('EPREFIX')
+            cmd_prefix_riscv_pc = cmd_prefix.replace('-unknown-', '-pc-')
+            if (
+                not os.path.exists(os.path.join(eprefix, 'usr', 'bin', cmd_prefix + 'ld')) and
+                os.path.exists(os.path.join(eprefix, 'usr', 'bin',  cmd_prefix_riscv_pc + 'ld'))
+            ):
+                self.log.info(f"Using {cmd_prefix_riscv_pc} instead of {cmd_prefix} as command prefix.")
+                cmd_prefix = cmd_prefix_riscv_pc
         for cmd in ('ld', 'ld.gold', 'ld.bfd'):
             wrapper = which(cmd)
             if wrapper is None:
