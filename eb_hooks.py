@@ -331,6 +331,11 @@ def post_prepare_hook_gcc_prefixed_ld_rpath_wrapper(self, *args, **kwargs):
         cmd_prefix = '%s-' % system_type.strip()
         for cmd in ('ld', 'ld.gold', 'ld.bfd'):
             wrapper = which(cmd)
+            if wrapper is None:
+                # if no wrapper is found, the build machine does not have the corresponding command
+                # (e.g. there is no ld.gold in newer compatibility layers),
+                # and we can simply skip this step
+                continue
             self.log.info("Path to %s wrapper: %s" % (cmd, wrapper))
             wrapper_dir = os.path.dirname(wrapper)
             prefix_wrapper = os.path.join(wrapper_dir, cmd_prefix + cmd)
