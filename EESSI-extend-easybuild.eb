@@ -45,7 +45,7 @@ description = """
 toolchain = SYSTEM
 
 # All the dependencies we filter in EESSI
-local_deps_to_filter = "binutils,bzip2,DBus,flex,gettext,gperf,help2man,intltool,libreadline,makeinfo,ncurses,ParMETIS,util-linux,XZ,zlib"
+local_deps_to_filter = "binutils,bzip2,DBus,flex,gettext,gperf,help2man,intltool,libreadline,makeinfo,ncurses,NVPL,ParMETIS,util-linux,XZ,zlib"
 
 # filter extra dependencies based on CPU family
 local_arch_specific_deps_to_filter = {'aarch64': ',Yasm', 'riscv64': ',Yasm', 'x86_64': ''}
