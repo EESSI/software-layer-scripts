@@ -40,6 +40,9 @@ CPU_TARGET_ICELAKE = 'x86_64/intel/icelake'
 CPU_TARGET_SAPPHIRE_RAPIDS = 'x86_64/intel/sapphirerapids'
 CPU_TARGET_ZEN4 = 'x86_64/amd/zen4'
 
+GPU_TARGET_CC100 = 'accel/nvidia/cc100'
+GPU_TARGET_CC120 = 'accel/nvidia/cc120'
+
 EESSI_RPATH_OVERRIDE_ATTR = 'orig_rpath_override_dirs'
 EESSI_MODULE_ONLY_ATTR = 'orig_module_only'
 EESSI_FORCE_ATTR = 'orig_force'
@@ -51,6 +54,8 @@ HOST_INJECTIONS_LOCATION = "/cvmfs/software.eessi.io/host_injections/"
 
 # Make sure a single environment variable name is used for this throughout the hooks
 EESSI_IGNORE_ZEN4_GCC1220_ENVVAR="EESSI_IGNORE_LMOD_ERROR_ZEN4_GCC1220"
+EESSI_IGNORE_CUDA126_CC1X0_ENVVAR="EESSI_IGNORE_LMOD_ERROR_CUDA126_CC1X0"
+
 
 STACK_REPROD_SUBDIR = 'reprod'
 
@@ -114,6 +119,25 @@ def is_gcccore_1220_based(**kwargs):
     )
 
 
+def is_cuda_126_or_older_based(**kwargs):
+# ecname, ecversion, ecversionsuffix):
+    """
+    Checks if this easyconfig either _is_ or _uses_ a CUDA-12.6 or older.
+    This function is, for example, used to generate errors in CUDA-12.6 based modules for CC100 and CC120 targets
+    since anything prior to CUDA 12.8 does not support that.
+
+    :param str ecname: Name of the software specified in the EasyConfig
+    :param str ecversion: Version of the software specified in the EasyConfig
+    :param str ecversionsuffix: Versionsuffix specified in the EasyConfig
+    """
+
+    # TODO: implement proper function that returns 'true' when this is either an EasyConfig for CUDA-12.6
+    # or older OR when it uses CUDA 12.6 or older as a dependency
+    # I can _probably_ get the dependencies directoy, instead of having to infer the CUDA version from the
+    # versionsuffix
+    return True
+
+
 def get_eessi_envvar(eessi_envvar):
     """Get an EESSI environment variable from the environment"""
 
@@ -159,6 +183,11 @@ def parse_hook(ec, *args, **kwargs):
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
     if cpu_target == CPU_TARGET_ZEN4:
         parse_hook_zen4_module_only(ec, eprefix)
+
+    # Always trigger, regardless of ec.name
+    gpu_target = get_eessi_envvar('EESSI_ACCEL_SUBDIR')
+    if gpu_target == GPU_TARGET_CC100 or gpu_target == GPU_TARGET_CC120:
+        parse_hook_cuda_module_only(ec, eprefix)
 
     # inject the GPU property (if required)
     ec = inject_gpu_property(ec)
@@ -574,6 +603,23 @@ def parse_hook_zen4_module_only(ec, eprefix):
         ec['modluafooter'] = 'if (not os.getenv("%s")) then LmodError("%s") end' % (env_varname, errmsg)
 
 
+def parse_hook_cuda_module_only(ec, eprefix):
+    """
+    Use --force --module-only if building a CUDA-12.X based EasyConfig  with X<=6 for CC100 or CC120.
+    CUDA-12.6 has no support for CC100 and CC120 targets, so we will generate a modulefile
+    and have it print an LmodError.
+    """
+    if is_cuda_126_or_older_based(ecname=ec['name'], ecversion=ec['version'], ecversionsuffix=ec['versionsuffix']):
+        env_varname = EESSI_IGNORE_CUDA126_CC1X0_ENVVAR
+        # TODO: create a docs page to which we can refer for more info here
+        # TODO: then update the link to the known issues page to the _specific_ issue
+        # Need to escape the newline character so that the newline character actually ends up in the module file
+        # (otherwise, it splits the string, and a 2-line string ends up in the modulefile, resulting in syntax error)
+        errmsg = "EasyConfigs using CUDA 12.6 or older are not supported for the Compute Capabilities 100 and 120.\\n"
+        errmsg += "See https://gitlab.com/eessi/support/-/issues/210#note_2973460336"  # TODO: should be a more user-friendly known issues page
+        ec['modluafooter'] = 'if (not os.getenv("%s")) then LmodError("%s") end' % (env_varname, errmsg)
+
+
 def pre_fetch_hook(self, *args, **kwargs):
     """Main pre fetch hook: trigger custom functions based on software name."""
     if self.name in PRE_FETCH_HOOKS:
@@ -625,6 +671,11 @@ def is_unsupported_module(ec):
 
     if cpu_target == CPU_TARGET_ZEN4 and is_gcccore_1220_based(ecname=ec.name, ecversion=ec.version, tcname=ec.toolchain.name, tcversion=ec.toolchain.version):
         return EESSI_IGNORE_ZEN4_GCC1220_ENVVAR
+
+    # TODO: add case for CUDA 12.6 or older and (CC100 or CC120) and return the corresponding 'ignore' variable
+    # if gpu_target == ... and is_cuda_126_or_older_based(...)
+        # return ...
+
     return False
 
 
@@ -714,6 +765,8 @@ def post_prepare_hook_ignore_zen4_gcccore1220_error(self, *args, **kwargs):
                              tcversion=self.toolchain.version):
         del os.environ[EESSI_IGNORE_ZEN4_GCC1220_ENVVAR]
 
+
+# TODO: create pre and post prepare hook to set/unset EESSI_IGNORE_CUDA126_CC1X0_ENVVAR
 
 def pre_prepare_hook_highway_handle_test_compilation_issues(self, *args, **kwargs):
     """
