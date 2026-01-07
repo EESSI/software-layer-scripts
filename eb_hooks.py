@@ -40,9 +40,6 @@ CPU_TARGET_ICELAKE = 'x86_64/intel/icelake'
 CPU_TARGET_SAPPHIRE_RAPIDS = 'x86_64/intel/sapphirerapids'
 CPU_TARGET_ZEN4 = 'x86_64/amd/zen4'
 
-GPU_TARGET_CC100 = 'accel/nvidia/cc100'
-GPU_TARGET_CC120 = 'accel/nvidia/cc120'
-
 EESSI_RPATH_OVERRIDE_ATTR = 'orig_rpath_override_dirs'
 EESSI_MODULE_ONLY_ATTR = 'orig_module_only'
 EESSI_FORCE_ATTR = 'orig_force'
@@ -56,8 +53,6 @@ HOST_INJECTIONS_LOCATION = "/cvmfs/software.eessi.io/host_injections/"
 
 # Make sure a single environment variable name is used for this throughout the hooks
 EESSI_IGNORE_ZEN4_GCC1220_ENVVAR="EESSI_IGNORE_LMOD_ERROR_ZEN4_GCC1220"
-EESSI_IGNORE_CUDA126_CC1X0_ENVVAR="EESSI_IGNORE_LMOD_ERROR_CUDA126_CC1X0"
-
 
 STACK_REPROD_SUBDIR = 'reprod'
 
@@ -124,8 +119,8 @@ def is_gcccore_1220_based(**kwargs):
 
 def get_cuda_version(ec, check_deps=True, check_builddeps=True):
     """
-    Returns the CUDA version if this EasyConfig (ec) uses CUDA as a (build)dependency.
-    Otherwise, returns None
+    Returns the CUDA version that this EasyConfig (ec) uses as a (build)dependency.
+    If no CUDA is used as (build)dependency, this function returns None.
     """
     cudaver = None
     ec_dict = ec.asdict()
@@ -141,7 +136,9 @@ def get_cuda_version(ec, check_deps=True, check_builddeps=True):
     # Provide default
     for dep in deps:
         if dep['name'] == 'CUDA':
-            return dep['version']
+            cudaver = dep['version']
+
+    return cudaver
 
 
 def is_cuda_cc_supported_by_toolkit(cuda_cc, toolkit_version):
