@@ -150,25 +150,6 @@ def is_cuda_cc_supported_by_toolkit(cuda_cc, toolkit_version):
     return False
 
 
-def is_cuda_126_or_older_based(**kwargs):
-# ecname, ecversion, ecversionsuffix):
-    """
-    Checks if this easyconfig either _is_ or _uses_ a CUDA-12.6 or older.
-    This function is, for example, used to generate errors in CUDA-12.6 based modules for CC100 and CC120 targets
-    since anything prior to CUDA 12.8 does not support that.
-
-    :param str ecname: Name of the software specified in the EasyConfig
-    :param str ecversion: Version of the software specified in the EasyConfig
-    :param str ecversionsuffix: Versionsuffix specified in the EasyConfig
-    """
-
-    # TODO: implement proper function that returns 'true' when this is either an EasyConfig for CUDA-12.6
-    # or older OR when it uses CUDA 12.6 or older as a dependency
-    # I can _probably_ get the dependencies directoy, instead of having to infer the CUDA version from the
-    # versionsuffix
-    return True
-
-
 def get_eessi_envvar(eessi_envvar):
     """Get an EESSI environment variable from the environment"""
 
@@ -209,16 +190,6 @@ def parse_hook(ec, *args, **kwargs):
 
     if ec.name in PARSE_HOOKS:
         PARSE_HOOKS[ec.name](ec, eprefix)
-
-#     # Always trigger this one, regardless of ec.name
-#     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
-#     if cpu_target == CPU_TARGET_ZEN4:
-#         parse_hook_zen4_module_only(ec, eprefix)
-#
-#     # Always trigger, regardless of ec.name
-#     gpu_target = get_eessi_envvar('EESSI_ACCEL_SUBDIR')
-#     if gpu_target == GPU_TARGET_CC100 or gpu_target == GPU_TARGET_CC120:
-#         parse_hook_cuda_module_only(ec, eprefix)
 
     # inject the GPU property (if required)
     ec = inject_gpu_property(ec)
@@ -636,41 +607,6 @@ def parse_hook_freeimage_aarch64(ec, *args, **kwargs):
             ec['toolchainopts']['pic'] = True
             ec['toolchainopts']['extra_cflags'] = '-DPNG_ARM_NEON_OPT=0'
             print_msg("Changed toolchainopts for %s: %s", ec.name, ec['toolchainopts'])
-
-
-# def parse_hook_zen4_module_only(ec, eprefix):
-#     """
-#     Use --force --module-only if building a foss-2022b-based EasyConfig for Zen4.
-#     This toolchain will not be supported on Zen4, so we will generate a modulefile
-#     and have it print an LmodError.
-#     """
-#     if is_gcccore_1220_based(ecname=ec['name'], ecversion=ec['version'], tcname=ec['toolchain']['name'],
-#                              tcversion=ec['toolchain']['version']):
-#         env_varname = EESSI_IGNORE_ZEN4_GCC1220_ENVVAR
-#         # TODO: create a docs page to which we can refer for more info here
-#         # TODO: then update the link to the known issues page to the _specific_ issue
-#         # Need to escape the newline character so that the newline character actually ends up in the module file
-#         # (otherwise, it splits the string, and a 2-line string ends up in the modulefile, resulting in syntax error)
-#         errmsg = "EasyConfigs using toolchains based on GCCcore-12.2.0 are not supported for the Zen4 architecture.\\n"
-#         errmsg += "See https://www.eessi.io/docs/known_issues/eessi-<EESSI_VERSION>/#gcc-1220-and-foss-2022b-based-modules-cannot-be-loaded-on-zen4-architecture"
-#         ec['modluafooter'] = 'if (not os.getenv("%s")) then LmodError("%s") end' % (env_varname, errmsg)
-#
-#
-# def parse_hook_cuda_module_only(ec, eprefix):
-#     """
-#     Use --force --module-only if building a CUDA-12.X based EasyConfig  with X<=6 for CC100 or CC120.
-#     CUDA-12.6 has no support for CC100 and CC120 targets, so we will generate a modulefile
-#     and have it print an LmodError.
-#     """
-#     if is_cuda_126_or_older_based(ecname=ec['name'], ecversion=ec['version'], ecversionsuffix=ec['versionsuffix']):
-#         env_varname = EESSI_IGNORE_CUDA126_CC1X0_ENVVAR
-#         # TODO: create a docs page to which we can refer for more info here
-#         # TODO: then update the link to the known issues page to the _specific_ issue
-#         # Need to escape the newline character so that the newline character actually ends up in the module file
-#         # (otherwise, it splits the string, and a 2-line string ends up in the modulefile, resulting in syntax error)
-#         errmsg = "EasyConfigs using CUDA 12.6 or older are not supported for the Compute Capabilities 100 and 120.\\n"
-#         errmsg += "See https://gitlab.com/eessi/support/-/issues/210#note_2973460336"  # TODO: should be a more user-friendly known issues page
-#         ec['modluafooter'] = 'if (not os.getenv("%s")) then LmodError("%s") end' % (env_varname, errmsg)
 
 
 def pre_fetch_hook(self, *args, **kwargs):
