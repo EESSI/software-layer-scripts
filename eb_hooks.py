@@ -368,11 +368,6 @@ def pre_prepare_hook(self, *args, **kwargs):
     # Always trigger this, regardless of ec.name
     pre_prepare_hook_unsupported_modules(self, *args, **kwargs)
 
-#     # Always trigger this one, regardless of ec.name
-#     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
-#     if cpu_target == CPU_TARGET_ZEN4:
-#         pre_prepare_hook_ignore_zen4_gcccore1220_error(self, *args, **kwargs)
-
 
 def post_prepare_hook_gcc_prefixed_ld_rpath_wrapper(self, *args, **kwargs):
     """
@@ -436,11 +431,6 @@ def post_prepare_hook(self, *args, **kwargs):
 
     if self.name in POST_PREPARE_HOOKS:
         POST_PREPARE_HOOKS[self.name](self, *args, **kwargs)
-
-#     # Always trigger this one, regardless of ec.name
-#     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
-#     if cpu_target == CPU_TARGET_ZEN4:
-#         post_prepare_hook_ignore_zen4_gcccore1220_error(self, *args, **kwargs)
 
     # Always trigger this, regardless of ec.name
     post_prepare_hook_unsupported_modules(self, *args, **kwargs)
