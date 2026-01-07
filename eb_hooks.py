@@ -777,25 +777,6 @@ def post_easyblock_hook_copy_easybuild_subdir(self, *args, **kwargs):
     copy_dir(app_easybuild_dir, app_reprod_dir)
 
 
-# Modules for dependencies are loaded in the prepare step. Thus, that's where we need this variable to be set
-# so that the modules can be succesfully loaded without printing the error (so that we can create a module
-# _with_ the warning for the current software being installed)
-# def pre_prepare_hook_ignore_zen4_gcccore1220_error(self, *args, **kwargs):
-#     """Set environment variable to ignore the LmodError from parse_hook_zen4_module_only during build phase"""
-#     if is_gcccore_1220_based(ecname=self.name, ecversion=self.version, tcname=self.toolchain.name,
-#                              tcversion=self.toolchain.version):
-#         os.environ[EESSI_IGNORE_ZEN4_GCC1220_ENVVAR] = "1"
-#
-#
-# def post_prepare_hook_ignore_zen4_gcccore1220_error(self, *args, **kwargs):
-#     """Unset environment variable to ignore the LmodError from parse_hook_zen4_module_only during build phase"""
-#     if is_gcccore_1220_based(ecname=self.name, ecversion=self.version, tcname=self.toolchain.name,
-#                              tcversion=self.toolchain.version):
-#         del os.environ[EESSI_IGNORE_ZEN4_GCC1220_ENVVAR]
-
-
-# TODO: create pre and post prepare hook to set/unset EESSI_IGNORE_CUDA126_CC1X0_ENVVAR
-
 def pre_prepare_hook_highway_handle_test_compilation_issues(self, *args, **kwargs):
     """
     Solve issues with compiling or running the tests on both
