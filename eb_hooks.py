@@ -703,9 +703,10 @@ class UnsupportedModule(NamedTuple):
 def is_unsupported_module(self):
     """
     Determine if the given module is unsupported in EESSI, and hence if a dummy module needs to be built that just prints an LmodError.
-    If true, this function returns the name of the environment variable that can be used to ignore that particular LmodError,
-    as this is still required to actually build the module itself (EasyBuild will load/test the module).
-    Otherwise, it returns False.
+    If a module is unsupported, this function will set the EESSI_UNSUPPORTED_MODULE_ATTR attribute on `self`,
+    and assign an `UnsupportedModule` NamedTuple to it.
+    If a module is supported, this function will set the EESSI_SUPPORTED_MODULE_ATTR attribut on `self`
+    (and set it to True).
     """
 
     # If this function was already called by an earlier hook, evaluation of whether this is an unsupported module was
