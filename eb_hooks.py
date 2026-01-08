@@ -73,6 +73,40 @@ if EASYBUILD_VERSION >= '5.2.0':
         {'name': 'lfoss', 'version': '2025b'}
     )
 
+# Supported compute capabilities by CUDA toolkit version
+# Obtained by installing all CUDAs from 12.0.0 to 13.1.0, then using:
+
+# #!/bin/bash
+#
+# CUDA_VERS=(12.0.0 12.1.0 12.1.1 12.2.0 12.2.2 12.3.0 12.3.2 12.4.0 12.5.0 12.6.0 12.8.0 12.9.0 12.9.1 13.0.0 13.0.1 13.0.2 13.1.0)
+#
+# for ver in ${CUDA_VERS[@]}; do
+#     module load CUDA/${ver}
+#     ccs=$(nvcc --list-gpu-arch)
+#     ccs=$(echo ${ccs} | sed "s/ /', /g" | sed "s/compute_/'/g")
+#     echo "    '${ver}': [${ccs}'],"
+#     module unload CUDA
+# done
+
+CUDA_SUPPORTED_CCS = {
+    '12.0.0': ['50', '52', '53', '60', '61', '62', '70', '72', '75', '80', '86', '87', '89', '90'],
+    '12.1.0': ['50', '52', '53', '60', '61', '62', '70', '72', '75', '80', '86', '87', '89', '90'],
+    '12.1.1': ['50', '52', '53', '60', '61', '62', '70', '72', '75', '80', '86', '87', '89', '90'],
+    '12.2.0': ['50', '52', '53', '60', '61', '62', '70', '72', '75', '80', '86', '87', '89', '90'],
+    '12.2.2': ['50', '52', '53', '60', '61', '62', '70', '72', '75', '80', '86', '87', '89', '90'],
+    '12.3.0': ['50', '52', '53', '60', '61', '62', '70', '72', '75', '80', '86', '87', '89', '90'],
+    '12.3.2': ['50', '52', '53', '60', '61', '62', '70', '72', '75', '80', '86', '87', '89', '90'],
+    '12.4.0': ['50', '52', '53', '60', '61', '62', '70', '72', '75', '80', '86', '87', '89', '90'],
+    '12.5.0': ['50', '52', '53', '60', '61', '62', '70', '72', '75', '80', '86', '87', '89', '90'],
+    '12.6.0': ['50', '52', '53', '60', '61', '62', '70', '72', '75', '80', '86', '87', '89', '90'],
+    '12.8.0': ['50', '52', '53', '60', '61', '62', '70', '72', '75', '80', '86', '87', '89', '90', '100', '101', '120'],
+    '12.9.0': ['50', '52', '53', '60', '61', '62', '70', '72', '75', '80', '86', '87', '89', '90', '100', '101', '103', '120', '121'],
+    '12.9.1': ['50', '52', '53', '60', '61', '62', '70', '72', '75', '80', '86', '87', '89', '90', '100', '101', '103', '120', '121'],
+    '13.0.0': ['75', '80', '86', '87', '88', '89', '90', '100', '110', '103', '120', '121'],
+    '13.0.1': ['75', '80', '86', '87', '88', '89', '90', '100', '110', '103', '120', '121'],
+    '13.0.2': ['75', '80', '86', '87', '88', '89', '90', '100', '110', '103', '120', '121'],
+    '13.1.0': ['75', '80', '86', '87', '88', '89', '90', '100', '110', '103', '120', '121'],
+}
 
 # Ensure that we don't print any messages in --terse mode
 # Note that --terse was introduced in EB 4.9.1
@@ -120,10 +154,15 @@ def is_gcccore_1220_based(**kwargs):
 def get_cuda_version(ec, check_deps=True, check_builddeps=True):
     """
     Returns the CUDA version that this EasyConfig (ec) uses as a (build)dependency.
+    If (ec) is simply CUDA itself, it will return the version.
     If no CUDA is used as (build)dependency, this function returns None.
     """
     cudaver = None
     ec_dict = ec.asdict()
+
+    # Is this CUDA itself?
+    if ec.name == 'CUDA':
+        cudaver = ec.version
 
     # At this point, CUDA should be a builddependency due to inject_gpu_property
     # changing any CUDA dep to a builddependency. But, for robustness, just check both
@@ -146,8 +185,18 @@ def is_cuda_cc_supported_by_toolkit(cuda_cc, toolkit_version):
     Checks if the CUDA Compute Capability passed in cuda_cc is supported by the CUDA toolkit version toolkit_version
     Returns True if supported or False if not supported
     """
-    # TODO: implement actual lookup table
-    return False
+    # Clean cuda_cc of any suffixes like the 'a' in '9.0a'
+    # The regex expects one or more digits, a dot, one or more digits, and then optionally any number of characters
+    # It will strip all characters by only return the first capture group (the digits and dot)
+    cuda_cc = re.sub(r'^(\d+\.\d+)[a-zA-Z]*$', r'\1', cuda_cc)
+
+    # Strip the dot
+    cuda_cc = cuda_cc.replace('.', '')
+
+    if cuda_cc in CUDA_SUPPORTED_CCS[toolkit_version]:
+        return True
+    else:
+        return False
 
 
 def get_eessi_envvar(eessi_envvar):
@@ -323,7 +372,7 @@ def pre_prepare_hook_unsupported_modules(self, *args, **kwargs):
     """Set env var to ignore specific LmodErrors from dependencies if this module is know to be unsupported"""
     if is_unsupported_module(self):
         unsup_mod = getattr(self, EESSI_UNSUPPORTED_MODULE_ATTR)
-        print_msg(f"Setting {unsup_mod.envvar} in to allow loading dependencies that otherwise throw an LmodError")
+        print_msg(f"Setting {unsup_mod.envvar} to allow loading dependencies that otherwise throw an LmodError")
         os.environ[unsup_mod.envvar] = "1"
 
 
@@ -670,6 +719,9 @@ def is_unsupported_module(self):
     # Foss-2022b is not supported on Zen4
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
     if cpu_target == CPU_TARGET_ZEN4 and is_gcccore_1220_based(ecname=self.name, ecversion=self.version, tcname=self.toolchain.name, tcversion=self.toolchain.version):
+        msg = "EasyConfigs using toolchains based on GCCcore-12.2.0 are not supported on Zen4 architectures. "
+        msg += "Building with '--module-only --force' and injecting an LmodError into the modulefile."
+        print_warning(msg)
         errmsg = "EasyConfigs using toolchains based on GCCcore-12.2.0 are not supported for the Zen4 architecture.\\n"
         errmsg += "See https://www.eessi.io/docs/known_issues/eessi-<EESSI_VERSION>/#gcc-1220-and-foss-2022b-based-modules-cannot-be-loaded-on-zen4-architecture"
         var=EESSI_IGNORE_ZEN4_GCC1220_ENVVAR
@@ -679,20 +731,25 @@ def is_unsupported_module(self):
     # If the CUDA toolkit is a dependency, check that it supports (all) requested CUDA Compute Capabilities
     # Otherwise, mark this as unsupported
     cudaver = get_cuda_version(ec=self.cfg, check_deps=True, check_builddeps=True)
-    print(f"[is_unsupported_module] CUDA DEP VERSION: {cudaver}")
     if cudaver:
+        # cuda_ccs_string is e.g. "8.0,9.0"
         cuda_ccs_string = self.cfg.get_cuda_cc_template_value('cuda_compute_capabilities', required=False)
         # cuda_ccs is empty if none are defined
         if cuda_ccs_string:
             # cuda_ccs is a comma-seperated string. Convert to list for easier handling
             cuda_ccs = cuda_ccs_string.split(',')
-            print(f"[is_unsupported_module] CUDA COMPUTE CAPABILITY: {cuda_ccs}")
             # Check if any of the CUDA CCs is unsupported. If so, append the error
             if any(
                 [not is_cuda_cc_supported_by_toolkit(cuda_cc=cuda_cc, toolkit_version=cudaver) for cuda_cc in cuda_ccs]
             ):
-                # Use a normalized variable name for the CUDA ccs, replacing commas by underscores
-                var=f"EESSI_IGNORE_CUDA_{cudaver}_CC_{cuda_ccs_string.replace(',', '_')}"
+                msg = f"Requested a CUDA Compute Capability ({cuda_ccs}) that is not supported by the CUDA "
+                msg += f"toolkit version ({cudaver}) used by this software. Switching to '--module-only --force' "
+                msg += "and injectiong an LmodError into the modulefile."
+                print_warning(msg)
+                # Use a normalized variable name for the CUDA ccs: strip any suffix, and replace commas
+                cuda_ccs_string = re.sub(r'[a-zA-Z]', '', cuda_ccs_string).replace(',', '_')
+                # Also replace periods, those are not officially supported in environment variable names
+                var=f"EESSI_IGNORE_CUDA_{cudaver}_CC_{cuda_ccs_string}".replace('.', '_')
                 errmsg = f"EasyConfigs using CUDA {cudaver} or older are not supported for (all) requested Compute "
                 errmsg +=f"Capabilities: {cuda_ccs}.\\n"
                 UnsupportedModule(envvar=var,errmsg=errmsg)
