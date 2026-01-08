@@ -6,6 +6,7 @@ import glob
 import json
 import os
 import re
+from typing import NamedTuple
 
 import easybuild.tools.environment as env
 from easybuild.easyblocks.generic.configuremake import obtain_config_guess
@@ -43,6 +44,8 @@ CPU_TARGET_ZEN4 = 'x86_64/amd/zen4'
 EESSI_RPATH_OVERRIDE_ATTR = 'orig_rpath_override_dirs'
 EESSI_MODULE_ONLY_ATTR = 'orig_module_only'
 EESSI_FORCE_ATTR = 'orig_force'
+EESSI_SUPPORTED_MODULE_ATTR = 'eessi_supported_module'
+EESSI_UNSUPPORTED_MODULE_ATTR = 'eessi_unsupported_module'
 
 SYSTEM = EASYCONFIG_CONSTANTS['SYSTEM'][0]
 
@@ -71,6 +74,40 @@ if EASYBUILD_VERSION >= '5.2.0':
         {'name': 'lfoss', 'version': '2025b'}
     )
 
+# Supported compute capabilities by CUDA toolkit version
+# Obtained by installing all CUDAs from 12.0.0 to 13.1.0, then using:
+
+# #!/bin/bash
+#
+# CUDA_VERS=(12.0.0 12.1.0 12.1.1 12.2.0 12.2.2 12.3.0 12.3.2 12.4.0 12.5.0 12.6.0 12.8.0 12.9.0 12.9.1 13.0.0 13.0.1 13.0.2 13.1.0)
+#
+# for ver in ${CUDA_VERS[@]}; do
+#     module load CUDA/${ver}
+#     ccs=$(nvcc --list-gpu-arch)
+#     ccs=$(echo ${ccs} | sed "s/ /', /g" | sed "s/compute_/'/g")
+#     echo "    '${ver}': [${ccs}'],"
+#     module unload CUDA
+# done
+
+CUDA_SUPPORTED_CCS = {
+    '12.0.0': ['50', '52', '53', '60', '61', '62', '70', '72', '75', '80', '86', '87', '89', '90'],
+    '12.1.0': ['50', '52', '53', '60', '61', '62', '70', '72', '75', '80', '86', '87', '89', '90'],
+    '12.1.1': ['50', '52', '53', '60', '61', '62', '70', '72', '75', '80', '86', '87', '89', '90'],
+    '12.2.0': ['50', '52', '53', '60', '61', '62', '70', '72', '75', '80', '86', '87', '89', '90'],
+    '12.2.2': ['50', '52', '53', '60', '61', '62', '70', '72', '75', '80', '86', '87', '89', '90'],
+    '12.3.0': ['50', '52', '53', '60', '61', '62', '70', '72', '75', '80', '86', '87', '89', '90'],
+    '12.3.2': ['50', '52', '53', '60', '61', '62', '70', '72', '75', '80', '86', '87', '89', '90'],
+    '12.4.0': ['50', '52', '53', '60', '61', '62', '70', '72', '75', '80', '86', '87', '89', '90'],
+    '12.5.0': ['50', '52', '53', '60', '61', '62', '70', '72', '75', '80', '86', '87', '89', '90'],
+    '12.6.0': ['50', '52', '53', '60', '61', '62', '70', '72', '75', '80', '86', '87', '89', '90'],
+    '12.8.0': ['50', '52', '53', '60', '61', '62', '70', '72', '75', '80', '86', '87', '89', '90', '100', '101', '120'],
+    '12.9.0': ['50', '52', '53', '60', '61', '62', '70', '72', '75', '80', '86', '87', '89', '90', '100', '101', '103', '120', '121'],
+    '12.9.1': ['50', '52', '53', '60', '61', '62', '70', '72', '75', '80', '86', '87', '89', '90', '100', '101', '103', '120', '121'],
+    '13.0.0': ['75', '80', '86', '87', '88', '89', '90', '100', '110', '103', '120', '121'],
+    '13.0.1': ['75', '80', '86', '87', '88', '89', '90', '100', '110', '103', '120', '121'],
+    '13.0.2': ['75', '80', '86', '87', '88', '89', '90', '100', '110', '103', '120', '121'],
+    '13.1.0': ['75', '80', '86', '87', '88', '89', '90', '100', '110', '103', '120', '121'],
+}
 
 # Ensure that we don't print any messages in --terse mode
 # Note that --terse was introduced in EB 4.9.1
@@ -114,6 +151,55 @@ def is_gcccore_1220_based(**kwargs):
     )
 
 
+
+def get_cuda_version(ec, check_deps=True, check_builddeps=True):
+    """
+    Returns the CUDA version that this EasyConfig (ec) uses as a (build)dependency.
+    If (ec) is simply CUDA itself, it will return the version.
+    If no CUDA is used as (build)dependency, this function returns None.
+    """
+    cudaver = None
+    ec_dict = ec.asdict()
+
+    # Is this CUDA itself?
+    if ec.name == 'CUDA':
+        cudaver = ec.version
+
+    # At this point, CUDA should be a builddependency due to inject_gpu_property
+    # changing any CUDA dep to a builddependency. But, for robustness, just check both
+    deps = []
+    if check_deps:
+        deps = deps + ec_dict['dependencies'][:]
+    if check_builddeps:
+        deps = deps + ec_dict['builddependencies'][:]
+
+    # Provide default
+    for dep in deps:
+        if dep['name'] == 'CUDA':
+            cudaver = dep['version']
+
+    return cudaver
+
+
+def is_cuda_cc_supported_by_toolkit(cuda_cc, toolkit_version):
+    """
+    Checks if the CUDA Compute Capability passed in cuda_cc is supported by the CUDA toolkit version toolkit_version
+    Returns True if supported or False if not supported
+    """
+    # Clean cuda_cc of any suffixes like the 'a' in '9.0a'
+    # The regex expects one or more digits, a dot, one or more digits, and then optionally any number of characters
+    # It will strip all characters by only return the first capture group (the digits and dot)
+    cuda_cc = re.sub(r'^(\d+\.\d+)[a-zA-Z]*$', r'\1', cuda_cc)
+
+    # Strip the dot
+    cuda_cc = cuda_cc.replace('.', '')
+
+    if cuda_cc in CUDA_SUPPORTED_CCS[toolkit_version]:
+        return True
+    else:
+        return False
+
+
 def get_eessi_envvar(eessi_envvar):
     """Get an EESSI environment variable from the environment"""
 
@@ -154,11 +240,6 @@ def parse_hook(ec, *args, **kwargs):
 
     if ec.name in PARSE_HOOKS:
         PARSE_HOOKS[ec.name](ec, eprefix)
-
-    # Always trigger this one, regardless of ec.name
-    cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
-    if cpu_target == CPU_TARGET_ZEN4:
-        parse_hook_zen4_module_only(ec, eprefix)
 
     # inject the GPU property (if required)
     ec = inject_gpu_property(ec)
@@ -288,6 +369,22 @@ def post_ready_hook(self, *args, **kwargs):
         print_msg(msg % (new_parallel, curr_parallel, session_parallel, self.name, cpu_target), log=self.log)
 
 
+def pre_prepare_hook_unsupported_modules(self, *args, **kwargs):
+    """Set env var to ignore specific LmodErrors from dependencies if this module is know to be unsupported"""
+    if is_unsupported_module(self):
+        unsup_mod = getattr(self, EESSI_UNSUPPORTED_MODULE_ATTR)
+        print_msg(f"Setting {unsup_mod.envvar} to allow loading dependencies that otherwise throw an LmodError")
+        os.environ[unsup_mod.envvar] = "1"
+
+
+def post_prepare_hook_unsupported_modules(self, *args, **kwargs):
+    """Unset env var to ignore specific LmodErrors from dependencies if this module is know to be unsupported"""
+    if is_unsupported_module(self):
+        unsup_mod = getattr(self, EESSI_UNSUPPORTED_MODULE_ATTR)
+        print_msg(f"Unsetting {unsup_mod.envvar}")
+        del os.environ[unsup_mod.envvar]
+
+
 def pre_prepare_hook(self, *args, **kwargs):
     """Main pre-prepare hook: trigger custom functions."""
 
@@ -318,10 +415,8 @@ def pre_prepare_hook(self, *args, **kwargs):
     if self.name in PRE_PREPARE_HOOKS:
         PRE_PREPARE_HOOKS[self.name](self, *args, **kwargs)
 
-    # Always trigger this one, regardless of ec.name
-    cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
-    if cpu_target == CPU_TARGET_ZEN4:
-        pre_prepare_hook_ignore_zen4_gcccore1220_error(self, *args, **kwargs)
+    # Always trigger this, regardless of ec.name
+    pre_prepare_hook_unsupported_modules(self, *args, **kwargs)
 
 
 def post_prepare_hook_gcc_prefixed_ld_rpath_wrapper(self, *args, **kwargs):
@@ -387,10 +482,8 @@ def post_prepare_hook(self, *args, **kwargs):
     if self.name in POST_PREPARE_HOOKS:
         POST_PREPARE_HOOKS[self.name](self, *args, **kwargs)
 
-    # Always trigger this one, regardless of ec.name
-    cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
-    if cpu_target == CPU_TARGET_ZEN4:
-        post_prepare_hook_ignore_zen4_gcccore1220_error(self, *args, **kwargs)
+    # Always trigger this, regardless of ec.name
+    post_prepare_hook_unsupported_modules(self, *args, **kwargs)
 
 
 def parse_hook_casacore_disable_vectorize(ec, eprefix):
@@ -556,24 +649,6 @@ def parse_hook_freeimage_aarch64(ec, *args, **kwargs):
             print_msg("Changed toolchainopts for %s: %s", ec.name, ec['toolchainopts'])
 
 
-def parse_hook_zen4_module_only(ec, eprefix):
-    """
-    Use --force --module-only if building a foss-2022b-based EasyConfig for Zen4.
-    This toolchain will not be supported on Zen4, so we will generate a modulefile
-    and have it print an LmodError.
-    """
-    if is_gcccore_1220_based(ecname=ec['name'], ecversion=ec['version'], tcname=ec['toolchain']['name'],
-                             tcversion=ec['toolchain']['version']):
-        env_varname = EESSI_IGNORE_ZEN4_GCC1220_ENVVAR
-        # TODO: create a docs page to which we can refer for more info here
-        # TODO: then update the link to the known issues page to the _specific_ issue
-        # Need to escape the newline character so that the newline character actually ends up in the module file
-        # (otherwise, it splits the string, and a 2-line string ends up in the modulefile, resulting in syntax error)
-        errmsg = "EasyConfigs using toolchains based on GCCcore-12.2.0 are not supported for the Zen4 architecture.\\n"
-        errmsg += "See https://www.eessi.io/docs/known_issues/eessi-<EESSI_VERSION>/#gcc-1220-and-foss-2022b-based-modules-cannot-be-loaded-on-zen4-architecture"
-        ec['modluafooter'] = 'if (not os.getenv("%s")) then LmodError("%s") end' % (env_varname, errmsg)
-
-
 def pre_fetch_hook(self, *args, **kwargs):
     """Main pre fetch hook: trigger custom functions based on software name."""
     if self.name in PRE_FETCH_HOOKS:
@@ -614,17 +689,75 @@ def pre_fetch_hook_check_installation_path(self, *args, **kwargs):
                     )
 
 
-def is_unsupported_module(ec):
+class UnsupportedModule(NamedTuple):
+    """
+        Environment variable and error message for an unsupported module.
+        envvar: the name of the environment variable that needs to be set to ignore the LmodError
+                that this unsupported module would otherwise generate
+        errmsg: the actual LmodError message that should be printed
+    """
+    envvar: str
+    errmsg: str
+
+
+def is_unsupported_module(self):
     """
     Determine if the given module is unsupported in EESSI, and hence if a dummy module needs to be built that just prints an LmodError.
-    If true, this function returns the name of the environment variable that can be used to ignore that particular LmodError,
-    as this is still required to actually build the module itself (EasyBuild will load/test the module).
-    Otherwise, it returns False.
+    If a module is unsupported, this function will set the EESSI_UNSUPPORTED_MODULE_ATTR attribute on `self`,
+    and assign an `UnsupportedModule` NamedTuple to it.
+    If a module is supported, this function will set the EESSI_SUPPORTED_MODULE_ATTR attribut on `self`
+    (and set it to True).
     """
-    cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
 
-    if cpu_target == CPU_TARGET_ZEN4 and is_gcccore_1220_based(ecname=ec.name, ecversion=ec.version, tcname=ec.toolchain.name, tcversion=ec.toolchain.version):
-        return EESSI_IGNORE_ZEN4_GCC1220_ENVVAR
+    # If this function was already called by an earlier hook, evaluation of whether this is an unsupported module was
+    # already done. No need to redo it: save time and return early
+    if hasattr(self, EESSI_SUPPORTED_MODULE_ATTR):
+        return False
+    elif hasattr(self, EESSI_UNSUPPORTED_MODULE_ATTR):
+        return True
+
+    # Foss-2022b is not supported on Zen4
+    cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+    if cpu_target == CPU_TARGET_ZEN4 and is_gcccore_1220_based(ecname=self.name, ecversion=self.version, tcname=self.toolchain.name, tcversion=self.toolchain.version):
+        msg = "EasyConfigs using toolchains based on GCCcore-12.2.0 are not supported on Zen4 architectures. "
+        msg += "Building with '--module-only --force' and injecting an LmodError into the modulefile."
+        print_warning(msg)
+        errmsg = "EasyConfigs using toolchains based on GCCcore-12.2.0 are not supported for the Zen4 architecture.\\n"
+        errmsg += "See https://www.eessi.io/docs/known_issues/eessi-<EESSI_VERSION>/#gcc-1220-and-foss-2022b-based-modules-cannot-be-loaded-on-zen4-architecture"
+        var=EESSI_IGNORE_ZEN4_GCC1220_ENVVAR
+        setattr(self, EESSI_UNSUPPORTED_MODULE_ATTR, UnsupportedModule(envvar=var, errmsg=errmsg))
+        return True
+
+    # If the CUDA toolkit is a dependency, check that it supports (all) requested CUDA Compute Capabilities
+    # Otherwise, mark this as unsupported
+    cudaver = get_cuda_version(ec=self.cfg, check_deps=True, check_builddeps=True)
+    if cudaver:
+        # cuda_ccs_string is e.g. "8.0,9.0"
+        cuda_ccs_string = self.cfg.get_cuda_cc_template_value('cuda_compute_capabilities', required=False)
+        # cuda_ccs is empty if none are defined
+        if cuda_ccs_string:
+            # cuda_ccs is a comma-seperated string. Convert to list for easier handling
+            cuda_ccs = cuda_ccs_string.split(',')
+            # Check if any of the CUDA CCs is unsupported. If so, append the error
+            if any(
+                [not is_cuda_cc_supported_by_toolkit(cuda_cc=cuda_cc, toolkit_version=cudaver) for cuda_cc in cuda_ccs]
+            ):
+                msg = f"Requested a CUDA Compute Capability ({cuda_ccs}) that is not supported by the CUDA "
+                msg += f"toolkit version ({cudaver}) used by this software. Switching to '--module-only --force' "
+                msg += "and injectiong an LmodError into the modulefile."
+                print_warning(msg)
+                # Use a normalized variable name for the CUDA ccs: strip any suffix, and replace commas
+                cuda_ccs_string = re.sub(r'[a-zA-Z]', '', cuda_ccs_string).replace(',', '_')
+                # Also replace periods, those are not officially supported in environment variable names
+                var=f"EESSI_IGNORE_CUDA_{cudaver}_CC_{cuda_ccs_string}".replace('.', '_')
+                errmsg = f"EasyConfigs using CUDA {cudaver} or older are not supported for (all) requested Compute "
+                errmsg +=f"Capabilities: {cuda_ccs}.\\n"
+                UnsupportedModule(envvar=var,errmsg=errmsg)
+                setattr(self, EESSI_UNSUPPORTED_MODULE_ATTR, UnsupportedModule(envvar=var,errmsg=errmsg))
+                return True
+
+    # If all the above logic passed, this module is supported
+    setattr(self, EESSI_SUPPORTED_MODULE_ATTR, True)
     return False
 
 
@@ -651,18 +784,21 @@ def pre_fetch_hook_unsupported_modules(self, *args, **kwargs):
 
 def pre_module_hook_unsupported_module(self, *args, **kwargs):
     """Make module load-able during module step"""
-    ignore_lmoderror_envvar = is_unsupported_module(self)
-    if ignore_lmoderror_envvar:
+    if is_unsupported_module(self):
+        unsup_mod = getattr(self, EESSI_UNSUPPORTED_MODULE_ATTR)
         if hasattr(self, 'initial_environ'):
             # Allow the module to be loaded in the module step (which uses initial environment)
-            print_msg(f"Setting {ignore_lmoderror_envvar} in initial environment")
-            self.initial_environ[ignore_lmoderror_envvar] = "1"
+            print_msg(f"Setting {unsup_mod.envvar} in initial environment")
+            self.initial_environ[unsup_mod.envvar] = "1"
+        extra_footer='if (not os.getenv("%s")) then LmodError("%s") end' % (unsup_mod.envvar, unsup_mod.errmsg)
+        # Append extra_footer if a modluafooter already exists. Otherwise, simply assign
+        self.cfg['modluafooter'] = self.cfg['modluafooter'] + '\n' + extra_footer if self.cfg['modluafooter'] else extra_footer
 
 
 def post_module_hook_unsupported_module(self, *args, **kwargs):
     """Revert changes from pre_fetch_hook_unsupported_modules"""
-    ignore_lmoderror_envvar = is_unsupported_module(self)
-    if ignore_lmoderror_envvar:
+    if is_unsupported_module(self):
+        unsup_mod = getattr(self, EESSI_UNSUPPORTED_MODULE_ATTR)
         if hasattr(self, EESSI_MODULE_ONLY_ATTR):
             update_build_option('module_only', getattr(self, EESSI_MODULE_ONLY_ATTR))
             print_msg("Restored original build option 'module_only' to %s" % getattr(self, EESSI_MODULE_ONLY_ATTR))
@@ -679,9 +815,9 @@ def post_module_hook_unsupported_module(self, *args, **kwargs):
 
         # If the variable to allow loading is set, remove it
         if hasattr(self, 'initial_environ'):
-            if self.initial_environ.get(ignore_lmoderror_envvar, False):
-                print_msg(f"Removing {ignore_lmoderror_envvar} in initial environment")
-                del self.initial_environ[ignore_lmoderror_envvar]
+            if self.initial_environ.get(unsup_mod.envvar, False):
+                print_msg(f"Removing {unsup_mod.envvar} in initial environment")
+                del self.initial_environ[unsup_mod.envvar]
 
 
 def post_easyblock_hook_copy_easybuild_subdir(self, *args, **kwargs):
@@ -696,23 +832,6 @@ def post_easyblock_hook_copy_easybuild_subdir(self, *args, **kwargs):
     app_easybuild_dir = os.path.join(self.installdir, config.log_path(ec=self.cfg))
     app_reprod_dir = os.path.join(stack_reprod_dir, self.install_subdir, now_utc_timestamp, 'easybuild')
     copy_dir(app_easybuild_dir, app_reprod_dir)
-
-
-# Modules for dependencies are loaded in the prepare step. Thus, that's where we need this variable to be set
-# so that the modules can be succesfully loaded without printing the error (so that we can create a module
-# _with_ the warning for the current software being installed)
-def pre_prepare_hook_ignore_zen4_gcccore1220_error(self, *args, **kwargs):
-    """Set environment variable to ignore the LmodError from parse_hook_zen4_module_only during build phase"""
-    if is_gcccore_1220_based(ecname=self.name, ecversion=self.version, tcname=self.toolchain.name,
-                             tcversion=self.toolchain.version):
-        os.environ[EESSI_IGNORE_ZEN4_GCC1220_ENVVAR] = "1"
-
-
-def post_prepare_hook_ignore_zen4_gcccore1220_error(self, *args, **kwargs):
-    """Unset environment variable to ignore the LmodError from parse_hook_zen4_module_only during build phase"""
-    if is_gcccore_1220_based(ecname=self.name, ecversion=self.version, tcname=self.toolchain.name,
-                             tcversion=self.toolchain.version):
-        del os.environ[EESSI_IGNORE_ZEN4_GCC1220_ENVVAR]
 
 
 def pre_prepare_hook_highway_handle_test_compilation_issues(self, *args, **kwargs):
