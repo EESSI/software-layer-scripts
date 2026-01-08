@@ -6,6 +6,7 @@ import glob
 import json
 import os
 import re
+from typing import NamedTuple
 
 import easybuild.tools.environment as env
 from easybuild.easyblocks.generic.configuremake import obtain_config_guess
@@ -687,8 +688,6 @@ def pre_fetch_hook_check_installation_path(self, *args, **kwargs):
                     "need to first install the CPU-only dependencies of that package."
                     )
 
-
-from typing import NamedTuple
 
 class UnsupportedModule(NamedTuple):
     """
