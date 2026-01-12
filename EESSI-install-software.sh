@@ -398,7 +398,7 @@ else
 
             # Set EASYBUILD_HOOKS to use the hooks from the software-layer-scripts, to make it easier to use updated hooks
             export EASYBUILD_HOOKS=$TOPDIR/eb_hooks.py
-            echo "DEBUG: set EASYBUILD_HOOKS=${EASYBUILD_HOOKS}"
+            echo "Overwrite EASYBUILD_HOOKS to use the eb_hooks from software-layer-scripts: EASYBUILD_HOOKS=${EASYBUILD_HOOKS}"
 
             ${EB} --show-config
 
