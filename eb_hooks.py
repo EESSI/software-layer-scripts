@@ -834,6 +834,32 @@ def post_easyblock_hook_copy_easybuild_subdir(self, *args, **kwargs):
     copy_dir(app_easybuild_dir, app_reprod_dir)
 
 
+def pre_prepare_hook_cudnn(self, *args, **kwargs):
+    """
+    cuDNN is a binary install, that doesn't always have the device code for the suffixed CUDA
+    Compute Capabilities such as 9.0a, 10.0f, 12.0f etc. This hooks strips the suffices for
+    cuDNN versions that don't have suffix-specific device code embedded in (all) their files,
+    as retaining the suffixes would lead to the EasyBuild CUDA sanity check failing.
+    """
+
+    if self.name == 'cuDNN':
+        # cuDNN 9.5.0.50 doesn't have support for 9.0a in all binaries
+        if self.version == "9.5.0.50":
+            cuda_cc = build_option('cuda_compute_capabilities')
+            if cuda_cc and '9.0a' in cuda_cc:
+                updated_cuda_cc = [v.replace('9.0a', '9.0') for v in cuda_cc]
+                update_build_option('cuda_compute_capabilities', updated_cuda_cc)
+        # cuDNN 9.10.1.4 doesn't have support for 10.0f and 12.0f in all binaries
+        elif self.version == "9.10.1.4":
+            cuda_cc = build_option('cuda_compute_capabilities')
+            if cuda_cc and '10.0f' in cuda_cc:
+                updated_cuda_cc = [v.replace('10.0f', '10.0') for v in cuda_cc]
+                update_build_option('cuda_compute_capabilities', updated_cuda_cc)
+            elif cuda_cc and '12.0f' in cuda_cc:
+                updated_cuda_cc = [v.replace('12.0f', '12.0') for v in cuda_cc]
+                update_build_option('cuda_compute_capabilities', updated_cuda_cc)
+
+
 def pre_prepare_hook_highway_handle_test_compilation_issues(self, *args, **kwargs):
     """
     Solve issues with compiling or running the tests on both
@@ -1759,6 +1785,7 @@ PARSE_HOOKS = {
 PRE_FETCH_HOOKS = {}
 
 PRE_PREPARE_HOOKS = {
+    'cuDNN': pre_prepare_hook_cudnn,
     'Highway': pre_prepare_hook_highway_handle_test_compilation_issues,
     'LLVM': pre_prepare_hook_llvm_a64fx,
     'Rust': pre_prepare_hook_llvm_a64fx,
