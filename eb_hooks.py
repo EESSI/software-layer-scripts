@@ -752,7 +752,6 @@ def is_unsupported_module(self):
                 var=f"EESSI_IGNORE_CUDA_{cudaver}_CC_{cuda_ccs_string}".replace('.', '_')
                 errmsg = f"EasyConfigs using CUDA {cudaver} or older are not supported for (all) requested Compute "
                 errmsg +=f"Capabilities: {cuda_ccs}.\\n"
-                UnsupportedModule(envvar=var,errmsg=errmsg)
                 setattr(self, EESSI_UNSUPPORTED_MODULE_ATTR, UnsupportedModule(envvar=var,errmsg=errmsg))
                 return True
 
