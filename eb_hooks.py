@@ -196,11 +196,13 @@ def is_cuda_cc_supported_by_toolkit(cuda_cc, toolkit_version):
 
     # Raise informative error if `toolkit_version` is not yet covered in CUDA_SUPPORTED_CCS
     if not toolkit_version in CUDA_SUPPORTED_CCS:
-        msg = f"Trying to determine compatibility between requested CUDA Compute Capability ({cuda_cc})"
-        msg +=f" and CUDA toolkit version {toolkit_version} failed: support for CUDA Compute Capabilities"
-        msg +=" not known for this toolkit version. Please install the toolkit version manually, run"
-        msg +=" 'nvcc --list-gpu-arch' to determine he supported CUDA Compute Capabilities, and then add these"
-        msg +=f" to the CUDA_SUPPORTED_CCS table in the EasyBuild hooks ({build_option('hooks')})"
+        msg = f"Trying to determine compatibility between requested CUDA Compute Capability ({cuda_cc}) "
+        msg +=f"and CUDA toolkit version {toolkit_version} failed: support for CUDA Compute Capabilities "
+        msg +="not known for this toolkit version. Please install the toolkit version manually, run "
+        msg +="'nvcc --list-gpu-arch' to determine he supported CUDA Compute Capabilities, and then add these "
+        msg +=f"to the CUDA_SUPPORTED_CCS table in the EasyBuild hooks ({build_option('hooks')}). "
+        msg += "Alternatively, you can skip the compatiblity check alltogether by setting the "
+        msg += "EESSI_OVERRIDE_CUDA_CC_TOOLKIT_CHECK environment variable."
         raise EasyBuildError(msg)
 
     if cuda_cc in CUDA_SUPPORTED_CCS[toolkit_version]:
@@ -739,30 +741,32 @@ def is_unsupported_module(self):
 
     # If the CUDA toolkit is a dependency, check that it supports (all) requested CUDA Compute Capabilities
     # Otherwise, mark this as unsupported
-    cudaver = get_cuda_version(ec=self.cfg, check_deps=True, check_builddeps=True)
-    if cudaver:
-        # cuda_ccs_string is e.g. "8.0,9.0"
-        cuda_ccs_string = self.cfg.get_cuda_cc_template_value('cuda_compute_capabilities', required=False)
-        # cuda_ccs is empty if none are defined
-        if cuda_ccs_string:
-            # cuda_ccs is a comma-seperated string. Convert to list for easier handling
-            cuda_ccs = cuda_ccs_string.split(',')
-            # Check if any of the CUDA CCs is unsupported. If so, append the error
-            if any(
-                [not is_cuda_cc_supported_by_toolkit(cuda_cc=cuda_cc, toolkit_version=cudaver) for cuda_cc in cuda_ccs]
-            ):
-                msg = f"Requested a CUDA Compute Capability ({cuda_ccs}) that is not supported by the CUDA "
-                msg += f"toolkit version ({cudaver}) used by this software. Switching to '--module-only --force' "
-                msg += "and injectiong an LmodError into the modulefile."
-                print_warning(msg)
-                # Use a normalized variable name for the CUDA ccs: strip any suffix, and replace commas
-                cuda_ccs_string = re.sub(r'[a-zA-Z]', '', cuda_ccs_string).replace(',', '_')
-                # Also replace periods, those are not officially supported in environment variable names
-                var=f"EESSI_IGNORE_CUDA_{cudaver}_CC_{cuda_ccs_string}".replace('.', '_')
-                errmsg = f"EasyConfigs using CUDA {cudaver} or older are not supported for (all) requested Compute "
-                errmsg +=f"Capabilities: {cuda_ccs}.\\n"
-                setattr(self, EESSI_UNSUPPORTED_MODULE_ATTR, UnsupportedModule(envvar=var,errmsg=errmsg))
-                return True
+    if not os.getenv("EESSI_OVERRIDE_CUDA_CC_TOOLKIT_CHECK"):
+        cudaver = get_cuda_version(ec=self.cfg, check_deps=True, check_builddeps=True)
+        if cudaver:
+            # cuda_ccs_string is e.g. "8.0,9.0"
+            cuda_ccs_string = self.cfg.get_cuda_cc_template_value('cuda_compute_capabilities', required=False)
+            # cuda_ccs is empty if none are defined
+            if cuda_ccs_string:
+                # cuda_ccs is a comma-seperated string. Convert to list for easier handling
+                cuda_ccs = cuda_ccs_string.split(',')
+                # Check if any of the CUDA CCs is unsupported. If so, append the error
+                if any(
+                    [not is_cuda_cc_supported_by_toolkit(cuda_cc=cuda_cc, toolkit_version=cudaver) for cuda_cc in cuda_ccs]
+                ):
+                    msg = f"Requested a CUDA Compute Capability ({cuda_ccs}) that is not supported by the CUDA "
+                    msg += f"toolkit version ({cudaver}) used by this software. Switching to '--module-only --force' "
+                    msg += "and injectiong an LmodError into the modulefile. You can override this behaviour by "
+                    msg += "setting the EESSI_OVERRIDE_CUDA_CC_TOOLKIT_CHECK environment variable."
+                    print_warning(msg)
+                    # Use a normalized variable name for the CUDA ccs: strip any suffix, and replace commas
+                    cuda_ccs_string = re.sub(r'[a-zA-Z]', '', cuda_ccs_string).replace(',', '_')
+                    # Also replace periods, those are not officially supported in environment variable names
+                    var=f"EESSI_IGNORE_CUDA_{cudaver}_CC_{cuda_ccs_string}".replace('.', '_')
+                    errmsg = f"EasyConfigs using CUDA {cudaver} or older are not supported for (all) requested Compute "
+                    errmsg +=f"Capabilities: {cuda_ccs}.\\n"
+                    setattr(self, EESSI_UNSUPPORTED_MODULE_ATTR, UnsupportedModule(envvar=var,errmsg=errmsg))
+                    return True
 
     # If all the above logic passed, this module is supported
     setattr(self, EESSI_SUPPORTED_MODULE_ATTR, True)
