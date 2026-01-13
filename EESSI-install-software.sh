@@ -327,7 +327,7 @@ echo "Going to install full CUDA SDK and cu* libraries under host_injections if 
 temp_install_storage=${TMPDIR}/temp_install_storage
 mkdir -p ${temp_install_storage}
 if [ -z "${skip_cuda_install}" ] || [ ! "${skip_cuda_install}" ]; then
-    ${EESSI_PREFIX}/scripts/gpu_support/nvidia/install_cuda_and_libraries.sh \
+    ${TOPDIR}/scripts/gpu_support/nvidia/install_cuda_and_libraries.sh \
         -t ${temp_install_storage} \
         --accept-cuda-eula \
         --accept-cudnn-eula
@@ -338,7 +338,7 @@ fi
 # Install NVIDIA drivers in host_injections (if they exist)
 if nvidia_gpu_available; then
     echo "Installing NVIDIA drivers for use in prefix shell..."
-    ${EESSI_PREFIX}/scripts/gpu_support/nvidia/link_nvidia_host_libraries.sh
+    ${TOPDIR}/scripts/gpu_support/nvidia/link_nvidia_host_libraries.sh
 fi
 
 
@@ -395,6 +395,10 @@ else
 
             # load EasyBuild module (will be installed if it's not available yet)
             source ${TOPDIR}/load_easybuild_module.sh ${eb_version}
+
+            # Set EASYBUILD_HOOKS to use the hooks from the software-layer-scripts, to make it easier to use updated hooks
+            export EASYBUILD_HOOKS=$TOPDIR/eb_hooks.py
+            echo "Overwrite EASYBUILD_HOOKS to use the eb_hooks from software-layer-scripts: EASYBUILD_HOOKS=${EASYBUILD_HOOKS}"
 
             ${EB} --show-config
 
