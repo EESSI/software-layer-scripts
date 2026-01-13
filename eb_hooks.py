@@ -723,7 +723,7 @@ def is_unsupported_module(self):
         msg += "Building with '--module-only --force' and injecting an LmodError into the modulefile."
         print_warning(msg)
         errmsg = "EasyConfigs using toolchains based on GCCcore-12.2.0 are not supported for the Zen4 architecture.\\n"
-        errmsg += "See https://www.eessi.io/docs/known_issues/eessi-<EESSI_VERSION>/#gcc-1220-and-foss-2022b-based-modules-cannot-be-loaded-on-zen4-architecture"
+        errmsg += "See https://www.eessi.io/docs/known_issues/eessi-2023.06/#gcc-1220-and-foss-2022b-based-modules-cannot-be-loaded-on-zen4-architecture"
         var=EESSI_IGNORE_ZEN4_GCC1220_ENVVAR
         setattr(self, EESSI_UNSUPPORTED_MODULE_ATTR, UnsupportedModule(envvar=var, errmsg=errmsg))
         return True
