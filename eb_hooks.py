@@ -194,6 +194,15 @@ def is_cuda_cc_supported_by_toolkit(cuda_cc, toolkit_version):
     # Strip the dot
     cuda_cc = cuda_cc.replace('.', '')
 
+    # Raise informative error if `toolkit_version` is not yet covered in CUDA_SUPPORTED_CCS
+    if not toolkit_version in CUDA_SUPPORTED_CCS:
+        msg = f"Trying to determine compatibility between requested CUDA Compute Capability ({cuda_cc})"
+        msg +=f" and CUDA toolkit version {toolkit_version} failed: support for CUDA Compute Capabilities"
+        msg +=" not known for this toolkit version. Please install the toolkit version manually, run"
+        msg +=" 'nvcc --list-gpu-arch' to determine he supported CUDA Compute Capabilities, and then add these"
+        msg +=f" to the CUDA_SUPPORTED_CCS table in the EasyBuild hooks ({build_option('hooks')})"
+        raise EasyBuildError(msg)
+
     if cuda_cc in CUDA_SUPPORTED_CCS[toolkit_version]:
         return True
     else:
