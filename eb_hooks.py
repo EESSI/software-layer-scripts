@@ -201,7 +201,7 @@ def is_cuda_cc_supported_by_toolkit(cuda_cc, toolkit_version):
         msg +="not known for this toolkit version. Please install the toolkit version manually, run "
         msg +="'nvcc --list-gpu-arch' to determine he supported CUDA Compute Capabilities, and then add these "
         msg +=f"to the CUDA_SUPPORTED_CCS table in the EasyBuild hooks ({build_option('hooks')}). "
-        msg += "Alternatively, you can skip the compatiblity check alltogether by setting the "
+        msg += "Alternatively, you can skip the compatibility check altogether by setting the "
         msg += "EESSI_OVERRIDE_CUDA_CC_TOOLKIT_CHECK environment variable."
         raise EasyBuildError(msg)
 
