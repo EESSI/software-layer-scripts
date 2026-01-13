@@ -158,6 +158,7 @@ def get_cuda_version(ec, check_deps=True, check_builddeps=True):
     If (ec) is simply CUDA itself, it will return the version.
     If no CUDA is used as (build)dependency, this function returns None.
     """
+    # Provide default
     cudaver = None
     ec_dict = ec.asdict()
 
@@ -173,7 +174,6 @@ def get_cuda_version(ec, check_deps=True, check_builddeps=True):
     if check_builddeps:
         deps = deps + ec_dict['builddependencies'][:]
 
-    # Provide default
     for dep in deps:
         if dep['name'] == 'CUDA':
             cudaver = dep['version']
