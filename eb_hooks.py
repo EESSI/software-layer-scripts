@@ -1064,7 +1064,6 @@ def pre_configure_hook_graphviz(self, *args, **kwargs):
         for software in ('zlib', 'libtool'):
             var_name = get_software_root_env_var_name(software)
             env.setvar(var_name, os.path.join(eprefix, 'usr'))
-            self.deps.append(software)
     else:
         raise EasyBuildError("Graphviz-specific hook triggered for non-Graphviz easyconfig?!")
 
