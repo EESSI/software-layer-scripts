@@ -1060,10 +1060,27 @@ def pre_configure_hook_graphviz(self, *args, **kwargs):
     """
     if self.name == 'Graphviz':
         eprefix = get_eessi_envvar('EPREFIX')
+        usr_dir = os.path.join(eprefix, 'usr')
 
         for software in ('zlib', 'libtool'):
             var_name = get_software_root_env_var_name(software)
-            env.setvar(var_name, os.path.join(eprefix, 'usr'))
+            env.setvar(var_name, usr_dir)
+
+        old_configopts = self.cfg['configopts']
+        old_items = set(filter(None, old_configopts.split(' ')))
+
+        # Replace --with-ltdl-lib and --with-zlibdir options defined in the EC to point to compat layer
+        lib_dir = os.path.join(usr_dir, 'lib64')
+        new_items = {
+            f'--with-ltdl-lib={lib_dir}',
+            f'--with-zlibdir={lib_dir}',
+        }
+        for item in old_items:
+            if item.startswith('--with-ltdl-lib') or item.startswith('-with-ltdl-lib'):
+                continue
+            new_items.add(item)
+
+        self.cfg['configopts'] = ' '.join(new_items)
     else:
         raise EasyBuildError("Graphviz-specific hook triggered for non-Graphviz easyconfig?!")
 
