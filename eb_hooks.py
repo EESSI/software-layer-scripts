@@ -1054,6 +1054,19 @@ def pre_configure_hook_extrae(self, *args, **kwargs):
     else:
         raise EasyBuildError("Extrae-specific hook triggered for non-Extrae easyconfig?!")
 
+def pre_configure_hook_graphviz(self, *args, **kwargs):
+    """Pre-configure hook for Graphviz:
+    - avoid undefined $EBROOTZLIB and $EBROOTLIBTOOL env vars during configure step
+    """
+    if self.name == 'Graphviz':
+        eprefix = get_eessi_envvar('EPREFIX')
+
+        for software in ('zlib', 'libtool'):
+            var_name = get_software_root_env_var_name(software)
+            env.setvar(var_name, os.path.join(eprefix, 'usr'))
+            self.deps.append(software)
+    else:
+        raise EasyBuildError("Graphviz-specific hook triggered for non-Graphviz easyconfig?!")
 
 def pre_configure_hook_gobject_introspection(self, *args, **kwargs):
     """
@@ -1815,6 +1828,7 @@ PRE_CONFIGURE_HOOKS = {
     'CUDA-Samples': pre_configure_hook_CUDA_Samples_test_remove,
     'GObject-Introspection': pre_configure_hook_gobject_introspection,
     'Extrae': pre_configure_hook_extrae,
+    'Graphviz': pre_configure_hook_graphviz,
     'GRASS': pre_configure_hook_grass,
     'libfabric': pre_configure_hook_libfabric_disable_psm3_x86_64_generic,
     'LLVM': pre_configure_hook_llvm,
