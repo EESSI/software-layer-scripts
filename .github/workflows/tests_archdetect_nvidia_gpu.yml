@@ -97,8 +97,8 @@ jobs:
                   grep "Prepending /cvmfs/software.eessi.io/versions/${{matrix.EESSI_VERSION}}/software/linux/x86_64/amd/zen2/accel/nvidia/cc80/modules/all to \$MODULEPATH" init.out || (echo "FAILED 3" && exit 1)
               fi
 
-              echo ">>> checking last line of init output..."
-              tail -1 init.out | grep "Environment set up to use EESSI (${{matrix.EESSI_VERSION}}), have fun!" || (echo "FAILED, full init utput:" && cat init.out && exit 1)
+              echo ">>> checking last lines of init output..."
+              tail -10 init.out | grep "Environment set up to use EESSI (${{matrix.EESSI_VERSION}}), have fun!" || (echo "FAILED, full init output:" && cat init.out && exit 1)
 
               echo "All checks on init output PASSED"
           else

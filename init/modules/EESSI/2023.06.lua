@@ -223,4 +223,11 @@ end
 
 if mode() == "load" then
     LmodMessage(load_message)
+    -- notify about ToU
+    tou_message = [[*****
+Please note that by configuring and using the EESSI software stack,
+you agree to abide by the EESSI Terms of Use
+(see https://www.eessi.io/docs/governance/terms_of_use/).
+*****]]
+    LmodMessage(tou_message)
 end
