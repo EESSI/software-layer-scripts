@@ -1,4 +1,3 @@
-# define default values for some EESSI_* environment variables
 #
 # This file is part of the EESSI software layer,
 # see https://github.com/EESSI/software-layer
@@ -10,19 +9,39 @@
 
 export EESSI_VERSION_DEFAULT='__EESSI_VERSION_DEFAULT__'
 
-# use different defaults for RISC-V, as we want to redirect to the riscv.eessi.io repo
+# if $EESSI_VERSION_OVERRIDE is set and has a suffix, e.g. 2025.06-001,
+# we split it into EESSI_VERSION (2025.06) and EESSI_SOFTWARE_LAYER_VERSION_SUFFIX (-001)
+if [[ "${EESSI_VERSION_OVERRIDE}" == *-* ]]; then
+    export EESSI_VERSION=${EESSI_VERSION_OVERRIDE%-*}
+    export EESSI_SOFTWARE_LAYER_VERSION_SUFFIX="-${EESSI_VERSION_OVERRIDE#*-}"
+else
+    export EESSI_VERSION="${EESSI_VERSION_OVERRIDE:=${EESSI_VERSION_DEFAULT}}"
+    export EESSI_SOFTWARE_LAYER_VERSION_SUFFIX=""
+fi
+
+# use different defaults for RISC-V clients
 if [[ $(uname -m) == "riscv64" ]]; then
-    export EESSI_CVMFS_REPO="${EESSI_CVMFS_REPO_OVERRIDE:=/cvmfs/riscv.eessi.io}"
-    export EESSI_VERSION="${EESSI_VERSION_OVERRIDE:=20240402}"
-    if [[ -z ${EESSI_SILENT+x} ]]; then
-        echo "RISC-V architecture detected, but there is no RISC-V support yet in the production repository."
-        echo "Automatically switching to version ${EESSI_VERSION} of the RISC-V development repository ${EESSI_CVMFS_REPO}."
-        echo "For more details about this repository, see https://www.eessi.io/docs/repositories/riscv.eessi.io/."
-        echo ""
+    if [[ "${EESSI_VERSION}" == "2023.06" ]] || [[ "${EESSI_VERSION}" == "20240402" ]]; then
+        export EESSI_CVMFS_REPO="${EESSI_CVMFS_REPO_OVERRIDE:=/cvmfs/riscv.eessi.io}"
+        export EESSI_INIT_PREFIX="${EESSI_CVMFS_REPO}/versions/${EESSI_VERSION}/init"
+        if [[ -z ${EESSI_SILENT+x} ]]; then
+            echo "RISC-V architecture detected, but there is no RISC-V support yet in the production repository."
+            echo "Automatically switching to version ${EESSI_VERSION} of the RISC-V development repository ${EESSI_CVMFS_REPO}."
+            echo "For more details about this repository, see https://www.eessi.io/docs/repositories/riscv.eessi.io/."
+            echo ""
+        fi
+    elif [[ "${EESSI_VERSION}" == "2025.06"* ]]; then
+        export EESSI_CVMFS_REPO="${EESSI_CVMFS_REPO_OVERRIDE:=/cvmfs/dev.eessi.io/riscv}"
+        export EESSI_COMPAT_LAYER_DIR="/cvmfs/software.eessi.io/versions/${EESSI_VERSION}/compat/linux/$(uname -m)"
+        export EESSI_INIT_PREFIX="/cvmfs/software.eessi.io/versions/${EESSI_VERSION}/init"
+        if [[ -z ${EESSI_SILENT+x} ]]; then
+            echo "This EESSI production version only provides a RISC-V compatibility layer,"
+            echo "software installations are provided by the EESSI development repository at ${EESSI_CVMFS_REPO}."
+        fi
     fi
 else
     export EESSI_CVMFS_REPO="${EESSI_CVMFS_REPO_OVERRIDE:=/cvmfs/software.eessi.io}"
-    export EESSI_VERSION="${EESSI_VERSION_OVERRIDE:=${EESSI_VERSION_DEFAULT}}"
+    export EESSI_INIT_PREFIX="${EESSI_CVMFS_REPO}/versions/${EESSI_VERSION}/init"
 fi
 # use archdetect by default, unless otherwise specified
 export EESSI_USE_ARCHDETECT="${EESSI_USE_ARCHDETECT:=1}"

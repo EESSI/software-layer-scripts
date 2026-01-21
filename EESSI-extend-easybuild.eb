@@ -45,13 +45,13 @@ description = """
 toolchain = SYSTEM
 
 # All the dependencies we filter in EESSI
-local_deps_to_filter = "binutils,bzip2,DBus,flex,gettext,gperf,help2man,intltool,libreadline,makeinfo,ncurses,ParMETIS,util-linux,XZ,zlib"
+local_deps_to_filter = "binutils,bzip2,DBus,flex,gettext,gperf,help2man,intltool,libreadline,makeinfo,ncurses,NVPL,ParMETIS,util-linux,XZ,zlib"
 
-# filter extra dependencies based on CPU family
+# Filter extra dependencies based on CPU family
 local_arch_specific_deps_to_filter = {'aarch64': ',Yasm', 'riscv64': ',Yasm', 'x86_64': ''}
 local_deps_to_filter += local_arch_specific_deps_to_filter[ARCH]
 
-# only filter Autotools & co for EESSI 2023.06
+# Only filter Autotools & co for EESSI 2023.06
 if version == '2023.06':
     local_deps_to_filter += ",Autoconf,Automake,Autotools,libtool,M4"
 
@@ -96,11 +96,23 @@ sysroot = os.getenv("EESSI_EPREFIX")
 -- Check if we have GPU capabilities and configure CUDA compute capabilities
 eessi_accelerator_target = os.getenv("EESSI_ACCELERATOR_TARGET")
 if (eessi_accelerator_target ~= nil) then
-  cuda_compute_capability = string.match(eessi_accelerator_target, "^accel/nvidia/cc([0-9][0-9])$")
+  cuda_compute_capability = string.match(eessi_accelerator_target, "^accel/nvidia/cc([0-9]+)$")
   if (cuda_compute_capability ~= nil) then
-    easybuild_cuda_compute_capabilities = cuda_compute_capability:sub(1, 1) ..  "." .. cuda_compute_capability:sub(2, 2)
+    -- The last digit should be the minor version, insert a dot in the one-but-last position
+    major_version = cuda_compute_capability:sub(1, #cuda_compute_capability - 1)
+    minor_version = cuda_compute_capability:sub(#cuda_compute_capability)
+    easybuild_cuda_compute_capabilities = string.format("%s.%s", major_version, minor_version)
   else
     LmodError("Incorrect value for $EESSI_ACCELERATOR_TARGET: " .. eessi_accelerator_target)
+  end
+
+  -- If architectures are 9.0, 10.0 or 12.0, enable architecture or family-specific optimizations
+  if easybuild_cuda_compute_capabilities == '9.0' then
+    easybuild_cuda_compute_capabilities = '9.0a'
+  elseif easybuild_cuda_compute_capabilities == '10.0' then
+    easybuild_cuda_compute_capabilities = '10.0f'
+  elseif easybuild_cuda_compute_capabilities == '12.0' then
+    easybuild_cuda_compute_capabilities = '12.0f'
   end
 end
 
@@ -176,7 +188,8 @@ end
 setenv ("EASYBUILD_SYSROOT", sysroot)
 setenv ("EASYBUILD_PREFIX", pathJoin(working_dir, "easybuild"))
 setenv ("EASYBUILD_INSTALLPATH", easybuild_installpath)
-setenv ("EASYBUILD_HOOKS", pathJoin(os.getenv("EESSI_PREFIX"), "init", "easybuild", "eb_hooks.py"))
+eessi_init_prefix = os.getenv("EESSI_INIT_PREFIX") or pathJoin(os.getenv("EESSI_PREFIX"), "init")
+setenv ("EASYBUILD_HOOKS", pathJoin(eessi_init_prefix, "easybuild", "eb_hooks.py"))
 
 -- Make sure to use the general umask that allows a global read
 setenv ("EASYBUILD_UMASK", "022")
@@ -222,11 +235,12 @@ eessi_version = os.getenv("EESSI_VERSION") or "2023.06"
 -- This avoids issues where EESSI-extend is first loaded with EB => 5.1 (which set these vars)
 -- but then EB is swapped for a version < 5.1 and then EESSI-extend is unloaded (which would not unset
 -- these vars if we did it conditional on the EB version)
-if convertToCanonical(easybuild_version) >= convertToCanonical("5.1") or mode() == "unload" then
+if mode() == "unload" or mode() == "dependencyCk" or convertToCanonical(easybuild_version) >= convertToCanonical("5.1") then
   setenv ("EASYBUILD_STRICT_RPATH_SANITY_CHECK", "1")
   setenv ("EASYBUILD_CUDA_SANITY_CHECK_ERROR_ON_FAILED_CHECKS", "1")
   setenv ("EASYBUILD_FAIL_ON_MOD_FILES_GCCCORE", "1")
   setenv ("EASYBUILD_LOCAL_VAR_NAMING_CHECK", "error")
+  setenv ("EASYBUILD_PARALLEL_EXTENSIONS_INSTALL", "1")
   -- Set environment variables that are EESSI version specific
   if convertToCanonical(eessi_version) > convertToCanonical("2023.06") then
     setenv ("EASYBUILD_PREFER_PYTHON_SEARCH_PATH", "EBPYTHONPREFIXES")
@@ -234,6 +248,13 @@ if convertToCanonical(easybuild_version) >= convertToCanonical("5.1") or mode() 
     setenv ("EASYBUILD_SEARCH_PATH_CPP_HEADERS", "include_paths")
   end
 end
+
+-- Avoid locale related problems by (temporarily) overwriting the locale with one we know exists ('locale -a')
+pushenv ("LANG", "C.utf8")
+pushenv ("LC_ALL", "C.utf8")
+pushenv ("LC_CTYPE", "C.utf8")
+pushenv ("LC_MESSAGES", "C.utf8")
+
 """
 
 moduleclass = 'devel'
