@@ -818,7 +818,7 @@ if [[ ! -z ${http_proxy} ]]; then
             fi
             [[ ${VERBOSE} -eq 1 ]] && echo "Added bind mount: ${src}:${target}"
             ;;
-    esac  
+    esac
 fi
 
 # 4. set up vars and dirs specific to a scenario
