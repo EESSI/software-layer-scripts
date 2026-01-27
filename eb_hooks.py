@@ -1077,7 +1077,7 @@ def pre_configure_hook_graphviz(self, *args, **kwargs):
         }
         # Add to the new_items all the old items except the `--with-ltdl-lib` and `--with-ltdl-lib` for which we already defined new values above
         for item in old_items:
-            if item.startswith('--with-ltdl-lib') or item.startswith('-with-ltdl-lib'):
+            if item.startswith('--with-ltdl-lib') or item.startswith('--with-zlibdir'):
                 continue
             new_items.add(item)
 
