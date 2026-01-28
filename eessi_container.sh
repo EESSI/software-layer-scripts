@@ -86,7 +86,7 @@ display_help() {
   echo "                            [default: /..storage../opt-eessi]"
   echo "  -l | --list-repos       - list available repository identifiers [default: false]"
   echo "  -m | --mode MODE        - with MODE==shell (launch interactive shell) or"
-  echo "                            MODE==run (run a script or command) [default: shell]"
+  echo "                            MODE==exec/run (run a script or command) [default: shell]"
   echo "  -n | --nvidia MODE      - configure the container to work with NVIDIA GPUs,"
   echo "                            MODE==install for a CUDA installation, MODE==run to"
   echo "                            attach a GPU, MODE==all for both [default: false]"
@@ -119,7 +119,7 @@ display_help() {
   echo "  -y | --https-proxy URL  - provides URL for the env variable https_proxy"
   echo "                            [default: not set]; uses env var \$https_proxy if set"
   echo
-  echo " If value for --mode is 'run', the SCRIPT/COMMAND provided is executed. If"
+  echo " If value for --mode is 'exec' or 'run', the SCRIPT/COMMAND provided is executed. If"
   echo " arguments to the script/command start with '-' or '--', use the flag terminator"
   echo " '--' to let eessi_container.sh stop parsing arguments."
 }
@@ -383,6 +383,9 @@ fi
 
 # the run mode should actually call "apptainer exec", so simply override run to exec
 if [[ "${MODE}" == "run" ]]; then
+    echo_yellow "Note: the behaviour of the run mode has changed."
+    echo_yellow "Previously, it mistakenly ran 'apptainer/singularity run', but it now runs 'apptainer/singularity exec' instead."
+    echo_yellow "You can silence this message by using --mode exec instead of --mode run."
     MODE="exec"
 fi
 
