@@ -98,7 +98,8 @@ display_help() {
   echo "  -r | --repository CFG   - configuration file or identifier defining the"
   echo "                            repository to use; can be given multiple times;"
   echo "                            CFG may include suffixes ',access={ro,rw},mode={bind,fuse}' to"
-  echo "                            overwrite the global access and/or mount mode for this repository"
+  echo "                            overwrite the global access and/or mount mode for this repository;"
+  echo "                            use 'None' to not mount any repositories"
   echo "                            [default: software.eessi.io via CVMFS config available"
   echo "                            via default container, see --container]"
   echo "  -u | --resume DIR/TGZ   - resume a previous run from a directory or tarball,"
@@ -121,6 +122,74 @@ display_help() {
   echo " If value for --mode is 'run', the SCRIPT/COMMAND provided is executed. If"
   echo " arguments to the script/command start with '-' or '--', use the flag terminator"
   echo " '--' to let eessi_container.sh stop parsing arguments."
+}
+
+# function to parse and check bind paths
+# returns:
+#   0 if target found with matching source (no conflict)
+#   1 if target found with different source (conflict)
+#   2 if target not found
+check_bind_paths_for_target() {
+  local search_target="$1"
+  local search_src="$2"
+  local bind_paths="$3"  # typically used to pass value of $BIND_PATHS
+
+  # handle empty BIND_PATHS
+  if [[ -z "${bind_paths}" ]]; then
+    return 2
+  fi
+
+  # split by comma and process each entry
+  IFS=',' read -ra BIND_ENTRIES <<< "${bind_paths}"
+
+  for entry in "${BIND_ENTRIES[@]}"; do
+    # skip empty entries
+    [[ -z "${entry}" ]] && continue
+
+    local bind_src bind_target
+
+    # split entry by ':'
+    IFS=':' read -ra PARTS <<< "${entry}"
+
+    bind_src="${PARTS[0]}"
+
+    if [[ ${#PARTS[@]} -ge 2 ]]; then
+      bind_target="${PARTS[1]}"
+    else
+      # no target given, use src
+      bind_target=${bind_src}
+    fi
+
+    # trim any possible whitespace
+    bind_src=$(echo "${bind_src}" | xargs)
+    bind_target=$(echo "${bind_target}" | xargs)
+
+    [[ ${VERBOSE} -eq 1 ]] && echo "Parsed bind entry: src='${bind_src}' target='${bind_target}'"
+
+    # check if this entry matches our target
+    if [[ "${bind_target}" == "${search_target}" ]]; then
+      # found target -> need to compare normalised sources
+      # try to normalise source paths, but don't fail if they don't exist (yet)
+
+      bind_src_normalised=$(readlink -f "${bind_src}" 2>/dev/null)
+      search_src_normalised=$(readlink -f "${search_src}" 2>/dev/null)
+
+      # decide which path to use - normalised or original
+      local bind_src_compare="${bind_src_normalised:-${bind_src}}"
+      local search_src_compare="${search_src_normalised:-${search_src}}"
+
+      [[ ${VERBOSE} -eq 1 ]] && echo "Comparing: '${bind_src_compare}' vs '${search_src_compare}'"
+
+      if [[ "${bind_src_compare}" == "${search_src_compare}" ]]; then
+        return 0  # found target with same source (all good)
+      else
+        echo "${bind_src}"  # return the conflicting source for error message
+        return 1  # found target with different source (conflict)
+      fi
+    fi
+  done
+
+  return 2  # target not found in bind paths
 }
 
 # set defaults for command line arguments
@@ -283,6 +352,14 @@ fi
 # if REPOSITORIES is empty add default repository given above
 if [[ ${#REPOSITORIES[@]} -eq 0 ]]; then
     REPOSITORIES+=(${eessi_default_cvmfs_repo})
+fi
+
+# if the first element of REPOSITORIES is "none" (case-insensitive),
+# make sure it is an empty list from here on, i.e. no repositories will be mounted
+if [[ ${REPOSITORIES[0],,} == "none" ]]; then
+    REPOSITORIES=()
+    # also prevent the cvmfs-config repo from being mounted
+    EESSI_DO_NOT_MOUNT_CVMFS_CONFIG_CERN_CH=1
 fi
 
 # 1. check if argument values are valid
@@ -719,17 +796,38 @@ if [[ ! -z ${http_proxy} ]]; then
     HTTP_PROXY_IPV4=$(get_ipv4_address ${PROXY_HOST})
     [[ ${VERBOSE} -eq 1 ]] && echo "HTTP_PROXY_IPV4='${HTTP_PROXY_IPV4}'"
     echo "CVMFS_HTTP_PROXY=\"${http_proxy}|http://${HTTP_PROXY_IPV4}:${PROXY_PORT}\"" \
-       >> ${EESSI_TMPDIR}/repos_cfg/default.local
+        >> ${EESSI_TMPDIR}/repos_cfg/default.local
     [[ ${VERBOSE} -eq 1 ]] && echo "contents of default.local"
     [[ ${VERBOSE} -eq 1 ]] && cat ${EESSI_TMPDIR}/repos_cfg/default.local
 
     # if default.local is not BIND mounted into container, add it to BIND_PATHS
     src=${EESSI_TMPDIR}/repos_cfg/default.local
     target=/etc/cvmfs/default.local
-    if [[ ${BIND_PATHS} =~ "${target}" ]]; then
-        fatal_error "BIND target in '${src}:${target}' is already in paths to be bind mounted into the container ('${BIND_PATHS}')" ${REPOSITORY_ERROR_EXITCODE}
-    fi
-    BIND_PATHS="${BIND_PATHS},${src}:${target}"
+
+    # check if target already exists in BIND_PATHS, and, if so, if sources are
+    # the same
+    conflict_src=$(check_bind_paths_for_target "${target}" "${src}" "${BIND_PATHS}")
+    check_result=$?
+
+    case ${check_result} in
+        0)
+            # target already bound with same source - no action needed
+            [[ ${VERBOSE} -eq 1 ]] && echo "Bind mount already configured: ${src}:${target}"
+            ;;
+        1)
+            # target already bound with different source - conflict!
+            fatal_error "BIND target '${target}' conflict: already bound from '${conflict_src}', cannot bind from '${src}'" ${REPOSITORY_ERROR_EXITCODE}
+            ;;
+        2)
+            # target not found - safe to add
+            if [[ -z ${BIND_PATH} ]]; then
+                BIND_PATHS="${src}:${target}"
+            else
+                BIND_PATHS="${BIND_PATHS},${src}:${target}"
+            fi
+            [[ ${VERBOSE} -eq 1 ]] && echo "Added bind mount: ${src}:${target}"
+            ;;
+    esac
 fi
 
 # 4. set up vars and dirs specific to a scenario
