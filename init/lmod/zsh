@@ -3,17 +3,25 @@ EESSI_CVMFS_REPO="${EESSI_CVMFS_REPO:-/cvmfs/software.eessi.io}"
 # Choose an EESSI version
 EESSI_VERSION_DEFAULT="__EESSI_VERSION_DEFAULT__"
 EESSI_VERSION="${EESSI_VERSION:-${EESSI_VERSION_DEFAULT}}"
-# Path to top-level module tree
-export MODULEPATH="${EESSI_CVMFS_REPO}/versions/${EESSI_VERSION}/init/modules"
-. "${EESSI_CVMFS_REPO}/versions/${EESSI_VERSION}/compat/linux/$(uname -m)/usr/share/Lmod/init/zsh"
+# Now that we know our EESSI version let's not forget it
+export EESSI_VERSION_DEFAULT="$EESSI_VERSION"
 
-if [ -z "$__Init_Default_Modules" ]; then
-   export __Init_Default_Modules=1;
+# ability to predefine elsewhere the default list
+LMOD_SYSTEM_DEFAULT_MODULES=${LMOD_SYSTEM_DEFAULT_MODULES:-"EESSI/$EESSI_VERSION"}
+export LMOD_SYSTEM_DEFAULT_MODULES
 
-   ## ability to predefine elsewhere the default list
-   LMOD_SYSTEM_DEFAULT_MODULES=${LMOD_SYSTEM_DEFAULT_MODULES:-"EESSI/$EESSI_VERSION"}
-   export LMOD_SYSTEM_DEFAULT_MODULES
-   module --initial_load --no_redirect restore
+if [ -z "$__Init_EESSI_Default_Modules" ]; then
+    export __Init_EESSI_Default_Modules=1;
+
+    # If there is a local Lmod, make it forget about the system set MODULEPATH
+    unset __LMOD_REF_COUNT_MODULEPATH
+    # and clear out any memory Lmod might have
+    unset _ModuleTable001_
+    # Path to top-level module tree
+    export MODULEPATH="${EESSI_CVMFS_REPO}/init/modules"
+    . "${EESSI_CVMFS_REPO}/versions/${EESSI_VERSION}/compat/linux/$(uname -m)/usr/share/Lmod/init/zsh"
+
+    module --initial_load --no_redirect restore
 else
-   module refresh
+    module reset
 fi
