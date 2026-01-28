@@ -19,6 +19,7 @@ jobs:
         - listrepos_custom
         - no_cvmfs_mounts
         - exec
+        - run
         - shell
         - container
         - resume
