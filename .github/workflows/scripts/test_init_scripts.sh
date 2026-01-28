@@ -47,6 +47,7 @@ for shell in ${SHELLS[@]}; do
     fi
     PATTERN="/cvmfs/software\.eessi\.io/versions/$EESSI_VERSION/software/linux/x86_64/(intel/haswell|amd/zen3)/modules/all"
     assert_raises 'echo "${MODULE_SECTIONS[1]}" | grep -E "$PATTERN"'
+    echo "${MODULE_SECTIONS[1]}" "$PATTERN"
 
     # TEST 3: Check if module overviews second section is the EESSI init module
     assert "echo ${MODULE_SECTIONS[4]}" "/cvmfs/software.eessi.io/init/modules"
@@ -72,6 +73,7 @@ for shell in ${SHELLS[@]}; do
     PATTERN="/cvmfs/software\.eessi\.io/versions/$EESSI_VERSION/software/linux/x86_64/(intel/haswell|amd/zen3)/software/EasyBuild/${EXPECTED_EASYBUILD_VERSION//./\\.}/bin/eb"
     echo "$EASYBUILD_PATH" | grep -E "$PATTERN"
     assert_raises 'echo "$EASYBUILD_PATH" | grep -E "$PATTERN"'
+    echo "$EASYBUILD_PATH" "$PATTERN"
 
     # End Test Suite
     assert_end "source_eessi_$shell"
