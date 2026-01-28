@@ -368,8 +368,13 @@ fi
 # HOST_STORAGE_ERROR_EXITCODE
 
 # (arg -m|--mode) check if MODE is known
-if [[ "${MODE}" != "shell" && "${MODE}" != "run" ]]; then
+if [[ "${MODE}" != "shell" && "${MODE}" != "exec" && "${MODE}" != "run" ]]; then
     fatal_error "unknown execution mode '${MODE}'" "${MODE_UNKNOWN_EXITCODE}"
+fi
+
+# the run mode should actually call "apptainer exec", so simply override run to exec
+if [[ "${MODE}" == "run" ]]; then
+    MODE="exec"
 fi
 
 # Also validate the NVIDIA GPU mode (if present)
@@ -434,8 +439,8 @@ done
 # TODO (arg -y|--https-proxy) check if https proxy is accessible
 # HTTPS_PROXY_ERROR_EXITCODE
 
-# check if a script is provided if mode is 'run'
-if [[ "${MODE}" == "run" ]]; then
+# check if a script is provided if mode is 'exec'
+if [[ "${MODE}" == "exec" ]]; then
   if [[ $# -eq 0 ]]; then
     fatal_error "no command specified to run?!" "${RUN_SCRIPT_MISSING_EXITCODE}"
   fi
