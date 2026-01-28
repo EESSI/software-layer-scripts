@@ -8,7 +8,7 @@ if (! $?EESSI_VERSION) then
     set EESSI_VERSION = "${EESSI_VERSION_DEFAULT}"
 endif
 # Now that we know our EESSI version let's not forget it
-setenv EESSI_VERSION_DEFAULT="$EESSI_VERSION"
+setenv EESSI_VERSION_DEFAULT "$EESSI_VERSION"
 
 # ability to predefine elsewhere the default list
 if (! $?LMOD_SYSTEM_DEFAULT_MODULES) then

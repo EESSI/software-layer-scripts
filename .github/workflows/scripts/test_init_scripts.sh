@@ -49,7 +49,7 @@ for shell in ${SHELLS[@]}; do
     assert_raises 'echo "${MODULE_SECTIONS[1]}" | grep -E "$PATTERN"'
 
     # TEST 3: Check if module overviews second section is the EESSI init module
-    assert "echo ${MODULE_SECTIONS[4]}" "/cvmfs/software.eessi.io/versions/$EESSI_VERSION/init/modules"
+    assert "echo ${MODULE_SECTIONS[4]}" "/cvmfs/software.eessi.io/init/modules"
 
     # TEST 4: Load EasyBuild module and check version
     # eb --version outputs: "This is EasyBuild 5.1.1 (framework: 5.1.1, easyblocks: 5.1.1) on host ..."
