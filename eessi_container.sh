@@ -98,7 +98,8 @@ display_help() {
   echo "  -r | --repository CFG   - configuration file or identifier defining the"
   echo "                            repository to use; can be given multiple times;"
   echo "                            CFG may include suffixes ',access={ro,rw},mode={bind,fuse}' to"
-  echo "                            overwrite the global access and/or mount mode for this repository"
+  echo "                            overwrite the global access and/or mount mode for this repository;"
+  echo "                            use 'None' to not mount any repositories"
   echo "                            [default: software.eessi.io via CVMFS config available"
   echo "                            via default container, see --container]"
   echo "  -u | --resume DIR/TGZ   - resume a previous run from a directory or tarball,"
@@ -283,6 +284,14 @@ fi
 # if REPOSITORIES is empty add default repository given above
 if [[ ${#REPOSITORIES[@]} -eq 0 ]]; then
     REPOSITORIES+=(${eessi_default_cvmfs_repo})
+fi
+
+# if the first element of REPOSITORIES is "none" (case-insensitive),
+# make sure it is an empty list from here on, i.e. no repositories will be mounted
+if [[ ${REPOSITORIES[0],,} == "none" ]]; then
+    REPOSITORIES=()
+    # also prevent the cvmfs-config repo from being mounted
+    EESSI_DO_NOT_MOUNT_CVMFS_CONFIG_CERN_CH=1
 fi
 
 # 1. check if argument values are valid
