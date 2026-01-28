@@ -1054,6 +1054,37 @@ def pre_configure_hook_extrae(self, *args, **kwargs):
     else:
         raise EasyBuildError("Extrae-specific hook triggered for non-Extrae easyconfig?!")
 
+def pre_configure_hook_graphviz(self, *args, **kwargs):
+    """Pre-configure hook for Graphviz:
+    - avoid undefined $EBROOTZLIB and $EBROOTLIBTOOL env vars during configure step
+    """
+    if self.name == 'Graphviz':
+        eprefix = get_eessi_envvar('EPREFIX')
+        usr_dir = os.path.join(eprefix, 'usr')
+
+        for software in ('zlib', 'libtool'):
+            var_name = get_software_root_env_var_name(software)
+            env.setvar(var_name, usr_dir)
+
+        old_configopts = self.cfg['configopts']
+        old_items = set(filter(None, old_configopts.split(' ')))
+
+        # Replace --with-ltdl-lib and --with-zlibdir options defined in the EC to point to compat layer
+        lib_dir = os.path.join(usr_dir, 'lib64')
+        new_items = set()
+        # Add to the new_items all the old items except the `--with-ltdl-lib` and `--with-ltdl-lib` for 
+        # which we fix the lib dir to lib64 instead of lib
+        for item in old_items:
+            if item.startswith('--with-ltdl-lib'):
+                new_items.add(f'--with-ltdl-lib={lib_dir}')
+            elif item.startswith('--with-zlibdir'):
+                new_items.add(f'--with-zlibdir={lib_dir}')
+            else:
+                new_items.add(item)
+
+        self.cfg['configopts'] = ' '.join(new_items)
+    else:
+        raise EasyBuildError("Graphviz-specific hook triggered for non-Graphviz easyconfig?!")
 
 def pre_configure_hook_gobject_introspection(self, *args, **kwargs):
     """
@@ -1815,6 +1846,7 @@ PRE_CONFIGURE_HOOKS = {
     'CUDA-Samples': pre_configure_hook_CUDA_Samples_test_remove,
     'GObject-Introspection': pre_configure_hook_gobject_introspection,
     'Extrae': pre_configure_hook_extrae,
+    'Graphviz': pre_configure_hook_graphviz,
     'GRASS': pre_configure_hook_grass,
     'libfabric': pre_configure_hook_libfabric_disable_psm3_x86_64_generic,
     'LLVM': pre_configure_hook_llvm,
