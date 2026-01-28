@@ -88,6 +88,17 @@ jobs:
                 ./eessi_container.sh --verbose --mode exec /test/test_script.sh | tee ${outfile}
                 grep "${out_pattern}" ${outfile}
 
+              # test use of --mode run, which should now print a warning
+              elif [[ ${{matrix.SCRIPT_TEST}} == 'run' ]]; then
+                outfile=out_run.txt
+                echo "${test_cmd}" > test_script.sh
+                chmod u+x test_script.sh
+                export SINGULARITY_BIND="$PWD:/test"
+                ./eessi_container.sh --verbose --mode run /test/test_script.sh | tee ${outfile}
+                grep "${out_pattern}" ${outfile}
+                warn_message="Note: the behaviour of the run mode has changed."
+                grep "${warn_message}" ${outfile}
+
               # test use of --mode shell
               elif [[ ${{matrix.SCRIPT_TEST}} == 'shell' ]]; then
                 outfile=out_shell.txt
