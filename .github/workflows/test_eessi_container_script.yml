@@ -72,7 +72,7 @@ jobs:
                 grep "EESSI/20AB.CD" ${outfile2}
 
               # test use of --repository None
-              elif [[ ${{matrix.SCRIPT_TEST}} == 'no_cvmfs_mount' ]]; then
+              elif [[ ${{matrix.SCRIPT_TEST}} == 'no_cvmfs_mounts' ]]; then
                 outfile=out_nocvmfs.txt
                 ./eessi_container.sh --verbose --repository None --mode run mount | tee ${outfile}
                 # make sure that there are no CVMFS mounts in the container, i.e. mount does not have any lines line:
