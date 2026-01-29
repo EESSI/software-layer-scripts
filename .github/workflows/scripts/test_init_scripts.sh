@@ -45,7 +45,7 @@ for shell in ${SHELLS[@]}; do
     else
       MODULE_SECTIONS=($($shell -c "source init/lmod/$shell 2>/dev/null; module ov 2>&1 | grep -e '---'"))
     fi
-    PATTERN="/cvmfs/software\.eessi\.io/versions/$EESSI_VERSION/software/linux/x86_64/(intel/haswell|amd/zen3)/modules/all"
+    PATTERN="/cvmfs/software\.eessi\.io/versions/$EESSI_VERSION/software/linux/x86_64/(intel/haswell|amd/zen3|intel/icelake)/modules/all"
     assert_raises 'echo "${MODULE_SECTIONS[1]}" | grep -E "$PATTERN"'
     echo "${MODULE_SECTIONS[1]}" "$PATTERN"
 
@@ -70,7 +70,7 @@ for shell in ${SHELLS[@]}; do
       EASYBUILD_PATH=$($shell -c "source init/lmod/$shell 2>/dev/null; module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; which eb")
     fi
     # escape the dots in ${EASYBUILD_VERSION}
-    PATTERN="/cvmfs/software\.eessi\.io/versions/$EESSI_VERSION/software/linux/x86_64/(intel/haswell|amd/zen3)/software/EasyBuild/${EXPECTED_EASYBUILD_VERSION//./\\.}/bin/eb"
+    PATTERN="/cvmfs/software\.eessi\.io/versions/$EESSI_VERSION/software/linux/x86_64/(intel/haswell|amd/zen3|intel/icelake)/software/EasyBuild/${EXPECTED_EASYBUILD_VERSION//./\\.}/bin/eb"
     echo "$EASYBUILD_PATH" | grep -E "$PATTERN"
     assert_raises 'echo "$EASYBUILD_PATH" | grep -E "$PATTERN"'
     echo "$EASYBUILD_PATH" "$PATTERN"
