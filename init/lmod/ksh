@@ -6,20 +6,24 @@ EESSI_VERSION="${EESSI_VERSION:-${EESSI_VERSION_DEFAULT}}"
 # Now that we know our EESSI version let's not forget it
 export EESSI_VERSION_DEFAULT="$EESSI_VERSION"
 
-## ability to predefine elsewhere the default list
-LMOD_SYSTEM_DEFAULT_MODULES=${LMOD_SYSTEM_DEFAULT_MODULES:-"EESSI/$EESSI_VERSION"}
+# ability to predefine elsewhere the default list (with options to append or prepend)
+LMOD_SYSTEM_DEFAULT_MODULES="${EESSI_SYSTEM_DEFAULT_MODULES_PREPEND:+$EESSI_SYSTEM_DEFAULT_MODULES_PREPEND:}EESSI/$EESSI_VERSION${EESSI_SYSTEM_DEFAULT_MODULES_APPEND:+:$EESSI_SYSTEM_DEFAULT_MODULES_APPEND}"
 export LMOD_SYSTEM_DEFAULT_MODULES
    
 if [ -z "$__Init_EESSI_Default_Modules" ]; then
     export __Init_EESSI_Default_Modules=1;
+
+    # Lmod version in 2023.06 has a problem with newer Lmod caches, so let's stick to more recent Lmod
+    # (has no effect except on Lmod itself, and compatible caches are still created/supported by EESSI)
+    LMOD_EESSI_VERSION=${EESSI_VERSION/2023.06/2025.06}
 
     # If there is a local Lmod, make it forget about the system set MODULEPATH
     unset __LMOD_REF_COUNT_MODULEPATH
     # and clear out any memory Lmod might have
     unset _ModuleTable001_
     # Path to top-level module tree
-    export MODULEPATH="${EESSI_CVMFS_REPO}/init/modules"
-    . "${EESSI_CVMFS_REPO}/versions/${EESSI_VERSION}/compat/linux/$(uname -m)/usr/share/Lmod/init/ksh"
+    export MODULEPATH="${EESSI_CVMFS_REPO}/init/modules${EESSI_EXTRA_MODULEPATH:+:$EESSI_EXTRA_MODULEPATH}"
+    . "${EESSI_CVMFS_REPO}/versions/${LMOD_EESSI_VERSION}/compat/linux/$(uname -m)/usr/share/Lmod/init/ksh"
 
     module --initial_load --no_redirect restore
 else
