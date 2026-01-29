@@ -11,12 +11,12 @@ endif
 setenv EESSI_VERSION_DEFAULT "$EESSI_VERSION"
 
 # ability to predefine elsewhere the default list (with options to append or prepend)
-set LMOD_SYSTEM_DEFAULT_MODULES = "EESSI/$EESSI_VERSION"
+set LMOD_SYSTEM_DEFAULT_MODULES="EESSI/$EESSI_VERSION"
 if ( $?EESSI_SYSTEM_DEFAULT_MODULES_PREPEND ) then
-    set LMOD_SYSTEM_DEFAULT_MODULES = "$EESSI_SYSTEM_DEFAULT_MODULES_PREPEND:$LMOD_SYSTEM_DEFAULT_MODULES"
+    set LMOD_SYSTEM_DEFAULT_MODULES="$EESSI_SYSTEM_DEFAULT_MODULES_PREPEND:$LMOD_SYSTEM_DEFAULT_MODULES"
 endif
 if ( $?EESSI_SYSTEM_DEFAULT_MODULES_APPEND ) then
-    set LMOD_SYSTEM_DEFAULT_MODULES = "$LMOD_SYSTEM_DEFAULT_MODULES:$EESSI_SYSTEM_DEFAULT_MODULES_APPEND"
+    set LMOD_SYSTEM_DEFAULT_MODULES="$LMOD_SYSTEM_DEFAULT_MODULES:$EESSI_SYSTEM_DEFAULT_MODULES_APPEND"
 endif
 setenv LMOD_SYSTEM_DEFAULT_MODULES "$LMOD_SYSTEM_DEFAULT_MODULES"
 
@@ -25,16 +25,16 @@ if (! $?__Init_EESSI_Default_Modules ) then
 
     # Lmod version in 2023.06 has a problem with newer Lmod caches, so let's stick to more recent Lmod
     # (has no effect except on Lmod itself, and compatible caches are still created/supported by EESSI)
-    set LMOD_EESSI_VERSION "$EESSI_VERSION:s/2023.06/2025.06/"
+    set LMOD_EESSI_VERSION="$EESSI_VERSION:s/2023.06/2025.06/"
 
     # If there is a local Lmod, make it forget about the system set MODULEPATH
     unsetenv __LMOD_REF_COUNT_MODULEPATH
     # and clear out any memory Lmod might have
     unsetenv _ModuleTable001_
     # Path to top-level module tree
-    set modulepath = "$EESSI_CVMFS_REPO/init/modules"
+    set modulepath="$EESSI_CVMFS_REPO/init/modules"
     if ( $?EESSI_EXTRA_MODULEPATH && "$EESSI_EXTRA_MODULEPATH" != "" ) then
-        set modulepath = "$modulepath:$EESSI_EXTRA_MODULEPATH"
+        set modulepath="$modulepath:$EESSI_EXTRA_MODULEPATH"
     endif
     setenv MODULEPATH "$modulepath"
     source "${EESSI_CVMFS_REPO}/versions/${LMOD_EESSI_VERSION}/compat/linux/`uname -m`/usr/share/Lmod/init/csh"
