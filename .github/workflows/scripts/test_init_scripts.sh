@@ -75,20 +75,20 @@ for shell in ${SHELLS[@]}; do
     assert_raises 'echo "$EASYBUILD_PATH" | grep -E "$PATTERN"'
     echo "$EASYBUILD_PATH" "$PATTERN"
 
-    # TEST 6 and 7: Check the various options (EESSI_SYSTEM_DEFAULT_MODULES_APPEND, EESSI_SYSTEM_DEFAULT_MODULES_APPEND, EESSI_EXTRA_MODULEPATH) all work
+    # TEST 6 and 7: Check the various options (EESSI_DEFAULT_MODULES_APPEND, EESSI_DEFAULT_MODULES_APPEND, EESSI_EXTRA_MODULEPATH) all work
     if [ "$shell" = "csh" ]; then
-      echo "setenv EESSI_SYSTEM_DEFAULT_MODULES_APPEND append_module" > ~/.cshrc
-      echo "setenv EESSI_SYSTEM_DEFAULT_MODULES_PREPEND prepend_module" >> ~/.cshrc
+      echo "setenv EESSI_DEFAULT_MODULES_APPEND append_module" > ~/.cshrc
+      echo "setenv EESSI_DEFAULT_MODULES_PREPEND prepend_module" >> ~/.cshrc
       echo "setenv EESSI_EXTRA_MODULEPATH .github/workflows/modules" >> ~/.cshrc
       echo "source init/lmod/$shell" >> ~/.cshrc
       TEST_LMOD_SYSTEM_DEFAULT_MODULES=$($shell -c 'echo $LMOD_SYSTEM_DEFAULT_MODULES')
       TEST_MODULEPATH=$($shell -c 'echo $MODULEPATH')
     elif [ "$shell" = "fish" ]; then
-      TEST_LMOD_SYSTEM_DEFAULT_MODULES=$($shell -c 'set -x EESSI_SYSTEM_DEFAULT_MODULES_APPEND append_module ; set -x EESSI_SYSTEM_DEFAULT_MODULES_PREPEND prepend_module ; set -x EESSI_EXTRA_MODULEPATH .github/workflows/modules ; source init/lmod/'"$shell"' 2>/dev/null; echo $LMOD_SYSTEM_DEFAULT_MODULES')
-      TEST_MODULEPATH=$($shell -c 'set -x EESSI_SYSTEM_DEFAULT_MODULES_APPEND append_module ; set -x EESSI_SYSTEM_DEFAULT_MODULES_PREPEND prepend_module ; set -x EESSI_EXTRA_MODULEPATH .github/workflows/modules ; source init/lmod/'"$shell"' 2>/dev/null; echo $MODULEPATH')
+      TEST_LMOD_SYSTEM_DEFAULT_MODULES=$($shell -c 'set -x EESSI_DEFAULT_MODULES_APPEND append_module ; set -x EESSI_DEFAULT_MODULES_PREPEND prepend_module ; set -x EESSI_EXTRA_MODULEPATH .github/workflows/modules ; source init/lmod/'"$shell"' 2>/dev/null; echo $LMOD_SYSTEM_DEFAULT_MODULES')
+      TEST_MODULEPATH=$($shell -c 'set -x EESSI_DEFAULT_MODULES_APPEND append_module ; set -x EESSI_DEFAULT_MODULES_PREPEND prepend_module ; set -x EESSI_EXTRA_MODULEPATH .github/workflows/modules ; source init/lmod/'"$shell"' 2>/dev/null; echo $MODULEPATH')
     else
-      TEST_LMOD_SYSTEM_DEFAULT_MODULES=$($shell -c 'export EESSI_SYSTEM_DEFAULT_MODULES_APPEND=append_module ; export EESSI_SYSTEM_DEFAULT_MODULES_PREPEND=prepend_module ; export EESSI_EXTRA_MODULEPATH=.github/workflows/modules ; source init/lmod/'"$shell"' ; echo $LMOD_SYSTEM_DEFAULT_MODULES')
-      TEST_MODULEPATH=$($shell -c 'export EESSI_SYSTEM_DEFAULT_MODULES_APPEND=append_module ; export EESSI_SYSTEM_DEFAULT_MODULES_PREPEND=prepend_module ; export EESSI_EXTRA_MODULEPATH=.github/workflows/modules ; source init/lmod/'"$shell"' 2>/dev/null; echo $MODULEPATH')
+      TEST_LMOD_SYSTEM_DEFAULT_MODULES=$($shell -c 'export EESSI_DEFAULT_MODULES_APPEND=append_module ; export EESSI_DEFAULT_MODULES_PREPEND=prepend_module ; export EESSI_EXTRA_MODULEPATH=.github/workflows/modules ; source init/lmod/'"$shell"' ; echo $LMOD_SYSTEM_DEFAULT_MODULES')
+      TEST_MODULEPATH=$($shell -c 'export EESSI_DEFAULT_MODULES_APPEND=append_module ; export EESSI_DEFAULT_MODULES_PREPEND=prepend_module ; export EESSI_EXTRA_MODULEPATH=.github/workflows/modules ; source init/lmod/'"$shell"' 2>/dev/null; echo $MODULEPATH')
     fi
     # escape the dots in ${EASYBUILD_VERSION}
     LMOD_SYSTEM_DEFAULT_MODULES_PATTERN='^prepend_module:.*:append_module$'
