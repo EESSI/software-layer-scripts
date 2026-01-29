@@ -86,7 +86,7 @@ display_help() {
   echo "                            [default: /..storage../opt-eessi]"
   echo "  -l | --list-repos       - list available repository identifiers [default: false]"
   echo "  -m | --mode MODE        - with MODE==shell (launch interactive shell) or"
-  echo "                            MODE==run (run a script or command) [default: shell]"
+  echo "                            MODE==exec/run (run a script or command) [default: shell]"
   echo "  -n | --nvidia MODE      - configure the container to work with NVIDIA GPUs,"
   echo "                            MODE==install for a CUDA installation, MODE==run to"
   echo "                            attach a GPU, MODE==all for both [default: false]"
@@ -119,7 +119,7 @@ display_help() {
   echo "  -y | --https-proxy URL  - provides URL for the env variable https_proxy"
   echo "                            [default: not set]; uses env var \$https_proxy if set"
   echo
-  echo " If value for --mode is 'run', the SCRIPT/COMMAND provided is executed. If"
+  echo " If value for --mode is 'exec' or 'run', the SCRIPT/COMMAND provided is executed. If"
   echo " arguments to the script/command start with '-' or '--', use the flag terminator"
   echo " '--' to let eessi_container.sh stop parsing arguments."
 }
@@ -377,8 +377,16 @@ fi
 # HOST_STORAGE_ERROR_EXITCODE
 
 # (arg -m|--mode) check if MODE is known
-if [[ "${MODE}" != "shell" && "${MODE}" != "run" ]]; then
+if [[ "${MODE}" != "shell" && "${MODE}" != "exec" && "${MODE}" != "run" ]]; then
     fatal_error "unknown execution mode '${MODE}'" "${MODE_UNKNOWN_EXITCODE}"
+fi
+
+# the run mode should actually call "apptainer exec", so simply override run to exec
+if [[ "${MODE}" == "run" ]]; then
+    echo_yellow "Note: the behaviour of the run mode has changed."
+    echo_yellow "Previously, it mistakenly ran 'apptainer/singularity run', but it now runs 'apptainer/singularity exec' instead."
+    echo_yellow "You can silence this message by using --mode exec instead of --mode run."
+    MODE="exec"
 fi
 
 # Also validate the NVIDIA GPU mode (if present)
@@ -443,8 +451,8 @@ done
 # TODO (arg -y|--https-proxy) check if https proxy is accessible
 # HTTPS_PROXY_ERROR_EXITCODE
 
-# check if a script is provided if mode is 'run'
-if [[ "${MODE}" == "run" ]]; then
+# check if a script is provided if mode is 'exec'
+if [[ "${MODE}" == "exec" ]]; then
   if [[ $# -eq 0 ]]; then
     fatal_error "no command specified to run?!" "${RUN_SCRIPT_MISSING_EXITCODE}"
   fi
