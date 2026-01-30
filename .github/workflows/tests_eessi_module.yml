@@ -341,6 +341,7 @@ jobs:
           # Initialise Lmod
           . /cvmfs/software.eessi.io/versions/${{matrix.EESSI_VERSION}}/compat/linux/$(uname -m)/usr/share/Lmod/init/bash
 
+          export MODULEPATH=init/modules
           # Set the relevant environment variable, load the EESSI module, and grep for what we expect in PS1
           export EESSI_UPDATE_PS1=1
           module load "EESSI/${{matrix.EESSI_VERSION}}"
