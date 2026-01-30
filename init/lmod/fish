@@ -1,10 +1,31 @@
+#!/usr/bin/env fish
+
+# SPDX-License-Identifier: GPL-2.0-only
+# Copyright (C) 2020-2026 EESSI contributors
+#
+# EESSI - European Environment for Scientific Software Installations
+#
+# This file is a template for initialising EESSI via Lmod for the environment indicated by the shebang.
+#
+# Please refer to the reference bash implementation for full documentation, only minimal comments are included here
+
 # Choose an EESSI CVMFS repository
 set EESSI_CVMFS_REPO (set -q EESSI_CVMFS_REPO; and echo "$EESSI_CVMFS_REPO"; or echo "/cvmfs/software.eessi.io")
+
 # Choose an EESSI version
-set EESSI_VERSION_DEFAULT "__EESSI_VERSION_DEFAULT__"
-set EESSI_VERSION (set -q EESSI_VERSION; and echo "$EESSI_VERSION"; or echo "$EESSI_VERSION_DEFAULT")
-# Now that we know our EESSI version let's not forget it
-set -x EESSI_VERSION_DEFAULT "$EESSI_VERSION"
+if not set -q __EESSI_VERSION_USED_FOR_INIT
+    set EESSI_VERSION_DEFAULT "__EESSI_VERSION_DEFAULT__"
+else
+    set EESSI_VERSION_DEFAULT "$__EESSI_VERSION_USED_FOR_INIT"
+end
+if not set -q EESSI_VERSION
+    set EESSI_VERSION "$EESSI_VERSION_DEFAULT"
+end
+
+# Record version used for init; -x exports it to the environment
+if not set -q __EESSI_VERSION_USED_FOR_INIT
+    set -x __EESSI_VERSION_USED_FOR_INIT "$EESSI_VERSION"
+end
 
 # ability to predefine elsewhere the default list (with options to append or prepend)
 set LMOD_SYSTEM_DEFAULT_MODULES "EESSI/$EESSI_VERSION"

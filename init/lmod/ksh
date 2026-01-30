@@ -1,10 +1,27 @@
+#!/usr/bin/env ksh
+
+# SPDX-License-Identifier: GPL-2.0-only
+# Copyright (C) 2020-2026 EESSI contributors
+#
+# EESSI - European Environment for Scientific Software Installations
+#
+# This file is a template for initialising EESSI via Lmod for the environment indicated by the shebang.
+#
+# Please refer to the reference bash implementation for full documentation, only minimal comments are included here
+
 # Choose an EESSI CVMFS repository
 EESSI_CVMFS_REPO="${EESSI_CVMFS_REPO:-/cvmfs/software.eessi.io}"
-# Choose an EESSI version
-EESSI_VERSION_DEFAULT="__EESSI_VERSION_DEFAULT__"
+
+# Choose an EESSI version (the default is only used if the EESSI_VERSION environment variable is not provided)
+EESSI_VERSION_DEFAULT="${__EESSI_VERSION_USED_FOR_INIT:-__EESSI_VERSION_DEFAULT__}"
 EESSI_VERSION="${EESSI_VERSION:-${EESSI_VERSION_DEFAULT}}"
-# Now that we know our EESSI version let's not forget it
-export EESSI_VERSION_DEFAULT="$EESSI_VERSION"
+# On the first run we want to record the EESSI version used for init as an environment variable so that if a different
+# version of this script is called (e.g, for a a different EESSI version) it retains a memory which EESSI
+# version was actually used in the initialisation. This is useful as __Init_EESSI_Default_Modules used below will
+# be defined on the first call and Lmod initialisation will not happen twice.
+# This sets the value only on first execution, if the variable already exists in the environment
+# the original value is retained.
+export __EESSI_VERSION_USED_FOR_INIT="${__EESSI_VERSION_USED_FOR_INIT:-${EESSI_VERSION}}"
 
 # ability to predefine elsewhere the default list (with options to append or prepend)
 LMOD_SYSTEM_DEFAULT_MODULES="${EESSI_DEFAULT_MODULES_PREPEND:+$EESSI_DEFAULT_MODULES_PREPEND:}EESSI/$EESSI_VERSION${EESSI_DEFAULT_MODULES_APPEND:+:$EESSI_DEFAULT_MODULES_APPEND}"
