@@ -100,7 +100,6 @@ for shell in ${SHELLS[@]}; do
       TEST_LMOD_SYSTEM_DEFAULT_MODULES=$($shell -c 'export EESSI_DEFAULT_MODULES_APPEND=append_module ; export EESSI_DEFAULT_MODULES_PREPEND=prepend_module ; export EESSI_EXTRA_MODULEPATH=.github/workflows/modules ; source init/lmod/'"$shell"' ; echo $LMOD_SYSTEM_DEFAULT_MODULES')
       TEST_MODULEPATH=$($shell -c 'export EESSI_DEFAULT_MODULES_APPEND=append_module ; export EESSI_DEFAULT_MODULES_PREPEND=prepend_module ; export EESSI_EXTRA_MODULEPATH=.github/workflows/modules ; source init/lmod/'"$shell"' 2>/dev/null; echo $MODULEPATH')
     fi
-    # escape the dots in ${EASYBUILD_VERSION}
     LMOD_SYSTEM_DEFAULT_MODULES_PATTERN='^prepend_module:.*:append_module$'
     echo "$TEST_LMOD_SYSTEM_DEFAULT_MODULES" AND "$LMOD_SYSTEM_DEFAULT_MODULES_PATTERN"
     assert_raises 'echo "$TEST_LMOD_SYSTEM_DEFAULT_MODULES" | grep -E "$LMOD_SYSTEM_DEFAULT_MODULES_PATTERN"'
