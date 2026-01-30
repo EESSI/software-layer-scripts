@@ -29,9 +29,13 @@ for shell in ${SHELLS[@]}; do
   echo  RUNNING TESTS FOR SHELL: $shell
   echo = | awk 'NF += (OFS = $_) + 100'
   if [[ ! " ${TEST_SHELLS[*]} " =~ [[:space:]]${shell}[[:space:]] ]]; then
-    ### EXCEPTION FOR CSH ###
     echo -e "\033[33mWe don't now how to test the shell '$shell', PRs are Welcome.\033[0m" 
   else
+    if [ "$shell" = "csh" ]; then
+      # make sure our .cshrc is empty before we begin as we will clobber it
+      [ -f "~/.cshrc" ] && mv "~/.cshrc" "~/.cshrc_orig"
+    fi
+
     # TEST 1: Source Script and check Module Output
     expected="Module for EESSI/$EESSI_VERSION loaded successfully"
     assert "$shell -c 'source init/lmod/$shell' 2>&1 " "${expected}"
@@ -105,6 +109,12 @@ for shell in ${SHELLS[@]}; do
 
     # End Test Suite
     assert_end "source_eessi_$shell"
+
+    if [ "$shell" = "csh" ]; then
+      # Restore our .cshrc
+      [ -f "~/.cshrc_orig" ] && mv "~/.cshrc_orig" "~/.cshrc"
+    fi
+
   fi
 done
 
