@@ -345,5 +345,6 @@ jobs:
           # Set the relevant environment variable, load the EESSI module, and grep for what we expect in PS1
           export EESSI_UPDATE_PS1=1
           module load "EESSI/${{matrix.EESSI_VERSION}}"
-          GREP_PATTERN="{EESSI/${{matrix.EESSI_VERSION}} "
-          grep -F -- "${PS1}" "${GREP_PATTERN}"
+          GREP_PATTERN="{EESSI/${{matrix.EESSI_VERSION}}} "
+          # Pipe the PS1 variable into grep to check for the pattern
+          echo "$PS1" | grep -F -- "$GREP_PATTERN"
