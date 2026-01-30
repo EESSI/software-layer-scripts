@@ -44,6 +44,8 @@
 EESSI_CVMFS_REPO="${EESSI_CVMFS_REPO:-/cvmfs/software.eessi.io}"
 
 # Choose an EESSI version (the default is only used if the EESSI_VERSION environment variable is not provided)
+# (Note: in the repository which is home to this file a template value __EESSI_VERSION_DEFAULT__ is present in
+#  the line below which is replaced within our deployment pipeline.)
 EESSI_VERSION_DEFAULT="${__EESSI_VERSION_USED_FOR_INIT:-__EESSI_VERSION_DEFAULT__}"
 EESSI_VERSION="${EESSI_VERSION:-${EESSI_VERSION_DEFAULT}}"
 # On the first run we want to record the EESSI version used for init as an environment variable so that if a different
@@ -54,7 +56,13 @@ EESSI_VERSION="${EESSI_VERSION:-${EESSI_VERSION_DEFAULT}}"
 # the original value is retained.
 export __EESSI_VERSION_USED_FOR_INIT="${__EESSI_VERSION_USED_FOR_INIT:-${EESSI_VERSION}}"
 
-# Ability to predefine elsewhere the default list of modules to load (colon separated):
+# LMOD_SYSTEM_DEFAULT_MODULES are used by Lmod to load a default set of modules in the scenario
+# - where we initialise Lmod (the if part of the clause below)
+# - where we reset Lmod (the else part of the clause below)
+# This means that if we call this script twice we will get the same end result: an Lmod installation
+# with a set of default modules loaded.
+#
+# We also allow the ability to predefine elsewhere the default list of modules to load (colon separated):
 # - EESSI_DEFAULT_MODULES_PREPEND environment variable allows you to prepend modules (loaded last)
 # - EESSI_DEFAULT_MODULES_APPEND environment variable allows you to append modules (loaded first)
 LMOD_SYSTEM_DEFAULT_MODULES="${EESSI_DEFAULT_MODULES_PREPEND:+$EESSI_DEFAULT_MODULES_PREPEND:}EESSI/$EESSI_VERSION${EESSI_DEFAULT_MODULES_APPEND:+:$EESSI_DEFAULT_MODULES_APPEND}"
