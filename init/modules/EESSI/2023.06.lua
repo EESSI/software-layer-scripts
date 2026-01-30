@@ -216,7 +216,7 @@ end
 
 -- change the PS1 if it exists to indicate you have EESSI loaded
 -- (doesn't help with a csh or fish prompt, but we just live with that)
-if os.getenv("EESSI_UPDATE_PS1") then
+if os.getenv("EESSI_MODULE_UPDATE_PS1") then
     prompt = os.getenv("PS1")
     if prompt then
         pushenv("PS1", "{EESSI/" .. eessi_version .. "} " .. prompt)
