@@ -16,6 +16,7 @@ if [ ! -d assert.sh ]; then
   echo "assert.sh not cloned."
   echo ""
   echo "run \`git clone https://github.com/lehmannro/assert.sh.git\`"
+  echo "(see workflow file that calls this script for how to only clone specific commit if you are worried about security)"
   exit 1
 fi
 . assert.sh/assert.sh
