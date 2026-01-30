@@ -315,3 +315,34 @@ jobs:
           module load "EESSI/${{matrix.EESSI_VERSION}}"
           GREP_PATTERN="Lmod is automatically replacing \"EESSI/${{matrix.EESSI_VERSION}}\" with \"${LOCAL_STACK_NAME}/${LOCAL_STACK_VERSION}\"."
           module load "${LOCAL_STACK_NAME}/${LOCAL_STACK_VERSION}" |& grep "${GREP_PATTERN}"
+
+  check_PS1_update_eessi_module:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        EESSI_VERSION:
+          - '2023.06'
+          - '2025.06'
+
+    steps:
+      - name: Check out software-layer repository
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+
+      - name: Mount EESSI CernVM-FS repository
+        uses: cvmfs-contrib/github-action-cvmfs@55899ca74cf78ab874bdf47f5a804e47c198743c # v4.0
+        with:
+          cvmfs_config_package: https://github.com/EESSI/filesystem-layer/releases/download/latest/cvmfs-config-eessi_latest_all.deb
+          cvmfs_http_proxy: DIRECT
+          cvmfs_repositories: software.eessi.io
+
+      - name: Make sure we can use the EESSI_UPDATE_PS1 to update PS1 in the EESSI module
+        run: |
+          # Initialise Lmod
+          . /cvmfs/software.eessi.io/versions/${{matrix.EESSI_VERSION}}/compat/linux/$(uname -m)/usr/share/Lmod/init/bash
+
+          # Set the relevant environment variable, load the EESSI module, and grep for what we expect in PS1
+          export EESSI_UPDATE_PS1=1
+          module load "EESSI/${{matrix.EESSI_VERSION}}"
+          GREP_PATTERN="{EESSI/${{matrix.EESSI_VERSION}} "
+          grep -F -- "${PS1}" "${GREP_PATTERN}"
