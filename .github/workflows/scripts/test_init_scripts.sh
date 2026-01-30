@@ -33,7 +33,7 @@ for shell in ${SHELLS[@]}; do
   else
     if [ "$shell" = "csh" ]; then
       # make sure our .cshrc is empty before we begin as we will clobber it
-      [ -f "~/.cshrc" ] && mv "~/.cshrc" "~/.cshrc_orig"
+      [ -f ~/.cshrc ] && mv ~/.cshrc ~/.cshrc_orig
     fi
 
     # TEST 1: Source Script and check Module Output
@@ -112,7 +112,7 @@ for shell in ${SHELLS[@]}; do
 
     if [ "$shell" = "csh" ]; then
       # Restore our .cshrc
-      [ -f "~/.cshrc_orig" ] && mv "~/.cshrc_orig" "~/.cshrc"
+      [ -f ~/.cshrc_orig ] && mv ~/.cshrc_orig ~/.cshrc
     fi
 
   fi
