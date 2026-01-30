@@ -336,7 +336,7 @@ jobs:
           cvmfs_http_proxy: DIRECT
           cvmfs_repositories: software.eessi.io
 
-      - name: Make sure we can use the EESSI_UPDATE_PS1 to update PS1 in the EESSI module
+      - name: Make sure we can use EESSI_UPDATE_PS1 to update PS1 in the EESSI module
         run: |
           # Initialise Lmod
           . /cvmfs/software.eessi.io/versions/${{matrix.EESSI_VERSION}}/compat/linux/$(uname -m)/usr/share/Lmod/init/bash
@@ -344,7 +344,11 @@ jobs:
           export MODULEPATH=init/modules
           # Set the relevant environment variable, load the EESSI module, and grep for what we expect in PS1
           export EESSI_UPDATE_PS1=1
+          # Need to set PS1 manually as we are in a non-interactive shell
+          export PS1="mytest $"
+          echo $PS1
           module load "EESSI/${{matrix.EESSI_VERSION}}"
           GREP_PATTERN="{EESSI/${{matrix.EESSI_VERSION}}} "
           # Pipe the PS1 variable into grep to check for the pattern
-          echo "$PS1" | grep -F -- "$GREP_PATTERN"
+          echo "$PS1"
+          echo "$PS1" | grep "$GREP_PATTERN"
