@@ -71,6 +71,7 @@ jobs:
           # We also want to perform the same test when there is an Lmod version available on the system
           sudo apt install lmod
           source /usr/share/lmod/lmod/init/bash
+          export MODULEPATH=/usr/share/lmod/lmod/modulefiles
           module avail
           export EESSI_SOFTWARE_SUBDIR_OVERRIDE=${{matrix.EESSI_SOFTWARE_SUBDIR_OVERRIDE}}
           export EESSI_VERSION=${{matrix.EESSI_VERSION}}
