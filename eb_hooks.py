@@ -41,6 +41,8 @@ CPU_TARGET_ICELAKE = 'x86_64/intel/icelake'
 CPU_TARGET_SAPPHIRE_RAPIDS = 'x86_64/intel/sapphirerapids'
 CPU_TARGET_ZEN4 = 'x86_64/amd/zen4'
 
+CPU_TARGET_RISCV64_GENERIC = 'riscv64/generic'
+
 EESSI_RPATH_OVERRIDE_ATTR = 'orig_rpath_override_dirs'
 EESSI_MODULE_ONLY_ATTR = 'orig_module_only'
 EESSI_FORCE_ATTR = 'orig_force'
@@ -1939,5 +1941,10 @@ PARALLELISM_LIMITS = {
         CPU_TARGET_AARCH64_GENERIC: (divide_by_factor, 2),
         CPU_TARGET_NEOVERSE_N1: (divide_by_factor, 2),
         CPU_TARGET_NEOVERSE_V1: (divide_by_factor, 2),
+    },
+    # found problems with the number of opened files in the test phase with
+    # ulimit -n = 2048 and 4 cores
+    'SciPy-bundle': {
+        CPU_TARGET_RISCV64_GENERIC: (divide_by_factor, 2),
     },
 }
