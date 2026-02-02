@@ -111,6 +111,33 @@ for shell in ${SHELLS[@]}; do
     # echo "$TEST_MODULEPATH" AND "$MODULEPATH_PATTERN"
     assert_raises 'echo "$TEST_MODULEPATH" | grep -E "$MODULEPATH_PATTERN"'
 
+    # TEST 8 and 9: Add a conditional test depending on whether we have the Lmod command is available locally or not (Ubuntu-based location for CI)
+    if [ -d "$LMOD_PKG/init" ]; then
+        echo "Running check for locally available Lmod with purge"
+        if [ "$shell" = "csh" ]; then
+          echo "source $LMOD_PKG/init/$shell" > ~/.cshrc
+          echo "source init/lmod/$shell" >> ~/.cshrc
+          TEST_EESSI_WITH_PURGE=$($shell -c 'echo')
+          echo "source $LMOD_PKG/init/$shell" > ~/.cshrc
+          echo "setenv EESSI_NO_MODULE_PURGE_ON_INIT 1" >> ~/.cshrc
+          echo "source init/lmod/$shell" >> ~/.cshrc
+          TEST_EESSI_WITHOUT_PURGE=$($shell -c 'echo $EESSI_NO_MODULE_PURGE_ON_INIT')
+        elif [ "$shell" = "fish" ]; then
+          TEST_EESSI_WITH_PURGE=$($shell -c "source $LMOD_PKG/init/$shell 2>/dev/null ; source init/lmod/$shell 2>/dev/null")
+          TEST_EESSI_WITHOUT_PURGE=$($shell -c "set -x EESSI_NO_MODULE_PURGE_ON_INIT 1 ; source $LMOD_PKG/init/$shell 2>/dev/null ; source init/lmod/$shell 2>/dev/null")
+        else
+          TEST_EESSI_WITH_PURGE=$($shell -c "source $LMOD_PKG/init/$shell 2>/dev/null ; source init/lmod/$shell 2>/dev/null")
+          TEST_EESSI_WITHOUT_PURGE=$($shell -c "export EESSI_NO_MODULE_PURGE_ON_INIT=1 ; source $LMOD_PKG/init/$shell 2>/dev/null ; source init/lmod/$shell 2>/dev/null")
+        fi
+        # In the first case we should have the test and in the second case we shouldn't
+        pattern="Modules purged before initialising EESSI"
+        echo $TEST_EESSI_WITH_PURGE
+        assert_raises 'echo "$TEST_EESSI_WITH_PURGE" | grep "$pattern"'
+        # this case should raise 1
+        echo $TEST_EESSI_WITHOUT_PURGE
+        assert_raises 'echo "$TEST_EESSI_WITHOUT_PURGE" | grep "$pattern"' 1
+    fi
+
     # End Test Suite
     assert_end "source_eessi_$shell"
 

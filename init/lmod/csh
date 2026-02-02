@@ -49,6 +49,11 @@ if ( ! $?__Init_EESSI_Default_Modules ) then
       set LMOD_EESSI_VERSION = "2025.06"
     endif
 
+    if ( ! $?EESSI_NO_MODULE_PURGE_ON_INIT ) then
+        module purge >& /dev/null
+        if ( $status == 0 ) echo "Modules purged before initialising EESSI"
+    endif
+
     # If there is a local Lmod, make it forget about the system set MODULEPATH
     unsetenv __LMOD_REF_COUNT_MODULEPATH
     # and clear out any memory Lmod might have

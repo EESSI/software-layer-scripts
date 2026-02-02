@@ -16,9 +16,10 @@
 # - The script listens to environment variables so that it can be silently configured by a site
 #   - EESSI_CVMFS_REPO: perform the initialisation from a respository other than /cvmfs/software.eessi.io
 #   - EESSI_VERSION: loads a specific EESSI version ignoring the default in the file
-#   - EESSI_DEFAULT_MODULES_PREPEND: environment variable allows you to prepend modules to the defaults (loaded last)
-#   - EESSI_DEFAULT_MODULES_APPEND: environment variable allows you to append modules to the defaults (loaded first)
-#   - EESSI_EXTRA_MODULEPATH: environment variable allows a site to append to MODULEPATH (lower priority than EESSI MODULEPATH)
+#   - EESSI_DEFAULT_MODULES_PREPEND: environment variable allows you to prepend modules to the defaults (loaded last, : separated)
+#   - EESSI_DEFAULT_MODULES_APPEND: environment variable allows you to append modules to the defaults (loaded first, : separated)
+#   - EESSI_EXTRA_MODULEPATH: environment variable allows a site to append to MODULEPATH (: separated, lower priority than EESSI MODULEPATH)
+#   - EESSI_NO_MODULE_PURGE_ON_INIT: environment variable that disables purging modules before initialisation
 #
 # Other options that can be set to influence the end result:
 # - The EESSI module also listens to environment variables so that it can be silently configured by a site
@@ -75,6 +76,12 @@ if [ -z "$__Init_EESSI_Default_Modules" ]; then
     # Lmod version in 2023.06 has a problem with newer Lmod caches, so let's stick to more recent Lmod
     # (has no effect except on Lmod itself, and compatible caches are still created/supported by EESSI)
     LMOD_EESSI_VERSION=${EESSI_VERSION/2023.06/2025.06}
+
+    # Let's attempt a purge of any loaded modules as any environment variables currently set will survive EESSI initialisation
+    # (it's ok if the module command does not exist)
+    if [ -z "$EESSI_NO_MODULE_PURGE_ON_INIT" ]; then
+        module purge >/dev/null 2>&1 && echo "Modules purged before initialising EESSI"
+    fi
 
     # Lmod may have been initialised so we need to clear some internal variables to allow for a full reset
     # - make it forget about the system set MODULEPATH

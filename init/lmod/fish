@@ -44,6 +44,13 @@ if test -z "$__Init_EESSI_Default_Modules"
     # (has no effect except on Lmod itself, and compatible caches are still created/supported by EESSI)
     set LMOD_EESSI_VERSION (string replace 2023.06 2025.06 -- $EESSI_VERSION)
 
+    if test -z "$EESSI_NO_MODULE_PURGE_ON_INIT"
+        if type -q module
+            module purge >/dev/null 2>&1
+            and echo "Modules purged before initialising EESSI"
+        end
+    end
+
     # If there is a local Lmod, make it forget about the system set MODULEPATH
     set -e __LMOD_REF_COUNT_MODULEPATH
     # and clear out any memory Lmod might have
