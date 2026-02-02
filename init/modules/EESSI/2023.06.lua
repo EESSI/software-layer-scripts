@@ -57,7 +57,8 @@ setenv("EESSI_VERSION", eessi_version)
 setenv("EESSI_CVMFS_REPO", eessi_repo)
 setenv("EESSI_OS_TYPE", eessi_os_type)
 function eessiDebug(text)
-    if (mode() == "load" and os.getenv("EESSI_DEBUG_INIT")) then
+    -- Allow the old environment or the new one (EESSI_MODULE_...) to enable the debug print statements
+    if (mode() == "load" and (os.getenv("EESSI_DEBUG_INIT") or os.getenv("EESSI_MODULE_DEBUG_INIT"))) then
         LmodMessage(text)
     end
 end

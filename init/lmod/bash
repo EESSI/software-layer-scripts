@@ -25,6 +25,7 @@
 #   - EESSI_MODULE_FAMILY_NAME: use the value of the environment variable to set an Lmod family for the EESSI module
 #   - EESSI_MODULE_STICKY: make the EESSI module sticky
 #   - EESSI_MODULE_UPDATE_PS1: have the EESSI module update PS1 to give a prompt that is prepended with "{EESSI/...} "
+#  (- EESSI_MODULE_DEBUG_INIT: enable debug print statements when loading the EESSI module)
 #
 # Effects:
 # - Should always succeed
@@ -86,6 +87,17 @@ if [ -z "$__Init_EESSI_Default_Modules" ]; then
     export MODULEPATH="${EESSI_CVMFS_REPO}/init/modules${EESSI_EXTRA_MODULEPATH:+:$EESSI_EXTRA_MODULEPATH}"
     . "${EESSI_CVMFS_REPO}/versions/${LMOD_EESSI_VERSION}/compat/linux/$(uname -m)/usr/share/Lmod/init/bash"
     module --initial_load --no_redirect restore
+
+    # After initialising, we now know the architecture(s) that was/were selected so let's report them
+    echo "EESSI has selected ${EESSI_SOFTWARE_SUBDIR} as the compatible CPU target for EESSI/${EESSI_VERSION}"
+    if [ -n "$EESSI_ACCEL_SUBDIR" ]; then
+        echo "EESSI has selected ${EESSI_ACCEL_SUBDIR} as the compatible accelerator target for EESSI/${EESSI_VERSION}"
+    else
+        echo "EESSI did not identify an accelerator on the system"
+    fi
+    # If people want more detailed information about what EESSI is doing, they can also set an environment variable
+    # for additional information.
+    echo "(for debug information when loading the EESSI module, set the environment variable EESSI_MODULE_DEBUG_INIT)"
 else
     module reset
 fi

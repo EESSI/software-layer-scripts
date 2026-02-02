@@ -65,6 +65,18 @@ if ( ! $?__Init_EESSI_Default_Modules ) then
     source "${EESSI_CVMFS_REPO}/versions/${LMOD_EESSI_VERSION}/compat/linux/`uname -m`/usr/share/Lmod/init/csh"
 
     module --initial_load --no_redirect restore
+
+    echo "EESSI has selected ${EESSI_SOFTWARE_SUBDIR} as the compatible CPU target for EESSI/${EESSI_VERSION}"
+    if ( $?EESSI_ACCEL_SUBDIR ) then
+        if ( "$EESSI_ACCEL_SUBDIR" != "" ) then
+            echo "EESSI has selected ${EESSI_ACCEL_SUBDIR} as the compatible accelerator target for EESSI/${EESSI_VERSION}"
+        else
+            echo "EESSI did not identify an accelerator on the system"
+        endif
+    else
+        echo "EESSI did not identify an accelerator on the system"
+    endif
+    echo "(for debug information when loading the EESSI module, set the environment variable EESSI_MODULE_DEBUG_INIT)"
 else
     module reset
 endif

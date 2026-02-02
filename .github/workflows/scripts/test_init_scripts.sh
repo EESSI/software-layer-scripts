@@ -42,8 +42,8 @@ for shell in ${SHELLS[@]}; do
     fi
 
     # TEST 1: Source Script and check Module Output
-    expected="Module for EESSI/$EESSI_VERSION loaded successfully"
-    assert "$shell -c 'source init/lmod/$shell' 2>&1 " "${expected}"
+    expected_pattern=".*EESSI has selected $EESSI_SOFTWARE_SUBDIR_OVERRIDE as the compatible CPU target for EESSI/$EESSI_VERSION.*"
+    assert_raises "$shell -c 'source init/lmod/$shell' 2>&1 | grep -E \"${expected_pattern}\""
 
     # TEST 2: Check if module overviews first section is the loaded EESSI module
     if [ "$shell" = "csh" ]; then
@@ -53,11 +53,11 @@ for shell in ${SHELLS[@]}; do
       echo "source init/lmod/$shell" > ~/.cshrc
       MODULE_SECTIONS=($($shell -c "module ov" 2>&1 | grep -e '---'))
     else
-      MODULE_SECTIONS=($($shell -c "source init/lmod/$shell 2>/dev/null; module ov 2>&1 | grep -e '---'"))
+      MODULE_SECTIONS=($($shell -c "source init/lmod/$shell >/dev/null 2>&1; module ov 2>&1 | grep -e '---'"))
     fi
     PATTERN="/cvmfs/software\.eessi\.io/versions/$EESSI_VERSION/software/linux/$EESSI_SOFTWARE_SUBDIR_OVERRIDE/modules/all"
     assert_raises 'echo "${MODULE_SECTIONS[1]}" | grep -E "$PATTERN"'
-    echo "${MODULE_SECTIONS[1]}" "$PATTERN"
+    # echo "${MODULE_SECTIONS[1]}" "$PATTERN"
 
     # TEST 3: Check if module overviews second section is the EESSI init module
     assert "echo ${MODULE_SECTIONS[4]}" "/cvmfs/software.eessi.io/init/modules"
@@ -66,9 +66,9 @@ for shell in ${SHELLS[@]}; do
     # eb --version outputs: "This is EasyBuild 5.1.1 (framework: 5.1.1, easyblocks: 5.1.1) on host ..."
     if [ "$shell" = "csh" ]; then
       echo "source init/lmod/$shell" > ~/.cshrc
-      command="$shell -c 'module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; eb --version' | cut -d \" \" -f4"
+      command="$shell -c 'module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; eb --version' | tail -n 1 | awk '{print \$4}'"
     else
-      command="$shell -c 'source init/lmod/$shell 2>/dev/null; module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; eb --version | cut -d \" \" -f4'"
+      command="$shell -c 'source init/lmod/$shell >/dev/null 2>&1; module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; eb --version' | tail -n 1 | awk '{print \$4}'"
     fi
     assert "$command" "$EXPECTED_EASYBUILD_VERSION"
 
@@ -81,9 +81,9 @@ for shell in ${SHELLS[@]}; do
     fi
     # escape the dots in ${EASYBUILD_VERSION}
     PATTERN="/cvmfs/software\.eessi\.io/versions/$EESSI_VERSION/software/linux/$EESSI_SOFTWARE_SUBDIR_OVERRIDE/software/EasyBuild/${EXPECTED_EASYBUILD_VERSION//./\\.}/bin/eb"
-    echo "$EASYBUILD_PATH" | grep -E "$PATTERN"
+    # echo "$EASYBUILD_PATH" | grep -E "$PATTERN"
     assert_raises 'echo "$EASYBUILD_PATH" | grep -E "$PATTERN"'
-    echo "$EASYBUILD_PATH" "$PATTERN"
+    # echo "$EASYBUILD_PATH" "$PATTERN"
 
     # TEST 6 and 7: Check the various options (EESSI_DEFAULT_MODULES_APPEND, EESSI_DEFAULT_MODULES_APPEND, EESSI_EXTRA_MODULEPATH) all work
     if [ "$shell" = "csh" ]; then
@@ -101,14 +101,14 @@ for shell in ${SHELLS[@]}; do
       TEST_MODULEPATH=$($shell -c 'export EESSI_DEFAULT_MODULES_APPEND=append_module ; export EESSI_DEFAULT_MODULES_PREPEND=prepend_module ; export EESSI_EXTRA_MODULEPATH=.github/workflows/modules ; source init/lmod/'"$shell"' 2>/dev/null; echo $MODULEPATH')
     fi
     LMOD_SYSTEM_DEFAULT_MODULES_PATTERN='^prepend_module:.*:append_module$'
-    echo "$TEST_LMOD_SYSTEM_DEFAULT_MODULES" AND "$LMOD_SYSTEM_DEFAULT_MODULES_PATTERN"
+    # echo "$TEST_LMOD_SYSTEM_DEFAULT_MODULES" AND "$LMOD_SYSTEM_DEFAULT_MODULES_PATTERN"
     assert_raises 'echo "$TEST_LMOD_SYSTEM_DEFAULT_MODULES" | grep -E "$LMOD_SYSTEM_DEFAULT_MODULES_PATTERN"'
     if [ "$shell" = "fish" ]; then
       MODULEPATH_PATTERN='\.github/workflows/modules$'
     else
       MODULEPATH_PATTERN=':\.github/workflows/modules$'
     fi
-    echo "$TEST_MODULEPATH" AND "$MODULEPATH_PATTERN"
+    # echo "$TEST_MODULEPATH" AND "$MODULEPATH_PATTERN"
     assert_raises 'echo "$TEST_MODULEPATH" | grep -E "$MODULEPATH_PATTERN"'
 
     # End Test Suite
