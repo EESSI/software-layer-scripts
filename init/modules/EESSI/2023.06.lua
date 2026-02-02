@@ -216,20 +216,24 @@ end
 
 -- change the PS1 if it exists to indicate you have EESSI loaded
 -- (doesn't help with a csh or fish prompt, but we just live with that)
+local quiet_load = false
 if os.getenv("EESSI_MODULE_UPDATE_PS1") then
-    prompt = os.getenv("PS1")
+    local prompt = os.getenv("PS1")
     if prompt then
+        quiet_load = true
         pushenv("PS1", "{EESSI/" .. eessi_version .. "} " .. prompt)
     end
 end
 
 -- allow sites to make the EESSI module sticky by defining EESSI_MODULE_STICKY (to any value)
-load_message = "Module for EESSI/" .. eessi_version .. " loaded successfully"
+local load_message = "Module for EESSI/" .. eessi_version .. " loaded successfully"
 if os.getenv("EESSI_MODULE_STICKY") then
     add_property("lmod","sticky")
     load_message = load_message .. " (requires '--force' option to unload or purge)"
 end
 
 if mode() == "load" then
-    LmodMessage(load_message)
+    if not quiet_load then
+        LmodMessage(load_message)
+    end
 end
