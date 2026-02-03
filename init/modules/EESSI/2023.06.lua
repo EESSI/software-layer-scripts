@@ -221,7 +221,6 @@ local quiet_load = false
 if os.getenv("EESSI_MODULE_UPDATE_PS1") then
     local prompt = os.getenv("PS1")
     if prompt then
-        quiet_load = true
         pushenv("PS1", "{EESSI/" .. eessi_version .. "} " .. prompt)
     end
 end
@@ -234,7 +233,7 @@ if os.getenv("EESSI_MODULE_STICKY") then
 end
 
 if mode() == "load" then
-    if not quiet_load then
+    if not os.getenv("EESSI_MODULE_QUIET_LOAD") then
         LmodMessage(load_message)
     end
 end

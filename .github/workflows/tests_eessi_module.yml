@@ -352,3 +352,8 @@ jobs:
           # Pipe the PS1 variable into grep to check for the pattern
           echo "$PS1"
           echo "$PS1" | grep "$GREP_PATTERN"
+
+          # Let's also check that quiet mode works
+          module load "EESSI/${{matrix.EESSI_VERSION}}" |& grep -q "Module for EESSI/${{matrix.EESSI_VERSION}} loaded successfully"
+          export EESSI_MODULE_QUIET_LOAD=1
+          module load "EESSI/${{matrix.EESSI_VERSION}}" |& ! grep -q "Module for EESSI/${{matrix.EESSI_VERSION}} loaded successfully"
