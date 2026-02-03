@@ -214,7 +214,8 @@ if family_name then
     family(family_name)
 end
 
--- change the PS1 if it exists to indicate you have EESSI loaded
+-- Change the PS1 to indicate you have EESSI loaded. For this to work, it requires that
+-- PS1 exists _and_ is exported (i.e, an environment variable, *not* a shell variable)
 -- (doesn't help with a csh or fish prompt, but we just live with that)
 local quiet_load = false
 if os.getenv("EESSI_MODULE_UPDATE_PS1") then
