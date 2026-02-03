@@ -356,4 +356,4 @@ jobs:
           # Let's also check that quiet mode works
           module load "EESSI/${{matrix.EESSI_VERSION}}" |& grep -q "Module for EESSI/${{matrix.EESSI_VERSION}} loaded successfully"
           export EESSI_MODULE_QUIET_LOAD=1
-          module load "EESSI/${{matrix.EESSI_VERSION}}" |& ! grep -q "Module for EESSI/${{matrix.EESSI_VERSION}} loaded successfully"
+          ! module load "EESSI/${{matrix.EESSI_VERSION}}" |& grep -q "Module for EESSI/${{matrix.EESSI_VERSION}} loaded successfully"
