@@ -1945,6 +1945,6 @@ PARALLELISM_LIMITS = {
     # found problems with the number of opened files in the test phase with
     # ulimit -n = 2048 and 4 cores
     'SciPy-bundle': {
-        CPU_TARGET_RISCV64_GENERIC: (divide_by_factor, 2),
+        CPU_TARGET_RISCV64_GENERIC: (set_maximum, 1),
     },
 }
