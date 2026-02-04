@@ -448,27 +448,61 @@ find_cuda_libraries_on_host() {
 }
 
 # Actually symlinks the Matched libraries to correct folders.
-# Then also creates "host" and "latest" folder symlinks
 symlink_mode () {
     # First let's make sure the driver libraries are not already in place
     # Have to link drivers = True
     link_drivers=1
 
-    # Make sure that target of host_injections variant symlink is an existing directory
-    echo "Ensure host_injections directory"
-    host_injections_target=$(realpath -m "${EESSI_CVMFS_REPO}/host_injections")
-    log_verbose "host_injections_target: ${host_injections_target}"
-    if [ ! -d "$host_injections_target" ]; then
-        check_global_read
-        create_directory_structure "$host_injections_target"
+    # Do some checks on existence of links and that we don't end up at /dev/null (the default), so we can print some informative information
+    # One downside is that we can't explicitely check if something is a variant symlink, so we'll just assume that if it's a link AND it
+    # lives in our CVMFS repository, it must be a variant symlink
+    nvidia_trusted_dir="${EESSI_EPREFIX}/lib/nvidia"
+    if [[ -L "$nvidia_trusted_dir" ]]; then
+        target1=$(readlink "$nvidia_trusted_dir")
+        log_verbose "$nvidia_trusted_dir is a CVMFS variant symlink (EESSI_${ESSSI_VERSION//./}_NVIDIA_OVERRIDE) currently pointing to $target1"
+        # If this is a link, and if it lives in the EESSI_CVMFS_REPO, we assume this is a variant symlink
+        if [[ -L "$target1" && "$target1" == "$EESSI_CVMFS_REPO"/* ]]; then
+            target2=$(readlink "$target1")
+            msg="${target1} appears to be a CVMFS variant symlink (EESSI_NVIDIA_OVERRIDE_DEFAULT) currently pointing to ${target2}."
+            msg="${msg} Proceeding to install host symlinks in ${target2}."
+            log_verbose "${msg}"
+    
+            # Check if target2 isn't /dev/null (the default target of the EESSI_NVIDIA_OVERRIDE_DEFAULT variant symlink)
+            # If it is, suggest setting EESSI_NVIDIA_OVERRIDE_DEFAULT or EESSI_${ESSSI_VERSION//./}_NVIDIA_OVERRIDE
+            if [[ $target2 == /dev/null ]]; then
+                msg="${nvidia_trusted_dir} is a symlink pointing to ${target1}, which is a symlink pointing to ${target2}\n"
+                msg="${msg}If you want to symlink the drivers in a single location for all EESSI versions, please define"
+                msg="${msg} the EESSI_NVIDIA_OVERRIDE_DEFAULT variant symlink in your local CVMFS configuration to point to"
+                msg="${msg} writeable location. This will change the target of symlink ${target1}.\n"
+                msg="${msg}If you want to symlink the drivers only for this version of EESSI (${EESSI_VERSION}), please define"
+                msg="${msg} the EESSI_${ESSSI_VERSION//./}_NVIDIA_OVERRIDE variant symlink in your local CVMFS configuration to point to"
+                msg="${msg} writeable location. This will change the target of symlink ${nvidia_trusted_dir}.\n"
+                fatal_error "${msg}"
+            fi
+        else
+            msg="$target1 does not seem to be a CVMFS variant symlink, suggesting that EESSI_${ESSSI_VERSION//./}_NVIDIA_OVERRIDE"
+            msg="${msg} was set in the CVMFS config. Proceeding to install host symlinks in $target1."
+            log_verbose "${msg}"
+        fi
+    else
+        msg="$nvidia_trusted_dir is expected to be a symlink, but it's not. This will likely fail"
+        msg="${msg} as CVMFS repositories are read-only. Proceeding anyway, but expect this to fail."
+        echo_yellow "${msg}"
     fi
 
-    # Define proper nvidia directory structure for host_injections in EESSI
-    host_injections_nvidia_dir="${EESSI_CVMFS_REPO}/host_injections/nvidia/${EESSI_CPU_FAMILY}"
-    host_injection_driver_dir="${host_injections_nvidia_dir}/host"
-    host_injection_driver_version_file="${host_injection_driver_dir}/driver_version.txt"
-    log_verbose "host_injections_nvidia_dir: ${host_injections_nvidia_dir}"
-    log_verbose "host_injection_driver_dir: ${host_injection_driver_dir}"
+    # Make sure that target of nvidia_trusted_dir variant symlink is an existing directory
+    install_target=$(readlink -f "$nvidia_trusted_dir")
+    echo "Ensure the final target of ${nvidia_trusted_dir} (${install_target}) exists"
+    log_verbose "Target directory in which driver symlinks will be installed: ${install_target}"
+    if [ ! -d "$install_target" ]; then
+        check_global_read
+        if ! create_directory_structure "$install_target"; then
+            fatal_error "No write permissions to directory ${install_target}"
+        fi
+    fi
+
+    # Define file to store driver version that was symlinked
+    host_injection_driver_version_file="${install_target}/driver_version.txt"
     log_verbose "host_injection_driver_version_file: ${host_injection_driver_version_file}"
 
     # Check if drivers are already linked with correct version
@@ -484,7 +518,7 @@ symlink_mode () {
             # There's something there but it is out of date
             echo_yellow "The host GPU driver libraries version have changed. Now its: (v${HOST_GPU_DRIVER_VERSION})"
             echo_yellow "Cleaning out outdated symlinks."
-            rm "${host_injection_driver_dir}"/* || fatal_error "Unable to remove files under '${host_injection_driver_dir}'."
+            rm "${install_target}"/* || fatal_error "Unable to remove files under '${install_target}'."
         fi
     fi
 
@@ -496,14 +530,8 @@ symlink_mode () {
     # Have to link drivers
     if [ "$link_drivers" -eq 1 ]; then
         # Link the matched libraries
-        
-        echo_green "Linking drivers to the host_injection folder"
-        check_global_read
-        if ! create_directory_structure "${host_injection_driver_dir}" ; then
-            fatal_error "No write permissions to directory ${host_injection_driver_dir}"
-        fi
 
-        cd "${host_injection_driver_dir}" || fatal_error "Failed to cd to ${host_injection_driver_dir}"
+        cd "${install_target}" || fatal_error "Failed to cd to ${install_target}"
         log_verbose "Changed directory to: $PWD"
 
         # Make symlinks to all the interesting libraries
@@ -541,80 +569,6 @@ symlink_mode () {
 
         drivers_linked=1
     fi
-
-    # Make latest symlink for NVIDIA drivers
-    cd "$host_injections_nvidia_dir" || fatal_error "Failed to cd to $host_injections_nvidia_dir"
-    log_verbose "Changed directory to: $PWD"
-    symlink="latest"
-
-    # Check if the symlink exists
-    if [ -L "$symlink" ]; then
-        # If the drivers were linked this run - relink the symlink!
-        if [ "$drivers_linked" -eq 1 ]; then
-            # Force relinking the current link.
-            # Need to remove the link first, otherwise this will follow existing symlink 
-            # and create host directory one level down !
-            rm "$symlink" || fatal_error "Failed to remove symlink ${symlink}"
-            
-            if ln -sf host "$symlink"
-            then
-                echo "Successfully force recreated symlink between $symlink and host in $PWD"
-            else
-                fatal_error "Failed to force recreate symlink between $symlink and host in $PWD"
-            fi
-        fi
-    else
-        # If the symlink doesn't exists, create normal one.
-        if ln -s host "$symlink"
-        then
-            echo "Successfully created symlink between $symlink and host in $PWD"
-        else
-            fatal_error "Failed to create symlink between $symlink and host in $PWD"
-        fi
-    fi
-
-    # Make sure the libraries can be found by the EESSI linker
-    host_injection_linker_dir=${EESSI_EPREFIX/versions/host_injections}
-    if [ -L "$host_injection_linker_dir/lib" ]; then
-        # Use readlink without -f to get direct symlink target 
-        # using -f option will create "lastest" symlink one dir deeper (inside host) 
-        target_path=$(readlink "$host_injection_linker_dir/lib")
-        expected_target="$host_injections_nvidia_dir/latest"
-        
-        log_verbose "Checking symlink target for EESSI linker:"
-        log_verbose "Current target: $target_path"
-        log_verbose "Expected target: $expected_target"
-        
-        # Update symlink if needed
-        if [ "$target_path" != "$expected_target" ]; then
-            cd "$host_injection_linker_dir" || fatal_error "Failed to cd to $host_injection_linker_dir"
-            log_verbose "Changed directory to: $PWD"
-
-            
-            if ln -sf "$expected_target" lib
-            then
-                echo "Successfully force created symlink between $expected_target and lib in $PWD"
-            else
-                fatal_error "Failed to force create symlink between $expected_target and lib in $PWD"
-            fi
-        else
-            log_verbose "Symlink already points to correct target"
-        fi
-    else
-        # Just start from scratch, symlink doesn't exists.
-        check_global_read
-        create_directory_structure "$host_injection_linker_dir"
-        cd "$host_injection_linker_dir" || fatal_error "Failed to cd to $host_injection_linker_dir"
-        log_verbose "Changed directory to: $PWD"
-
-        if ln -s "$host_injections_nvidia_dir/latest" lib
-        then
-            echo "Successfully created symlink between $host_injections_nvidia_dir/latest and lib in $PWD"
-        else
-            fatal_error "Failed to create symlink between $host_injections_nvidia_dir/latest and lib in $PWD"
-        fi
-    fi
-
 }
 
 # Logging function for verbose mode
@@ -635,7 +589,7 @@ check_eessi_initialised
 
 # Verify nvidia-smi availability
 log_verbose "Checking for nvidia-smi command..."
-command -v nvidia-smi >/dev/null 2>&1 || { echo_yellow "nvidia-smi not found, this script won't do anything useful"; return 1; }
+command -v nvidia-smi >/dev/null 2>&1 || { echo_yellow "nvidia-smi not found, this script won't do anything useful"; exit 1; }
 
 # Parse command line arguments
 while [[ "$#" -gt 0 ]]; do
