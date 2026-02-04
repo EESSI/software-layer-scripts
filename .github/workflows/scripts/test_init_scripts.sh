@@ -140,9 +140,9 @@ for shell in ${SHELLS[@]}; do
 
     # Optional test 10, check if the prompt has been updated
     if [ "$shell" = "bash" ] || [ "$shell" = "ksh" ] || [ "$shell" = "zsh" ]; then
-        # Typically this is a non-interactive shell, so manually set PS1 when testing
-        TEST_EESSI_PS1_UPDATE=$($shell -c "PS1='$ ' ; source init/lmod/$shell 2>/dev/null ; echo \"\$PS1\"")
-        TEST_EESSI_NO_PS1_UPDATE=$($shell -c "source init/lmod/$shell 2>/dev/null ; echo \"\$PS1\"")
+        # Typically this is a non-interactive shell, so manually unset PS1 and reset to a non-exported variable when testing
+        TEST_EESSI_PS1_UPDATE=$($shell -c "unset PS1 ; PS1='$ ' ; source init/lmod/$shell 2>/dev/null ; echo \"\$PS1\"")
+        TEST_EESSI_NO_PS1_UPDATE=$($shell -c "unset PS1 ; source init/lmod/$shell 2>/dev/null ; echo \"\$PS1\"")
         pattern="{EESSI/${EESSI_VERSION}} "
         assert_raises 'echo "$TEST_EESSI_PS1_UPDATE" | grep "$pattern"'
         assert_raises 'echo "$TEST_EESSI_NO_PS1_UPDATE" | grep "$pattern"' 1
