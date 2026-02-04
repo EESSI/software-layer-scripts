@@ -138,6 +138,14 @@ for shell in ${SHELLS[@]}; do
         assert_raises 'echo "$TEST_EESSI_WITHOUT_PURGE" | grep "$pattern"' 1
     fi
 
+    # Optional test 10, check if the prompt has been updated
+    if [ "$shell" = "bash" ] || [ "$shell" = "ksh" ] || [ "$shell" = "zsh" ]; then
+        # Typically this is a non-interactive shell, so manually set PS1 when testing
+        TEST_EESSI_PS1_UPDATE=$($shell -c "PS1='$ ' ; source init/lmod/$shell 2>/dev/null ; echo \"\$PS1\"")
+        pattern="{EESSI/${EESSI_VERSION}}"
+        assert_raises 'echo "$TEST_EESSI_PS1_UPDATE" | grep "$pattern"'
+    fi
+
     # End Test Suite
     assert_end "source_eessi_$shell"
 

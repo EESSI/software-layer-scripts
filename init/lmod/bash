@@ -25,7 +25,7 @@
 # - The EESSI module also listens to environment variables so that it can be silently configured by a site
 #   - EESSI_MODULE_FAMILY_NAME: use the value of the environment variable to set an Lmod family for the EESSI module
 #   - EESSI_MODULE_STICKY: make the EESSI module sticky
-#   - EESSI_MODULE_UPDATE_PS1: have the EESSI module update PS1 to give a prompt that is prepended with "{EESSI/...} "
+#   - EESSI_MODULE_UPDATE_PS1: have the EESSI module update PS1 to give a prompt that is prepended with "{EESSI/...} " (requires exporting PS1)
 #  (- EESSI_MODULE_DEBUG_INIT: enable debug print statements when loading the EESSI module)
 #
 # Effects:
@@ -88,6 +88,13 @@ if [ -z "$__Init_EESSI_Default_Modules" ]; then
     unset __LMOD_REF_COUNT_MODULEPATH
     # - and clear out any memory Lmod might have
     unset _ModuleTable001_
+
+    # For the shells that use PS1 for the prompt, let's add the trigger to enable updating that by default
+    # (in an interactive shell PS1 is likely unset, so let's only do this if it is set)
+    if [ -n "$PS1" ]; then
+        export PS1
+        export EESSI_MODULE_UPDATE_PS1=1
+    fi
 
     # Path to top-level module tree
     # - EESSI_EXTRA_MODULEPATH environment variable allows a site to append to MODULEPATH (lower priority than EESSI MODULEPATH)
