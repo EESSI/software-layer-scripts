@@ -214,13 +214,26 @@ if family_name then
     family(family_name)
 end
 
+-- Change the PS1 to indicate you have EESSI loaded. For this to work, it requires that
+-- PS1 exists _and_ is exported (i.e, an environment variable, *not* a shell variable)
+-- (doesn't help with a csh or fish prompt, but we just live with that)
+local quiet_load = false
+if os.getenv("EESSI_MODULE_UPDATE_PS1") then
+    local prompt = os.getenv("PS1")
+    if prompt then
+        pushenv("PS1", "{EESSI/" .. eessi_version .. "} " .. prompt)
+    end
+end
+
 -- allow sites to make the EESSI module sticky by defining EESSI_MODULE_STICKY (to any value)
-load_message = "Module for EESSI/" .. eessi_version .. " loaded successfully"
+local load_message = "Module for EESSI/" .. eessi_version .. " loaded successfully"
 if os.getenv("EESSI_MODULE_STICKY") then
     add_property("lmod","sticky")
     load_message = load_message .. " (requires '--force' option to unload or purge)"
 end
 
 if mode() == "load" then
-    LmodMessage(load_message)
+    if not os.getenv("EESSI_MODULE_QUIET_LOAD") then
+        LmodMessage(load_message)
+    end
 end
