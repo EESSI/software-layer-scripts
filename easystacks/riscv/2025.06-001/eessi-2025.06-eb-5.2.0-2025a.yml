@@ -1,2 +1,4 @@
 easyconfigs:
   - SciPy-bundle-2025.06-gfbf-2025a.eb
+  options:
+    from-commit: acd61068e8c743c4fb76105c19f7e62b19ac940e
