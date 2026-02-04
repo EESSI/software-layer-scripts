@@ -396,10 +396,6 @@ else
             # load EasyBuild module (will be installed if it's not available yet)
             source ${TOPDIR}/load_easybuild_module.sh ${eb_version}
 
-            # Set EASYBUILD_HOOKS to use the hooks from the software-layer-scripts, to make it easier to use updated hooks
-            export EASYBUILD_HOOKS=$TOPDIR/eb_hooks.py
-            echo "Overwrite EASYBUILD_HOOKS to use the eb_hooks from software-layer-scripts: EASYBUILD_HOOKS=${EASYBUILD_HOOKS}"
-
             ${EB} --show-config
 
             echo_green "All set, let's start installing some software with EasyBuild v${eb_version} in ${EASYBUILD_INSTALLPATH}..."
