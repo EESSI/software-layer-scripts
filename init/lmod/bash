@@ -14,7 +14,7 @@
 #
 # Options:
 # - The script listens to environment variables so that it can be silently configured by a site
-#   - EESSI_CVMFS_REPO: perform the initialisation from a respository other than /cvmfs/software.eessi.io
+#   - EESSI_CVMFS_REPO: perform the initialisation from a repository other than /cvmfs/software.eessi.io
 #   - EESSI_VERSION: loads a specific EESSI version ignoring the default in the file
 #   - EESSI_DEFAULT_MODULES_PREPEND: environment variable allows you to prepend modules to the defaults (loaded last, : separated)
 #   - EESSI_DEFAULT_MODULES_APPEND: environment variable allows you to append modules to the defaults (loaded first, : separated)
