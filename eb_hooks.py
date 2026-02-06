@@ -254,10 +254,6 @@ def parse_hook(ec, *args, **kwargs):
     # inject the GPU property (if required)
     ec = inject_gpu_property(ec)
 
-    # run parse_hook_rust_2025b for any 2025b easyconfig
-    if ec['toolchain']['version'] in ['14.3.0', '2025b']:
-        parse_hook_rust_2025b(ec, eprefix)
-
 
 def parse_list_of_dicts_env(var_name):
     """Parse a list of dicts that are stored in an environment variable string"""
@@ -635,18 +631,21 @@ def parse_hook_qt5_check_qtwebengine_disable(ec, eprefix):
         raise EasyBuildError("Qt5-specific hook triggered for non-Qt5 easyconfig?!")
 
 
-def parse_hook_rust_2025b(ec, eprefix):
+def parse_hook_maturin(ec, eprefix):
     """
-    Replace build dependency on Rust 1.88.0 (used by the 2025b toolchain) by 1.91.1,
+    Replace build dependency on Rust 1.88.0 by 1.91.1,
     as 1.88.0 causes segmentation faults on A64FX.
     cfr. https://github.com/EESSI/software-layer/pull/1357
     """
-    orig_rust = ('Rust', '1.88.0')
-    new_rust = ('Rust', '1.91.1')
-    if orig_rust in ec['builddependencies']:
-        rust_index = ec['builddependencies'].index(orig_rust)
-        ec['builddependencies'][rust_index] = new_rust
-        print_msg(f"Replaced {orig_rust} build dependency by {new_rust}.")
+    if ec.name == 'maturin':
+        orig_rust = ('Rust', '1.88.0')
+        new_rust = ('Rust', '1.91.1')
+        if orig_rust in ec['builddependencies']:
+            rust_index = ec['builddependencies'].index(orig_rust)
+            ec['builddependencies'][rust_index] = new_rust
+            print_msg(f"Replaced {orig_rust} build dependency by {new_rust}.")
+    else:
+        raise EasyBuildError("maturin-specific hook triggered for non-maturin easyconfig?!")
 
 
 def parse_hook_ucx_eprefix(ec, eprefix):
@@ -1835,6 +1834,7 @@ PARSE_HOOKS = {
     'fontconfig': parse_hook_fontconfig_add_fonts,
     'FreeImage': parse_hook_freeimage_aarch64,
     'grpcio': parse_hook_grpcio_zlib,
+    'maturin': parse_hook_maturin,
     'Mesa': parse_hook_mesa_use_llvm_minimal,
     'OpenBLAS': parse_hook_openblas_relax_lapack_tests_num_errors,
     'pybind11': parse_hook_pybind11_replace_catch2,
