@@ -643,7 +643,7 @@ def parse_hook_maturin(ec, eprefix):
         if orig_rust in ec['builddependencies']:
             rust_index = ec['builddependencies'].index(orig_rust)
             ec['builddependencies'][rust_index] = new_rust
-            print_msg(f"Replaced {orig_rust} build dependency by {new_rust}.")
+            print_msg(f"Replaced {orig_rust} build dependency by {new_rust} for {ec.name} {ec.version}")
     else:
         raise EasyBuildError("maturin-specific hook triggered for non-maturin easyconfig?!")
 
