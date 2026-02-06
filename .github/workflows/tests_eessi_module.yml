@@ -109,11 +109,11 @@ jobs:
           # First do (and undo) the Lmod initialisation
           export MODULEPATH=init/modules
           # Turn on debug output in case we want to take a look
-          export EESSI_DEBUG_INIT=true
+          export EESSI_MODULE_DEBUG_INIT=true
           CPU_ARCH=$(./init/eessi_archdetect.sh -a cpupath)
           module load EESSI/${{matrix.EESSI_VERSION}}
-          # EESSI_DEBUG_INIT/EESSI_ARCHDETECT_OPTIONS only relevant for Lmod init
-          unset EESSI_DEBUG_INIT
+          # EESSI_MODULE_DEBUG_INIT/EESSI_ARCHDETECT_OPTIONS only relevant for Lmod init
+          unset EESSI_MODULE_DEBUG_INIT
           # Store all relevant environment variables
           env | grep -E '(^EESSI_|^LMOD_RC|^LMOD_PACKAGE_PATH|^MODULEPATH)' | grep -v EESSI_ARCHDETECT_OPTIONS | sort > "${moduleoutfile}"
           module unload EESSI/${{matrix.EESSI_VERSION}}
@@ -200,7 +200,7 @@ jobs:
           fi
 
           # Turn on debug output in case we want to take a look
-          export EESSI_DEBUG_INIT=true
+          export EESSI_MODULE_DEBUG_INIT=true
 
           initial_env_file="initial_env.txt"
           module_cycled_file="load_unload_cycle.txt"
