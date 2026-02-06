@@ -151,7 +151,6 @@ def is_gcccore_1220_based(**kwargs):
     )
 
 
-
 def get_cuda_version(ec, check_deps=True, check_builddeps=True):
     """
     Returns the CUDA version that this EasyConfig (ec) uses as a (build)dependency.
@@ -254,6 +253,10 @@ def parse_hook(ec, *args, **kwargs):
 
     # inject the GPU property (if required)
     ec = inject_gpu_property(ec)
+
+    # run parse_hook_rust_2025b for any 2025b easyconfig
+    if ec['toolchain']['version'] in ['14.3.0', '2025b']:
+        parse_hook_rust_2025b(ec, eprefix)
 
 
 def parse_list_of_dicts_env(var_name):
@@ -630,6 +633,20 @@ def parse_hook_qt5_check_qtwebengine_disable(ec, eprefix):
         print_msg("Checking for QtWebEgine in Qt5 installation has been disabled")
     else:
         raise EasyBuildError("Qt5-specific hook triggered for non-Qt5 easyconfig?!")
+
+
+def parse_hook_rust_2025b(ec, eprefix):
+    """
+    Replace build dependency on Rust 1.88.0 (used by the 2025b toolchain) by 1.91.1,
+    as 1.88.0 causes segmentation faults on A64FX.
+    cfr. https://github.com/EESSI/software-layer/pull/1357
+    """
+    orig_rust = ('Rust', '1.88.0')
+    new_rust = ('Rust', '1.91.1')
+    if orig_rust in ec['builddependencies']:
+        rust_index = ec['builddependencies'].index(orig_rust)
+        ec['builddependencies'][rust_index] = new_rust
+        print_msg(f"Replaced {orig_rust} build dependency by {new_rust}.")
 
 
 def parse_hook_ucx_eprefix(ec, eprefix):
