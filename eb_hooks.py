@@ -637,7 +637,7 @@ def parse_hook_maturin(ec, eprefix):
     as 1.88.0 causes segmentation faults on A64FX.
     cfr. https://github.com/EESSI/software-layer/pull/1357
     """
-    if ec.name == 'maturin':
+    if ec.name == 'maturin' and ec.version == '1.9.1':
         orig_rust = ('Rust', '1.88.0')
         new_rust = ('Rust', '1.91.1')
         if orig_rust in ec['builddependencies']:
