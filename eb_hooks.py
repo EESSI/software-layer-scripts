@@ -1478,6 +1478,19 @@ def pre_test_hook_increase_max_failed_tests_arm_PyTorch(self, *args, **kwargs):
             self.cfg['max_failed_tests'] = 4
 
 
+def pre_test_hook_ignore_failing_tests_OpenBabel_a64fx(self, *args, **kwargs):
+    """
+    Pre-test hook for OpenBabel: skip timeout tests for OpenBabel 3.1.1 on aarch64/a64fx
+    see https://github.com/EESSI/software-layer/pull/1332#issuecomment-3877255228
+    the `testroundtrip.py` test reads and writes tens of thousands of small files.
+    The test works fine when manually ran with EESSI-extend either directly or inside an eessi_container, but 
+    consistently fails with the bot
+    """
+    cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+    if self.name == 'OpenBabel' and self.version == '3.1.1' and cpu_target == CPU_TARGET_A64FX:
+        self.cfg['testopts'] = "|| echo ignoring failing tests"
+
+
 def pre_single_extension_hook(ext, *args, **kwargs):
     """Main pre-extension: trigger custom functions based on software name."""
     if ext.name in PRE_SINGLE_EXTENSION_HOOKS:
@@ -1886,6 +1899,7 @@ PRE_TEST_HOOKS = {
     'Highway': pre_test_hook_exclude_failing_test_Highway,
     'SciPy-bundle': pre_test_hook_ignore_failing_tests_SciPybundle,
     'netCDF': pre_test_hook_ignore_failing_tests_netCDF,
+    'OpenBabel': pre_test_hook_ignore_failing_tests_OpenBabel_a64fx,
     'PyTorch': pre_test_hook_increase_max_failed_tests_arm_PyTorch,
 }
 
