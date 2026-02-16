@@ -171,6 +171,9 @@ total_build_duration = 0
 build_duration_current_easystack = 0
 write_preamble = True
 local_software_info = {}
+# We loop over software_info items and add those to local_software_info until we either hit a new EB version that
+# needs to be used, or exceed the maximum build duration. Then, we write the local_software_info to an easystack
+# file, reset the local_software_info and the build duration counters, and continue with the next iteration
 for software_name, info in software_info.items():
     if (
         len(local_software_info) > 0 and  # Skip first iteration, there's nothing to flush to disk yet
@@ -179,11 +182,6 @@ for software_name, info in software_info.items():
             (build_duration_current_easystack + info["build_duration"]) > max_build_time
         )
     ):
-        # Write previous local_software_info to an easystack
-        # Get eb version from any local_software_info entry
-        # next(iter(...)) returns the 'first' key-value pair in the dict as tuple, [1] gets the first element
-        # ebver = next(iter(local_software_info.items()))[1]["easybuild_version"]
-        # AFTER ALL I DONT THINK I NEED THE ABOVE, I CAN USE PREVIOUS_EB_VER
         easystack_file = f'easystack-{sequence_number}-eb-{previous_eb_ver}.yml'
         write_software_info(local_software_info, easystack_file, build_duration_current_easystack)
         build_duration_current_easystack = 0
@@ -196,7 +194,7 @@ for software_name, info in software_info.items():
     total_build_duration = total_build_duration + info["build_duration"]
     previous_eb_ver = info["easybuild_version"]
 
-# Flush the last local_software_info to disk
+# Flush the local_software_info to disk on last time
 easystack_file = f'easystack-{sequence_number}-eb-{previous_eb_ver}.yml'
 write_software_info(local_software_info, easystack_file, build_duration_current_easystack)
 
