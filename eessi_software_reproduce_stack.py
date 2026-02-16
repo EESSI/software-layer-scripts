@@ -1,4 +1,54 @@
+import argparse
 import bz2
+import glob
+import os
+import pathlib
+import re
+from datetime import datetime
+from multiprocessing import Pool
+
+description = """
+This script creates a sequence of easystack files that may be used to replicate the software installed
+ in a reference software subdirectory.
+ 
+The script 
+ - Determines all software that was installed in the reference prefix
+ - Sorts it in order of installation. For software that was later rebuild, the original installation time is used.
+ - In the installation order, easyconfig names are added to easystack files
+ - A new easystack file is started when either the easybuild version to be used changes, or when the maximum build
+ time is exceeded (build times of the software in the reference software subdir are used to estimate this)
+
+By sticking to the original order in which software was installed, using the robot should not be needed. Since nothing
+is installed by the robot, one is able to guarantee that the same easyconfigs and easyblocks are used that were
+used during original installation time.
+
+If an argument is provided for --eb-override-version, installations of EasyBuild itself are performed before
+anything else, with the EasyBuild version provided as argument.
+
+ Example:
+
+ python3 eessi_software_reproduce_stack.py --reference-software-subdir=x86_64/amd/zen2 --eessi-version 2025.06
+ will create easystacks that allow you to replicate the software installed in
+ /cvmfs/software.eessi.io/versions/2025.06/<eessi-version>/software/linux/<reference-software-subdir>, as
+ provided the logs of these installations where backed up to
+ /cvmfs/software.eessi.io/versions/2025.06/<eessi-version>/software/linux/<reference-software-subdir>/reprod
+ (which was standard practice starting with EESSI version 2025.06).
+"""
+parser = argparse.ArgumentParser(description='Reproduce EESSI software stack')
+parser.add_argument('--max-build-time', type=int, default=240, help='Maximum build time in minutes for each easystack file')
+parser.add_argument('--eb-override-version', type=str, default=None, help='EasyBuild version used to install other EasyBuild versions. The default (None) means it will attempt to use the EasyBuild that was used in the reference-software-subdir, but if this was a bootstrapped build (e.g. EB-5.1.1 building EB-5.1.1) in practice the latest EB will be used by the EESSI build scripts - creating a false suggestion about which version was used to install EasyBuild.')
+parser.add_argument('--reference-software-subdir', type=str, help='Reference software subdirectory')
+parser.add_argument('--eessi-version', type=str, help='EESSI version')
+args = parser.parse_args()
+
+# EasyBuild bootstrap version
+eb_override_version = args.eb_override_version
+
+# Define the directory to crawl
+root_dir = f"/cvmfs/software.eessi.io/versions/{args.eessi_version}/software/linux/{args.reference_software_subdir}/reprod"
+
+# Define the maximum build time per easystack file
+max_build_time = args.max_build_time * 60
 import glob
 import os
 import pathlib
@@ -52,6 +102,7 @@ def get_build_duration(file: pathlib.Path, encoding: str = "utf-8") -> float:
     duration = datetime.strptime(end_time.group(1), format_str) - datetime.strptime(start_time.group(1), format_str)
 
     return duration.total_seconds()
+
     
 def get_easybuild_version(file: pathlib.Path, encoding: str = "utf-8") -> str:
     """
@@ -68,6 +119,19 @@ def get_easybuild_version(file: pathlib.Path, encoding: str = "utf-8") -> str:
 
     return easybuild_version
 
+
+def write_software_info(local_software_info, easystack_file, build_duration):
+    with open(easystack_file, "a") as easystack_file_handle:
+        easystack_file_handle.write(f"# {easystack_file}: total build duration = {build_duration:.0f} seconds\n")
+        easystack_file_handle.write("easyconfigs:\n")
+        for software_name, info in local_software_info.items():
+            print(f'Adding {software_name} with build duration {info["build_duration"]} to easystack {easystack_file}.')
+            easystack_file_handle.write(f'  - {info["easyconfig_path"]}\n')
+            easystack_file_handle.write('      options:\n')
+            easystack_file_handle.write(f'        include-easyblocks: {info["easyblock_path"]}\n')
+
+
+# Create an inner loop body to parallelize over
 def inner_loop(software_name):
     software_info = {}
     software_dir = os.path.join(root_dir, software_name)
@@ -136,13 +200,6 @@ print(f"software list: {software_list}")
 with Pool(processes = n_workers) as pool:
     software_info_list = pool.map(inner_loop, software_list)
 
-# print(f"Return of sofware_info_list length: {len(software_info_list)}")
-# print(f"Return after parallel section: {software_info_list}")
-# counter = 0
-# for item in software_info_list:
-#     counter = counter + 1
-#     print(f"For process {counter}, software_info_list length is {len(item)}, content: {item}")
-
 # Each worker in the pool creates its own software info dict. The result of the map function is a list of these dicts
 # Here, we merge all these dicts into one. Note that we know the keys to be unique, so no risk of clashes
 
@@ -154,15 +211,6 @@ pprint.pprint(software_info)
 # Order the list of software chronologically
 software_info = dict(sorted(software_info.items(), key=lambda item: item[1]["initial_build_time"]))
 
-def write_software_info(local_software_info, easystack_file, build_duration):
-    with open(easystack_file, "a") as easystack_file_handle:
-        easystack_file_handle.write(f"# {easystack_file}: total build duration = {build_duration:.0f} seconds\n")
-        easystack_file_handle.write("easyconfigs:\n")
-        for software_name, info in local_software_info.items():
-            print(f'Adding {software_name} with build duration {info["build_duration"]} to easystack {easystack_file}.')
-            easystack_file_handle.write(f'  - {info["easyconfig_path"]}\n')
-            easystack_file_handle.write('      options:\n')
-            easystack_file_handle.write(f'        include-easyblocks: {info["easyblock_path"]}\n')
 
 # Write the list to an easystack file
 sequence_number = 1
