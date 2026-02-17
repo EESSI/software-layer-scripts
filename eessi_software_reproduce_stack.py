@@ -35,10 +35,11 @@ anything else, with the EasyBuild version provided as argument.
  (which was standard practice starting with EESSI version 2025.06).
 """
 parser = argparse.ArgumentParser(description='Reproduce EESSI software stack')
-parser.add_argument('--max-build-time', type=int, default=240, help='Maximum build time in minutes for each easystack file')
-parser.add_argument('--eb-override-version', type=str, default=None, help='EasyBuild version used to install other EasyBuild versions. The default (None) means it will attempt to use the EasyBuild that was used in the reference-software-subdir, but if this was a bootstrapped build (e.g. EB-5.1.1 building EB-5.1.1) in practice the latest EB will be used by the EESSI build scripts - creating a false suggestion about which version was used to install EasyBuild.')
-parser.add_argument('--reference-software-subdir', type=str, help='Reference software subdirectory')
-parser.add_argument('--eessi-version', type=str, help='EESSI version')
+parser.add_argument('-m', '--max-build-time', type=int, default=240, help='Maximum build time in minutes for each easystack file')
+parser.add_argument('-o', '--eb-override-version', type=str, default=None, help='EasyBuild version used to install other EasyBuild versions. The default (None) means it will attempt to use the EasyBuild that was used in the reference-software-subdir, but if this was a bootstrapped build (e.g. EB-5.1.1 building EB-5.1.1) in practice the latest EB will be used by the EESSI build scripts - creating a false suggestion about which version was used to install EasyBuild.')
+parser.add_argument('-r', '--reference-software-subdir', type=str, required=True, help='Reference software subdirectory, e.g. x86_64/amd/zen4')
+parser.add_argument('-e', '--eessi-version', type=str, required=True, help='EESSI version')
+parser.add_argument('-d', '--debug', action='store_true', help="Print debugging output")
 args = parser.parse_args()
 
 # EasyBuild bootstrap version
@@ -48,29 +49,14 @@ eb_override_version = args.eb_override_version
 root_dir = f"/cvmfs/software.eessi.io/versions/{args.eessi_version}/software/linux/{args.reference_software_subdir}/reprod"
 
 # Define the maximum build time per easystack file
-max_build_time = args.max_build_time * 60
-import glob
-import os
-import pathlib
-import re
-from datetime import datetime
-from multiprocessing import Pool
-
-# EasyBuild bootstrap version
-eb_override_version = "5.2.0"
-
-# Define the directory to crawl
-root_dir = "/cvmfs/software.eessi.io/versions/2025.06/software/linux/x86_64/amd/zen2/reprod"
-
-# Define the maximum build time per easystack file
-max_build_time = 14400
+max_build_time = args.max_build_time
 
 # Initialize the list to store software information
 software_info = {}
 
 def get_build_duration(file: pathlib.Path, encoding: str = "utf-8") -> float:
     """
-    Returns the total build duration (in seconds) by comparing the first and last timestamps from an EasyBuild log file
+    Returns the total build duration (in minutes) by comparing the first and last timestamps from an EasyBuild log file
     """
     # First, get the first and last line of the EB log
     # Since this is a compressed file, we cannot seek, and have to read line-by-line to find the first and last line
@@ -101,7 +87,7 @@ def get_build_duration(file: pathlib.Path, encoding: str = "utf-8") -> float:
     format_str = "%Y-%m-%d %H:%M:%S,%f"
     duration = datetime.strptime(end_time.group(1), format_str) - datetime.strptime(start_time.group(1), format_str)
 
-    return duration.total_seconds()
+    return duration.total_seconds()/60
 
     
 def get_easybuild_version(file: pathlib.Path, encoding: str = "utf-8") -> str:
@@ -122,10 +108,11 @@ def get_easybuild_version(file: pathlib.Path, encoding: str = "utf-8") -> str:
 
 def write_software_info(local_software_info, easystack_file, build_duration):
     with open(easystack_file, "a") as easystack_file_handle:
-        easystack_file_handle.write(f"# {easystack_file}: total build duration = {build_duration:.0f} seconds\n")
+        easystack_file_handle.write(f"# {easystack_file}: total build duration = {build_duration:.0f} minutes\n")
         easystack_file_handle.write("easyconfigs:\n")
         for software_name, info in local_software_info.items():
-            print(f'Adding {software_name} with build duration {info["build_duration"]} to easystack {easystack_file}.')
+            if args.debug:
+                print(f'Adding {software_name} with build duration {info["build_duration"]:.0f} to easystack {easystack_file}.')
             easystack_file_handle.write(f'  - {info["easyconfig_path"]}\n')
             easystack_file_handle.write('      options:\n')
             easystack_file_handle.write(f'        include-easyblocks: {info["easyblock_path"]}\n')
@@ -195,8 +182,12 @@ n_workers = len(os.sched_getaffinity(0))
 
 # Paralellize work over each dir present in the root_dir
 software_list = os.listdir(root_dir)
-software_list = software_list[0:10]
-print(f"software list: {software_list}")
+
+print(f"Software list: {len(software_list)} items")
+if args.debug:
+    print(f"{software_list}")
+
+print(f"Gathering information from the installation logs, this may take a while...")
 with Pool(processes = n_workers) as pool:
     software_info_list = pool.map(inner_loop, software_list)
 
@@ -204,13 +195,13 @@ with Pool(processes = n_workers) as pool:
 # Here, we merge all these dicts into one. Note that we know the keys to be unique, so no risk of clashes
 
 software_info = {k: v for d in software_info_list if d for k, v in d.items()}   # laatste dict bepaalt de waarde
-print(f"Located {len(software_info)} software installations in {root_dir}")
-import pprint
-pprint.pprint(software_info)
+print(f"Gathered information for {len(software_info)} software installations (including versions) in {root_dir}")
+if args.debug:
+    import pprint
+    pprint.pprint(software_info)
 
 # Order the list of software chronologically
 software_info = dict(sorted(software_info.items(), key=lambda item: item[1]["initial_build_time"]))
-
 
 # Write the list to an easystack file
 sequence_number = 1
@@ -219,6 +210,7 @@ total_build_duration = 0
 build_duration_current_easystack = 0
 write_preamble = True
 local_software_info = {}
+print("Writing software build information to easystack files...")
 # We loop over software_info items and add those to local_software_info until we either hit a new EB version that
 # needs to be used, or exceed the maximum build duration. Then, we write the local_software_info to an easystack
 # file, reset the local_software_info and the build duration counters, and continue with the next iteration
@@ -246,4 +238,4 @@ for software_name, info in software_info.items():
 easystack_file = f'easystack-{sequence_number}-eb-{previous_eb_ver}.yml'
 write_software_info(local_software_info, easystack_file, build_duration_current_easystack)
 
-print(f"Total of {sequence_number} easystacks with a total build time of {total_build_duration} seconds")
+print(f"Total of {sequence_number} easystacks with a total build time of {total_build_duration} minutes")
