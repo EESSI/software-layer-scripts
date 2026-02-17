@@ -475,7 +475,7 @@ symlink_mode () {
                 msg="${msg} the EESSI_NVIDIA_OVERRIDE_DEFAULT variant symlink in your local CVMFS configuration to point to"
                 msg="${msg} writeable location. This will change the target of symlink ${target1}.\n"
                 msg="${msg}If you want to symlink the drivers only for this version of EESSI (${EESSI_VERSION}), please define"
-                msg="${msg} the EESSI_${ESSSI_VERSION//./}_NVIDIA_OVERRIDE variant symlink in your local CVMFS configuration to point to"
+                msg="${msg} the EESSI_${EESSI_VERSION//./}_NVIDIA_OVERRIDE variant symlink in your local CVMFS configuration to point to"
                 msg="${msg} writeable location. This will change the target of symlink ${nvidia_trusted_dir}.\n"
                 fatal_error "${msg}"
             fi
