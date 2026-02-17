@@ -150,12 +150,11 @@ def inner_loop(software_name):
                     initial_build_time = datetime.strptime("19700101_000000UTC", "%Y%m%d_%H%M%SUTC")
 
                 # If we're overriding the version of EasyBuild to build EasyBuild, simply define so here
+                datestamp_dir_last_build = os.path.join(software_version_dir, os.listdir(software_version_dir)[-1])
                 if override_easybuild_version:
                     easybuild_version = eb_override_version
                 else:
-                    
                     # Extract the EasyBuild version from the build log of the last build
-                    datestamp_dir_last_build = os.path.join(software_version_dir, os.listdir(software_version_dir)[-1])
                     build_log_path_glob = os.path.join(datestamp_dir_last_build, "easybuild", f"easybuild-{software_name}-*.log.bz2")
                     matching_files = glob.glob(build_log_path_glob)
                     if len(matching_files) != 1:
@@ -163,8 +162,8 @@ def inner_loop(software_name):
                     easybuild_version = get_easybuild_version(matching_files[0])
                 
                 # Extract the paths to the easyblock and easyconfig files used for the last installation
-                easyblock_path = os.path.join(software_version_dir, "easybuild", "reprod", "easyblocks", "*.py")
-                easyconfig_path = os.path.join(software_version_dir, "easybuild", f"{software_name}-{software_version}.eb")
+                easyblock_path = os.path.join(datestamp_dir_last_build, "easybuild", "reprod", "easyblocks", "*.py")
+                easyconfig_path = os.path.join(datestamp_dir_last_build, "easybuild", f"{software_name}-{software_version}.eb")
                 
                 # Store the software information
                 software_info[software_name + "-" + software_version] = {
