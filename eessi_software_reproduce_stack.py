@@ -238,4 +238,4 @@ for software_name, info in software_info.items():
 easystack_file = f'easystack-{sequence_number}-eb-{previous_eb_ver}.yml'
 write_software_info(local_software_info, easystack_file, build_duration_current_easystack)
 
-print(f"Total of {sequence_number} easystacks with a total build time of {total_build_duration} minutes")
+print(f"Total of {sequence_number} easystacks with a total build time of {total_build_duration:.0f} minutes")
