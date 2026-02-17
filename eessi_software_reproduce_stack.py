@@ -113,7 +113,7 @@ def write_software_info(local_software_info, easystack_file, build_duration):
         for software_name, info in local_software_info.items():
             if args.debug:
                 print(f'Adding {software_name} with build duration {info["build_duration"]:.0f} to easystack {easystack_file}.')
-            easystack_file_handle.write(f'  - {info["easyconfig_path"]}\n')
+            easystack_file_handle.write(f'  - {info["easyconfig_path"]}:\n')
             easystack_file_handle.write('      options:\n')
             easystack_file_handle.write(f'        include-easyblocks: {info["easyblock_path"]}\n')
 
