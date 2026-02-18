@@ -447,6 +447,179 @@ find_cuda_libraries_on_host() {
     fi
 }
 
+# Symlink structure changed from 2025.06 onwards. This function reflects the symlinking as it was done for EESSI 2023.06
+# Actually symlinks the Matched libraries to correct folders.
+# Then also creates "host" and "latest" folder symlinks
+symlink_mode_202306 () {
+    # First let's make sure the driver libraries are not already in place
+    # Have to link drivers = True
+    link_drivers=1
+
+    # Make sure that target of host_injections variant symlink is an existing directory
+    echo "Ensure host_injections directory"
+    host_injections_target=$(realpath -m "${EESSI_CVMFS_REPO}/host_injections")
+    log_verbose "host_injections_target: ${host_injections_target}"
+    if [ ! -d "$host_injections_target" ]; then
+        check_global_read
+        create_directory_structure "$host_injections_target"
+    fi
+
+    # Define proper nvidia directory structure for host_injections in EESSI
+    host_injections_nvidia_dir="${EESSI_CVMFS_REPO}/host_injections/nvidia/${EESSI_CPU_FAMILY}"
+    host_injection_driver_dir="${host_injections_nvidia_dir}/host"
+    host_injection_driver_version_file="${host_injection_driver_dir}/driver_version.txt"
+    log_verbose "host_injections_nvidia_dir: ${host_injections_nvidia_dir}"
+    log_verbose "host_injection_driver_dir: ${host_injection_driver_dir}"
+    log_verbose "host_injection_driver_version_file: ${host_injection_driver_version_file}"
+
+    # Check if drivers are already linked with correct version
+    # This is done by comparing host_injection_driver_version_file (driver_version.txt)
+    # This is needed when updating GPU drivers.
+    if [ -e "$host_injection_driver_version_file" ]; then
+        if grep -q "$HOST_GPU_DRIVER_VERSION" "$host_injection_driver_version_file"; then
+            echo_green "The host GPU driver libraries (v${HOST_GPU_DRIVER_VERSION}) have already been linked! (based on ${host_injection_driver_version_file})"
+            # The GPU libraries were already linked for this version of CUDA driver
+            # Have to link drivers = False
+            link_drivers=0
+        else
+            # There's something there but it is out of date
+            echo_yellow "The host GPU driver libraries version have changed. Now its: (v${HOST_GPU_DRIVER_VERSION})"
+            echo_yellow "Cleaning out outdated symlinks."
+            rm "${host_injection_driver_dir}"/* || fatal_error "Unable to remove files under '${host_injection_driver_dir}'."
+        fi
+    fi
+
+    # Link all matched_libraries from Nvidia to correct host_injection folder
+    # This step is only run, when linking of drivers is needed (eg. link_drivers==1)
+    # Setup variable to track if some drivers were actually linked this run.  
+    drivers_linked=0
+
+    # Have to link drivers
+    if [ "$link_drivers" -eq 1 ]; then
+        # Link the matched libraries
+        
+        echo_green "Linking drivers to the host_injection folder"
+        check_global_read
+        if ! create_directory_structure "${host_injection_driver_dir}" ; then
+            fatal_error "No write permissions to directory ${host_injection_driver_dir}"
+        fi
+
+        cd "${host_injection_driver_dir}" || fatal_error "Failed to cd to ${host_injection_driver_dir}"
+        log_verbose "Changed directory to: $PWD"
+
+        # Make symlinks to all the interesting libraries
+        # Loop over each matched library
+        for library in "${MATCHED_LIBRARIES[@]}"; do
+            log_verbose "Linking library: ${library}"
+            
+            # Get just the library filename
+            lib_name=$(basename "$library")
+            
+            # Check if the symlink already exists
+            if [ -L "$lib_name" ]; then
+                # Check if it's pointing to the same target
+                target=$(readlink "$lib_name")
+                if [ "$target" = "$library" ]; then
+                    log_verbose "Symlink for $lib_name already exists and points to correct target"
+                    continue
+                else
+                    log_verbose "Symlink for $lib_name exists but points to wrong target: $target, updating..."
+                    rm "$lib_name"
+                fi
+            fi
+    
+            # Create a symlink in the current directory
+            # and check if the symlink was created successfully
+            if ! ln -s "$library" .
+            then
+                fatal_error "Error: Failed to create symlink for library $library in $PWD"
+            fi
+        done
+
+        # Inject driver and CUDA versions into the directory
+        echo "$HOST_GPU_DRIVER_VERSION" > driver_version.txt
+        echo "$HOST_GPU_CUDA_VERSION" > cuda_version.txt
+
+        drivers_linked=1
+    fi
+
+    # Make latest symlink for NVIDIA drivers
+    cd "$host_injections_nvidia_dir" || fatal_error "Failed to cd to $host_injections_nvidia_dir"
+    log_verbose "Changed directory to: $PWD"
+    symlink="latest"
+
+    # Check if the symlink exists
+    if [ -L "$symlink" ]; then
+        # If the drivers were linked this run - relink the symlink!
+        if [ "$drivers_linked" -eq 1 ]; then
+            # Force relinking the current link.
+            # Need to remove the link first, otherwise this will follow existing symlink 
+            # and create host directory one level down !
+            rm "$symlink" || fatal_error "Failed to remove symlink ${symlink}"
+            
+            if ln -sf host "$symlink"
+            then
+                echo "Successfully force recreated symlink between $symlink and host in $PWD"
+            else
+                fatal_error "Failed to force recreate symlink between $symlink and host in $PWD"
+            fi
+        fi
+    else
+        # If the symlink doesn't exists, create normal one.
+        if ln -s host "$symlink"
+        then
+            echo "Successfully created symlink between $symlink and host in $PWD"
+        else
+            fatal_error "Failed to create symlink between $symlink and host in $PWD"
+        fi
+    fi
+
+    # Make sure the libraries can be found by the EESSI linker
+    host_injection_linker_dir=${EESSI_EPREFIX/versions/host_injections}
+    if [ -L "$host_injection_linker_dir/lib" ]; then
+        # Use readlink without -f to get direct symlink target 
+        # using -f option will create "lastest" symlink one dir deeper (inside host) 
+        target_path=$(readlink "$host_injection_linker_dir/lib")
+        expected_target="$host_injections_nvidia_dir/latest"
+        
+        log_verbose "Checking symlink target for EESSI linker:"
+        log_verbose "Current target: $target_path"
+        log_verbose "Expected target: $expected_target"
+        
+        # Update symlink if needed
+        if [ "$target_path" != "$expected_target" ]; then
+            cd "$host_injection_linker_dir" || fatal_error "Failed to cd to $host_injection_linker_dir"
+            log_verbose "Changed directory to: $PWD"
+
+            
+            if ln -sf "$expected_target" lib
+            then
+                echo "Successfully force created symlink between $expected_target and lib in $PWD"
+            else
+                fatal_error "Failed to force create symlink between $expected_target and lib in $PWD"
+            fi
+        else
+            log_verbose "Symlink already points to correct target"
+        fi
+    else
+        # Just start from scratch, symlink doesn't exists.
+        check_global_read
+        create_directory_structure "$host_injection_linker_dir"
+        cd "$host_injection_linker_dir" || fatal_error "Failed to cd to $host_injection_linker_dir"
+        log_verbose "Changed directory to: $PWD"
+
+        if ln -s "$host_injections_nvidia_dir/latest" lib
+        then
+            echo "Successfully created symlink between $host_injections_nvidia_dir/latest and lib in $PWD"
+        else
+            fatal_error "Failed to create symlink between $host_injections_nvidia_dir/latest and lib in $PWD"
+        fi
+    fi
+
+}
+
+
+# Symlink structure changed from 2025.06 onwards. This function reflects the new symlinking
 # Actually symlinks the Matched libraries to correct folders.
 symlink_mode () {
     # First let's make sure the driver libraries are not already in place
@@ -639,7 +812,11 @@ fi
 
 # === 5b. Symlink Mode ===
 # If we haven't already exited, we may need to create the symlinks
-symlink_mode
+if [ "$EESSI_VERSION" == '2023.06' ]; then
+    symlink_mode_202306
+else
+    symlink_mode
+fi
 
 # If everything went OK, show success message
 echo_green "Host NVIDIA GPU drivers linked successfully for EESSI"
