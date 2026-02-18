@@ -632,7 +632,7 @@ symlink_mode () {
     nvidia_trusted_dir="${EESSI_EPREFIX}/lib/nvidia"
     if [[ -L "$nvidia_trusted_dir" ]]; then
         target1=$(readlink "$nvidia_trusted_dir")
-        log_verbose "$nvidia_trusted_dir is a CVMFS variant symlink (EESSI_${ESSSI_VERSION//./}_NVIDIA_OVERRIDE) currently pointing to $target1"
+        log_verbose "$nvidia_trusted_dir is a CVMFS variant symlink (EESSI_${EESSI_VERSION//./}_NVIDIA_OVERRIDE) currently pointing to $target1"
         # If this is a link, and if it lives in the EESSI_CVMFS_REPO, we assume this is a variant symlink
         if [[ -L "$target1" && "$target1" == "$EESSI_CVMFS_REPO"/* ]]; then
             target2=$(readlink "$target1")
@@ -641,19 +641,19 @@ symlink_mode () {
             log_verbose "${msg}"
     
             # Check if target2 isn't /dev/null (the default target of the EESSI_NVIDIA_OVERRIDE_DEFAULT variant symlink)
-            # If it is, suggest setting EESSI_NVIDIA_OVERRIDE_DEFAULT or EESSI_${ESSSI_VERSION//./}_NVIDIA_OVERRIDE
+            # If it is, suggest setting EESSI_NVIDIA_OVERRIDE_DEFAULT or EESSI_${EESSI_VERSION//./}_NVIDIA_OVERRIDE
             if [[ $target2 == /dev/null ]]; then
                 msg="${nvidia_trusted_dir} is a symlink pointing to ${target1}, which is a symlink pointing to ${target2}\n"
                 msg="${msg}If you want to symlink the drivers in a single location for all EESSI versions, please define"
                 msg="${msg} the EESSI_NVIDIA_OVERRIDE_DEFAULT variant symlink in your local CVMFS configuration to point to"
                 msg="${msg} writeable location. This will change the target of symlink ${target1}.\n"
                 msg="${msg}If you want to symlink the drivers only for this version of EESSI (${EESSI_VERSION}), please define"
-                msg="${msg} the EESSI_${ESSSI_VERSION//./}_NVIDIA_OVERRIDE variant symlink in your local CVMFS configuration to point to"
+                msg="${msg} the EESSI_${EESSI_VERSION//./}_NVIDIA_OVERRIDE variant symlink in your local CVMFS configuration to point to"
                 msg="${msg} writeable location. This will change the target of symlink ${nvidia_trusted_dir}.\n"
                 fatal_error "${msg}"
             fi
         else
-            msg="$target1 does not seem to be a CVMFS variant symlink, suggesting that EESSI_${ESSSI_VERSION//./}_NVIDIA_OVERRIDE"
+            msg="$target1 does not seem to be a CVMFS variant symlink, suggesting that EESSI_${EESSI_VERSION//./}_NVIDIA_OVERRIDE"
             msg="${msg} was set in the CVMFS config. Proceeding to install host symlinks in $target1."
             log_verbose "${msg}"
         fi
