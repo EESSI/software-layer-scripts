@@ -1,24 +1,87 @@
+#!/usr/bin/env csh
+
+# SPDX-License-Identifier: GPL-2.0-only
+# Copyright (C) 2020-2026 EESSI contributors
+#
+# EESSI - European Environment for Scientific Software Installations
+#
+# This file is a template for initialising EESSI via Lmod for the environment indicated by the shebang.
+#
+# Please refer to the reference bash implementation for full documentation, only minimal comments are included here
+
 # Choose an EESSI CVMFS repository
-if (! $?EESSI_CVMFS_REPO) then
+if ( ! $?EESSI_CVMFS_REPO) then
     set EESSI_CVMFS_REPO = "/cvmfs/software.eessi.io"
 endif
-# Choose an EESSI version
-setenv EESSI_VERSION_DEFAULT "__EESSI_VERSION_DEFAULT__"
-if (! $?EESSI_VERSION) then
-    set EESSI_VERSION = "${EESSI_VERSION_DEFAULT}"
-endif
-# Path to top-level module tree
-setenv MODULEPATH "${EESSI_CVMFS_REPO}/versions/${EESSI_VERSION}/init/modules"
-source "${EESSI_CVMFS_REPO}/versions/${EESSI_VERSION}/compat/linux/`uname -m`/usr/share/Lmod/init/csh"
 
-if (! $?__Init_Default_Modules ) then
-    setenv __Init_Default_Modules 1
-
-    # ability to predefine elsewhere the default list
-    if (! $?LMOD_SYSTEM_DEFAULT_MODULES) then
-        setenv LMOD_SYSTEM_DEFAULT_MODULES "EESSI/${EESSI_VERSION}"
-    endif
-    module --initial_load --no_redirect restore
+# Choose an EESSI version (default is used if EESSI_VERSION is not provided)
+if ( ! $?__EESSI_VERSION_USED_FOR_INIT ) then
+    set EESSI_VERSION_DEFAULT = "__EESSI_VERSION_DEFAULT__"
 else
-    module refresh
+    set EESSI_VERSION_DEFAULT = "$__EESSI_VERSION_USED_FOR_INIT"
+endif
+if ( ! $?EESSI_VERSION ) then
+    set EESSI_VERSION = "$EESSI_VERSION_DEFAULT"
+endif
+# On first run, record the EESSI version used for init as an environment variable.
+# We use setenv to ensure it is available to child processes (equivalent to export).
+if ( ! $?__EESSI_VERSION_USED_FOR_INIT ) then
+    setenv __EESSI_VERSION_USED_FOR_INIT "$EESSI_VERSION"
+endif
+
+# ability to predefine elsewhere the default list (with options to append or prepend)
+set LMOD_SYSTEM_DEFAULT_MODULES = "EESSI/${EESSI_VERSION}"
+if ( $?EESSI_DEFAULT_MODULES_PREPEND ) then
+    set LMOD_SYSTEM_DEFAULT_MODULES = "${EESSI_DEFAULT_MODULES_PREPEND}:${LMOD_SYSTEM_DEFAULT_MODULES}"
+endif
+if ( $?EESSI_DEFAULT_MODULES_APPEND ) then
+    set LMOD_SYSTEM_DEFAULT_MODULES = "${LMOD_SYSTEM_DEFAULT_MODULES}:${EESSI_DEFAULT_MODULES_APPEND}"
+endif
+setenv LMOD_SYSTEM_DEFAULT_MODULES "${LMOD_SYSTEM_DEFAULT_MODULES}"
+
+if ( ! $?__Init_EESSI_Default_Modules ) then
+    setenv __Init_EESSI_Default_Modules 1
+
+    # Lmod version in 2023.06 has a problem with newer Lmod caches, so let's stick to more recent Lmod
+    # (has no effect except on Lmod itself, and compatible caches are still created/supported by EESSI)
+    set LMOD_EESSI_VERSION = "${EESSI_VERSION}"
+    if ( "${LMOD_EESSI_VERSION}" == "2023.06" ) then
+      set LMOD_EESSI_VERSION = "2025.06"
+    endif
+
+    if ( ! $?EESSI_NO_MODULE_PURGE_ON_INIT ) then
+        module purge >& /dev/null
+        if ( $status == 0 ) echo "Modules purged before initialising EESSI"
+    endif
+
+    # If there is a local Lmod, make it forget about the system set MODULEPATH
+    unsetenv __LMOD_REF_COUNT_MODULEPATH
+    # and clear out any memory Lmod might have
+    unsetenv _ModuleTable001_
+    # Path to top-level module tree
+    set modulepath = "${EESSI_CVMFS_REPO}/init/modules"
+    if ( $?EESSI_EXTRA_MODULEPATH ) then
+      # Now that we know it exists, check IF it is not empty
+      if ( "$EESSI_EXTRA_MODULEPATH" != "" ) then
+        set modulepath = "${modulepath}:${EESSI_EXTRA_MODULEPATH}"
+      endif
+    endif
+    setenv MODULEPATH "$modulepath"
+    source "${EESSI_CVMFS_REPO}/versions/${LMOD_EESSI_VERSION}/compat/linux/`uname -m`/usr/share/Lmod/init/csh"
+
+    module --initial_load --no_redirect restore
+
+    echo "EESSI has selected ${EESSI_SOFTWARE_SUBDIR} as the compatible CPU target for EESSI/${EESSI_VERSION}"
+    if ( $?EESSI_ACCEL_SUBDIR ) then
+        if ( "$EESSI_ACCEL_SUBDIR" != "" ) then
+            echo "EESSI has selected ${EESSI_ACCEL_SUBDIR} as the compatible accelerator target for EESSI/${EESSI_VERSION}"
+        else
+            echo "EESSI did not identify an accelerator on the system"
+        endif
+    else
+        echo "EESSI did not identify an accelerator on the system"
+    endif
+    echo "(for debug information when loading the EESSI module, set the environment variable EESSI_MODULE_DEBUG_INIT)"
+else
+    module reset
 endif

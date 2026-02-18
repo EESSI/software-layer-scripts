@@ -151,7 +151,6 @@ def is_gcccore_1220_based(**kwargs):
     )
 
 
-
 def get_cuda_version(ec, check_deps=True, check_builddeps=True):
     """
     Returns the CUDA version that this EasyConfig (ec) uses as a (build)dependency.
@@ -630,6 +629,24 @@ def parse_hook_qt5_check_qtwebengine_disable(ec, eprefix):
         print_msg("Checking for QtWebEgine in Qt5 installation has been disabled")
     else:
         raise EasyBuildError("Qt5-specific hook triggered for non-Qt5 easyconfig?!")
+
+
+def parse_hook_maturin(ec, eprefix):
+    """
+    Replace build dependency on Rust 1.88.0 by 1.91.1,
+    as 1.88.0 causes segmentation faults on A64FX.
+    cfr. https://github.com/EESSI/software-layer/pull/1357
+    """
+    if ec.name == 'maturin':
+        if ec.version == '1.9.1':
+            orig_rust = ('Rust', '1.88.0')
+            new_rust = ('Rust', '1.91.1')
+            if orig_rust in ec['builddependencies']:
+                rust_index = ec['builddependencies'].index(orig_rust)
+                ec['builddependencies'][rust_index] = new_rust
+                print_msg(f"Replaced {orig_rust} build dependency by {new_rust} for {ec.name} {ec.version}")
+    else:
+        raise EasyBuildError("maturin-specific hook triggered for non-maturin easyconfig?!")
 
 
 def parse_hook_ucx_eprefix(ec, eprefix):
@@ -1461,6 +1478,19 @@ def pre_test_hook_increase_max_failed_tests_arm_PyTorch(self, *args, **kwargs):
             self.cfg['max_failed_tests'] = 4
 
 
+def pre_test_hook_ignore_failing_tests_OpenBabel_a64fx(self, *args, **kwargs):
+    """
+    Pre-test hook for OpenBabel: skip timeout tests for OpenBabel 3.1.1 on aarch64/a64fx
+    see https://github.com/EESSI/software-layer/pull/1332#issuecomment-3877255228
+    the `testroundtrip.py` test reads and writes tens of thousands of small files.
+    The test works fine when manually ran with EESSI-extend either directly or inside an eessi_container, but 
+    consistently fails with the bot
+    """
+    cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+    if self.name == 'OpenBabel' and self.version == '3.1.1' and cpu_target == CPU_TARGET_A64FX:
+        self.cfg['testopts'] = "|| echo ignoring failing tests"
+
+
 def pre_single_extension_hook(ext, *args, **kwargs):
     """Main pre-extension: trigger custom functions based on software name."""
     if ext.name in PRE_SINGLE_EXTENSION_HOOKS:
@@ -1818,6 +1848,7 @@ PARSE_HOOKS = {
     'fontconfig': parse_hook_fontconfig_add_fonts,
     'FreeImage': parse_hook_freeimage_aarch64,
     'grpcio': parse_hook_grpcio_zlib,
+    'maturin': parse_hook_maturin,
     'Mesa': parse_hook_mesa_use_llvm_minimal,
     'OpenBLAS': parse_hook_openblas_relax_lapack_tests_num_errors,
     'pybind11': parse_hook_pybind11_replace_catch2,
@@ -1868,6 +1899,7 @@ PRE_TEST_HOOKS = {
     'Highway': pre_test_hook_exclude_failing_test_Highway,
     'SciPy-bundle': pre_test_hook_ignore_failing_tests_SciPybundle,
     'netCDF': pre_test_hook_ignore_failing_tests_netCDF,
+    'OpenBabel': pre_test_hook_ignore_failing_tests_OpenBabel_a64fx,
     'PyTorch': pre_test_hook_increase_max_failed_tests_arm_PyTorch,
 }
 

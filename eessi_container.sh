@@ -828,7 +828,7 @@ if [[ ! -z ${http_proxy} ]]; then
             ;;
         2)
             # target not found - safe to add
-            if [[ -z ${BIND_PATH} ]]; then
+            if [[ -z ${BIND_PATHS} ]]; then
                 BIND_PATHS="${src}:${target}"
             else
                 BIND_PATHS="${BIND_PATHS},${src}:${target}"
