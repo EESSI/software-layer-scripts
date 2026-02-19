@@ -697,7 +697,7 @@ def pre_fetch_hook_check_installation_path(self, *args, **kwargs):
     strict_eessi_installation = (
         bool(re.search(EESSI_INSTALLATION_REGEX, self.installdir)) or
         self.installdir.startswith(HOST_INJECTIONS_LOCATION))
-    if strict_eessi_installation:
+    if strict_eessi_installation and not os.getenv("EESSI_OVERRIDE_STRICT_INSTALLPATH_CHECK"):
         dependency_names = self.cfg.dependency_names()
         if self.cfg.name in accelerator_deps or any(dep in dependency_names for dep in accelerator_deps):
             # Make sure the path is an accelerator location
@@ -1089,7 +1089,7 @@ def pre_configure_hook_graphviz(self, *args, **kwargs):
         # Replace --with-ltdl-lib and --with-zlibdir options defined in the EC to point to compat layer
         lib_dir = os.path.join(usr_dir, 'lib64')
         new_items = set()
-        # Add to the new_items all the old items except the `--with-ltdl-lib` and `--with-ltdl-lib` for 
+        # Add to the new_items all the old items except the `--with-ltdl-lib` and `--with-ltdl-lib` for
         # which we fix the lib dir to lib64 instead of lib
         for item in old_items:
             if item.startswith('--with-ltdl-lib'):
@@ -1483,7 +1483,7 @@ def pre_test_hook_ignore_failing_tests_OpenBabel_a64fx(self, *args, **kwargs):
     Pre-test hook for OpenBabel: skip timeout tests for OpenBabel 3.1.1 on aarch64/a64fx
     see https://github.com/EESSI/software-layer/pull/1332#issuecomment-3877255228
     the `testroundtrip.py` test reads and writes tens of thousands of small files.
-    The test works fine when manually ran with EESSI-extend either directly or inside an eessi_container, but 
+    The test works fine when manually ran with EESSI-extend either directly or inside an eessi_container, but
     consistently fails with the bot
     """
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
