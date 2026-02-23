@@ -10,8 +10,8 @@ from multiprocessing import Pool
 description = """
 This script creates a sequence of easystack files that may be used to replicate the software installed
  in a reference software subdirectory.
- 
-The script 
+
+The script
  - Determines all software that was installed in the reference prefix
  - Sorts it in order of installation. For software that was later rebuild, the original installation time is used.
  - In the installation order, easyconfig names are added to easystack files
@@ -89,7 +89,7 @@ def get_build_duration(file: pathlib.Path, encoding: str = "utf-8") -> float:
 
     return duration.total_seconds()/60
 
-    
+
 def get_easybuild_version(file: pathlib.Path, encoding: str = "utf-8") -> str:
     """
     Returns the EasyBuild version that was used to build this software, obtained from the first line of the
@@ -126,7 +126,7 @@ def inner_loop(software_name):
         for software_version in os.listdir(software_dir):
             software_version_dir = os.path.join(software_dir, software_version)
             if os.path.isdir(software_version_dir):
-                # Determine if this is about EasyBuild itself, and if it should 
+                # Determine if this is about EasyBuild itself, and if it should
                 override_easybuild_version = False
                 if software_name == "EasyBuild" and eb_override_version:
                     override_easybuild_version = True
@@ -160,11 +160,11 @@ def inner_loop(software_name):
                     if len(matching_files) != 1:
                         raise ValueError(f"Expected only one file to match {build_log_path_glob}. Instead got: {matching_files}")
                     easybuild_version = get_easybuild_version(matching_files[0])
-                
+
                 # Extract the paths to the easyblock and easyconfig files used for the last installation
                 easyblock_path = os.path.join(datestamp_dir_last_build, "easybuild", "reprod", "easyblocks", "*.py")
                 easyconfig_path = os.path.join(datestamp_dir_last_build, "easybuild", f"{software_name}-{software_version}.eb")
-                
+
                 # Store the software information
                 software_info[software_name + "-" + software_version] = {
                     "initial_build_time": initial_build_time,
@@ -173,9 +173,9 @@ def inner_loop(software_name):
                     "easyblock_path": easyblock_path,
                     "easyconfig_path": easyconfig_path
                 }
-                
+
     return software_info
-    
+
 # Use as many workers as we have cores in our cgroup
 n_workers = len(os.sched_getaffinity(0))
 
@@ -221,12 +221,12 @@ for software_name, info in software_info.items():
             (build_duration_current_easystack + info["build_duration"]) > max_build_time
         )
     ):
-        easystack_file = f'easystack-{sequence_number}-eb-{previous_eb_ver}.yml'
+        easystack_file = f'easystack-{sequence_number:03d}-eb-{previous_eb_ver}.yml'
         write_software_info(local_software_info, easystack_file, build_duration_current_easystack)
         build_duration_current_easystack = 0
         local_software_info = {}
         sequence_number += 1
-    
+
     # Add the current software to the local_software_info
     local_software_info[software_name] = info
     build_duration_current_easystack = build_duration_current_easystack + info["build_duration"]
@@ -234,7 +234,7 @@ for software_name, info in software_info.items():
     previous_eb_ver = info["easybuild_version"]
 
 # Flush the local_software_info to disk on last time
-easystack_file = f'easystack-{sequence_number}-eb-{previous_eb_ver}.yml'
+easystack_file = f'easystack-{sequence_number:03d}-eb-{previous_eb_ver}.yml'
 write_software_info(local_software_info, easystack_file, build_duration_current_easystack)
 
 print(f"Total of {sequence_number} easystacks with a total build time of {total_build_duration:.0f} minutes")
