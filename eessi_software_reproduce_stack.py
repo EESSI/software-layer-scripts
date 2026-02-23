@@ -115,6 +115,10 @@ def write_software_info(local_software_info, easystack_file, build_duration):
                 print(f'Adding {software_name} with build duration {info["build_duration"]:.0f} to easystack {easystack_file}.')
             easystack_file_handle.write(f'  - {info["easyconfig_path"]}:\n')
             easystack_file_handle.write('      options:\n')
+            # Disable robot, to guarantee each build is done with the easyconfig & easyblock specified in the easystack file
+            # Note that for robot builds, this may not happen, because if X is build as dep for Y, and Y did not have
+            # the relevant include-easyblocks specified for X, it would just use the ones from the central EB installation
+            easystack_file_handle.write('        robot: False')
             easystack_file_handle.write(f'        include-easyblocks: {info["easyblock_path"]}\n')
 
 
