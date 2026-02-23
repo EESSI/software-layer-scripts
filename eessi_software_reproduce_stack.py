@@ -6,6 +6,7 @@ import pathlib
 import re
 from datetime import datetime
 from multiprocessing import Pool
+from packaging.version import Version
 
 description = """
 This script creates a sequence of easystack files that may be used to replicate the software installed
@@ -118,7 +119,9 @@ def write_software_info(local_software_info, easystack_file, build_duration):
             # Disable robot, to guarantee each build is done with the easyconfig & easyblock specified in the easystack file
             # Note that for robot builds, this may not happen, because if X is build as dep for Y, and Y did not have
             # the relevant include-easyblocks specified for X, it would just use the ones from the central EB installation
-            easystack_file_handle.write('        robot: False\n')
+            # Only support from EB 5.2.0 onwards
+            if Version(info["easybuild_version"]) >= Version("5.2.0"):
+                easystack_file_handle.write('        robot: False\n')
             easystack_file_handle.write(f'        include-easyblocks: {info["easyblock_path"]}\n')
 
 
