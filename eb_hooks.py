@@ -152,22 +152,21 @@ def is_gcccore_1220_based(**kwargs):
     )
 
 
-def get_cuda_version(ec, check_deps=True, check_builddeps=True):
+def get_dependency_software_version(software, ec, check_deps=True, check_builddeps=True):
     """
-    Returns the CUDA version that this EasyConfig (ec) uses as a (build)dependency.
-    If (ec) is simply CUDA itself, it will return the version.
-    If no CUDA is used as (build)dependency, this function returns None.
+    Returns the software version that this EasyConfig (ec) uses as a (build)dependency.
+    If (ec) is simply for the software itself, it will return the version.
+    If no software is used as (build)dependency, this function returns None.
     """
     # Provide default
-    cudaver = None
+    software_version = None
     ec_dict = ec.asdict()
 
-    # Is this CUDA itself?
-    if ec.name == 'CUDA':
-        cudaver = ec.version
+    # Is this easyconfig for the software itself?
+    if ec.name == software:
+        software_version = ec.version
 
-    # At this point, CUDA should be a builddependency due to inject_gpu_property
-    # changing any CUDA dep to a builddependency. But, for robustness, just check both
+    # Check if the software is used as (build) dependency.
     deps = []
     if check_deps:
         deps = deps + ec_dict['dependencies'][:]
@@ -175,10 +174,10 @@ def get_cuda_version(ec, check_deps=True, check_builddeps=True):
         deps = deps + ec_dict['builddependencies'][:]
 
     for dep in deps:
-        if dep['name'] == 'CUDA':
-            cudaver = dep['version']
+        if dep['name'] == software:
+            software_version = dep['version']
 
-    return cudaver
+    return software_version
 
 
 def is_cuda_cc_supported_by_toolkit(cuda_cc, toolkit_version):
@@ -757,10 +756,36 @@ def is_unsupported_module(self):
         setattr(self, EESSI_UNSUPPORTED_MODULE_ATTR, UnsupportedModule(envvar=var, errmsg=errmsg))
         return True
 
+    if not os.getenv("EESSI_OVERRIDE_CUDA_CC_CUDNN_CHECK"):
+      cudnn_ver = get_dependency_software_version("cuDNN", ec=self.cfg, check_deps=True, check_builddeps=True)
+      if cudnn_ver:
+          # cuda_ccs_string is e.g. "8.0,9.0"
+          cuda_ccs_string = self.cfg.get_cuda_cc_template_value('cuda_compute_capabilities', required=False)
+          # cuda_ccs is empty if none are defined
+          if cuda_ccs_string:
+              # cuda_ccs is a comma-seperated string. Convert to list for easier handling
+              cuda_ccs = cuda_ccs_string.split(',')
+              # cuDNN 9.12.0 dropped support for CC 7.0
+              if LooseVersion(cudnn_ver) >= '9.12.0' and any([LooseVersion(cuda_cc) <= '7.0' for cuda_cc in cuda_ccs]):
+                    msg = f"Requested a CUDA Compute Capability ({cuda_ccs}) that is not supported by the cuDNN "
+                    msg += f"version ({cudnn_ver}) used by this software. Switching to '--module-only --force' "
+                    msg += "and injectiong an LmodError into the modulefile. You can override this behaviour by "
+                    msg += "setting the EESSI_OVERRIDE_CUDA_CC_CUDNN_CHECK environment variable."
+                    print_warning(msg)
+                    # Use a normalized variable name for the CUDA ccs: strip any suffix, and replace commas
+                    cuda_ccs_string = re.sub(r'[a-zA-Z]', '', cuda_ccs_string).replace(',', '_')
+                    # Also replace periods, those are not officially supported in environment variable names
+                    var=f"EESSI_IGNORE_CUDNN_{cudnn_ver}_CC_{cuda_ccs_string}".replace('.', '_')
+                    errmsg = f"EasyConfigs using cuDNN {cudnn_ver} or older are not supported for (all) requested Compute "
+                    errmsg +=f"Capabilities: {cuda_ccs}.\\n"
+                    setattr(self, EESSI_UNSUPPORTED_MODULE_ATTR, UnsupportedModule(envvar=var,errmsg=errmsg))
+                    return True
+
+
     # If the CUDA toolkit is a dependency, check that it supports (all) requested CUDA Compute Capabilities
     # Otherwise, mark this as unsupported
     if not os.getenv("EESSI_OVERRIDE_CUDA_CC_TOOLKIT_CHECK"):
-        cudaver = get_cuda_version(ec=self.cfg, check_deps=True, check_builddeps=True)
+        cudaver = get_dependency_software_version("CUDA", ec=self.cfg, check_deps=True, check_builddeps=True)
         if cudaver:
             # cuda_ccs_string is e.g. "8.0,9.0"
             cuda_ccs_string = self.cfg.get_cuda_cc_template_value('cuda_compute_capabilities', required=False)
