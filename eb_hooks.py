@@ -497,6 +497,53 @@ def post_prepare_hook(self, *args, **kwargs):
     post_prepare_hook_unsupported_modules(self, *args, **kwargs)
 
 
+def parse_hook_tensorflow_CUDA(ec, eprefix):
+    """
+    Fix the Python and environment used while building and running tests for TensorFlow with CUDA
+    """
+    if ec.name == 'TensorFlow' and ec.version == '2.15.1' :
+        # Check if CUDA is in dependencies
+        has_cuda = any(
+            (isinstance(dep, (list, tuple)) and dep[0] == 'CUDA') or
+            (isinstance(dep, dict) and dep.get('name') == 'CUDA')
+            for dep in ec.get('dependencies', [])
+        )
+
+        if has_cuda:
+            ec['preconfigopts'] = ec.get('preconfigopts', '') + (
+                'export TF_NEED_CUDA=1 && '
+                'export CUDA_TOOLKIT_PATH=$EBROOTCUDA && '
+                'export TF_CUDA_INCLUDE_PATH=$EBROOTCUDA/include && '
+                'export CUDNN_INSTALL_PATH=$EBROOTCUDNN && '
+                'export GCC_HOST_COMPILER_PATH=$EBROOTGCC/bin/gcc && '
+                'sed -i \'s|--define=PREFIX=/usr|--define=PREFIX=\\$EESSI_EPREFIX|g\' .bazelrc && '
+            )
+            
+            current_opts = ec.get('buildopts', [])
+            if isinstance(current_opts, str):
+                current_opts = current_opts.split()
+            
+            ec['buildopts'] = current_opts + [
+                '--linkopt=-Wl,--disable-new-dtags --host_linkopt=-Wl,--disable-new-dtags --action_env=GCC_HOST_COMPILER_PATH=$EBROOTGCC/bin/gcc --host_action_env=GCC_HOST_COMPILER_PATH=$EBROOTGCC/bin/gcc --linkopt=-Wl,-rpath,$EBROOTCUDA/lib:$EBROOTCUDNN/lib:$EBROOTNCCL/lib --host_linkopt=-Wl,-rpath,$EBROOTCUDA/lib:$EBROOTCUDNN/lib:$EBROOTNCCL/lib',
+            ]
+
+            ec['pretestopts'] = (
+                """interppath=$(find "$EESSI_EPREFIX/lib64" -name 'ld-*' | grep -E 'so\\.1|so\\.2' | head -n1) && """
+                """pybin=$(find "%(builddir)s/%(name)s/bazel-root/" -type f -path "*/external/python_%(arch)s-unknown-linux-gnu/bin/python%(pyshortver)s" | head -n1) && """ 
+                """patchelf --set-interpreter "$interppath" "$pybin" && """
+                """export LD_LIBRARY_PATH="$EBROOTCUDA/lib:$EBROOTCUDNN/lib:$EBROOTNCCL/lib:$LD_LIBRARY_PATH" && """
+                )
+
+            ec['postinstallcmds'] = [
+                'mkdir -p %(installdir)s/bin',
+                'ln -s $EBROOTCUDA/bin/cuobjdump %(installdir)s/bin/cuobjdump',
+            ]
+            
+            print_msg("TensorFlow-CUDA related changes have been applied")
+    else:
+        raise EasyBuildError("TensorFlow-CUDA specific hook triggered for non-TensorFlow-CUDA easyconfig?!")
+
+
 def parse_hook_casacore_disable_vectorize(ec, eprefix):
     """
     Disable 'vectorize' toolchain option for casacore 3.5.0 on aarch64/neoverse_v1
@@ -516,7 +563,7 @@ def parse_hook_casacore_disable_vectorize(ec, eprefix):
                 if 'toolchainopts' not in ec or ec['toolchainopts'] is None:
                     ec['toolchainopts'] = {}
                 ec['toolchainopts']['vectorize'] = False
-                print_msg("Changed toochainopts for %s: %s", ec.name, ec['toolchainopts'])
+                print_msg("Changed toolchainopts for %s: %s", ec.name, ec['toolchainopts'])
             else:
                 print_msg("Not changing option vectorize for %s on non-neoverse_v1", ec.name)
         else:
@@ -1847,6 +1894,7 @@ else:
 
 
 PARSE_HOOKS = {
+    'TensorFlow': parse_hook_tensorflow_CUDA,
     'casacore': parse_hook_casacore_disable_vectorize,
     'CGAL': parse_hook_cgal_toolchainopts_precise,
     'fontconfig': parse_hook_fontconfig_add_fonts,
@@ -1977,3 +2025,4 @@ PARALLELISM_LIMITS = {
         CPU_TARGET_NEOVERSE_V1: (divide_by_factor, 2),
     },
 }
+
