@@ -654,7 +654,6 @@ def parse_hook_tensorflow_h5py_glibc(ec, eprefix):
     """
     Fix the Python and environment used while building and running tests for TensorFlow-2.18.1
     """
-    cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
     if ec.name == 'TensorFlow' and ec.version == '2.18.1':
         ec['preconfigopts'] = ec.get('preconfigopts', '') + (
             'export GCC_HOST_COMPILER_PATH=$EBROOTGCC/bin/gcc && '
