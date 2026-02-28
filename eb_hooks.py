@@ -650,6 +650,47 @@ def parse_hook_maturin(ec, eprefix):
         raise EasyBuildError("maturin-specific hook triggered for non-maturin easyconfig?!")
 
 
+def parse_hook_tensorflow_h5py_glibc(ec, eprefix):
+    """
+    Fix the Python and environment used while building and running tests for TensorFlow with CUDA
+    """
+    cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+    if ec.name == 'TensorFlow' and ec.version == '2.18.1':
+        ec['preconfigopts'] = ec.get('preconfigopts', '') + (
+            'export GCC_HOST_COMPILER_PATH=$EBROOTGCC/bin/gcc && '
+            'sed -i \'s|--define=PREFIX=/usr|--define=PREFIX=\\$EESSI_EPREFIX|g\' .bazelrc && '
+            'cat > /tmp/fix_h5py.py << \'EOF\'\n'
+            'with open("requirements_lock_3_12.txt", "r") as f:\n'
+            '    content = f.read()\n'
+            'content = content.replace("h5py==3.11.0 \\\\", "h5py==3.15.1 \\\\")\n'
+            'content = content.replace(\n'
+            '    "    --hash=sha256:f4e025e852754ca833401777c25888acb96889ee2c27e7e629a19aee288833f0",\n'
+            '    "    --hash=sha256:f4e025e852754ca833401777c25888acb96889ee2c27e7e629a19aee288833f0 \\\\\\n    --hash=sha256:8a33bfd5dfcea037196f7778534b1ff7e36a7f40a89e648c8f2967292eb6898e"\n'
+            ')\n'
+            'with open("requirements_lock_3_12.txt", "w") as f:\n'
+            '    f.write(content)\n'
+            'EOF\n'
+            'python3 /tmp/fix_h5py.py && '
+        )
+        current_opts = ec.get('buildopts', [])
+        if isinstance(current_opts, str):
+            current_opts = current_opts.split()
+            
+        ec['buildopts'] = current_opts + [
+                '--linkopt=-Wl,--disable-new-dtags --host_linkopt=-Wl,--disable-new-dtags --action_env=GCC_HOST_COMPILER_PATH=$EBROOTGCC/bin/gcc --host_action_env=GCC_HOST_COMPILER_PATH=$EBROOTGCC/bin/gcc --linkopt=-Wl,-rpath,$EBROOTCUDA/lib:$EBROOTCUDNN/lib:$EBROOTNCCL/lib --host_linkopt=-Wl,-rpath,$EBROOTCUDA/lib:$EBROOTCUDNN/lib:$EBROOTNCCL/lib ',
+            ]
+
+        ec['pretestopts'] = (
+                """interppath=$(find "$EESSI_EPREFIX/lib64" -name 'ld-*' | grep -E 'so\\.1|so\\.2' | head -n1) && """
+                """pybin=$(find "%(builddir)s/%(name)s/bazel-root/" -type f -path "*/external/python_%(arch)s-unknown-linux-gnu/bin/python%(pyshortver)s" | head -n1) && """ 
+                """patchelf --set-interpreter "$interppath" "$pybin" && """
+                """export LD_LIBRARY_PATH="$EBROOTCUDA/lib:$EBROOTCUDNN/lib:$EBROOTNCCL/lib:$LD_LIBRARY_PATH" && """
+                )
+        print_msg("TensorFlow-glibc related changes have been applied")
+    else:
+        raise EasyBuildError("TensorFlow-glibc specific hook triggered for non-TensorFlow-glibc easyconfig?!")
+
+
 def parse_hook_ucx_eprefix(ec, eprefix):
     """Make UCX aware of compatibility layer via additional configuration options."""
     if ec.name == 'UCX':
@@ -1856,6 +1897,7 @@ PARSE_HOOKS = {
     'Mesa': parse_hook_mesa_use_llvm_minimal,
     'OpenBLAS': parse_hook_openblas_relax_lapack_tests_num_errors,
     'pybind11': parse_hook_pybind11_replace_catch2,
+    'TensorFlow': parse_hook_tensorflow_h5py_glibc,
     'Qt5': parse_hook_qt5_check_qtwebengine_disable,
     'UCX': parse_hook_ucx_eprefix,
 }
