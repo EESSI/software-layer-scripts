@@ -664,7 +664,7 @@ def parse_hook_tensorflow_h5py_glibc(ec, eprefix):
             'content = content.replace("h5py==3.11.0 \\\\", "h5py==3.15.1 \\\\")\n'
             'content = content.replace(\n'
             '    "    --hash=sha256:f4e025e852754ca833401777c25888acb96889ee2c27e7e629a19aee288833f0",\n'
-            '    "    --hash=sha256:f4e025e852754ca833401777c25888acb96889ee2c27e7e629a19aee288833f0 \\\\\\n    --hash=sha256:8a33bfd5dfcea037196f7778534b1ff7e36a7f40a89e648c8f2967292eb6898e"\n'
+            '    "    --hash=sha256:f4e025e852754ca833401777c25888acb96889ee2c27e7e629a19aee288833f0 \\\\\\n    --hash=sha256:25c8843fec43b2cc368aa15afa1cdf83fc5e17b1c4e10cd3771ef6c39b72e5ce \\\\\\n    --hash=sha256:8a33bfd5dfcea037196f7778534b1ff7e36a7f40a89e648c8f2967292eb6898e"\n'
             ')\n'
             'with open("requirements_lock_3_12.txt", "w") as f:\n'
             '    f.write(content)\n'
