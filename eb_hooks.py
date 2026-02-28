@@ -676,7 +676,7 @@ def parse_hook_tensorflow_h5py_glibc(ec, eprefix):
             current_opts = current_opts.split()
             
         ec['buildopts'] = current_opts + [
-                '--linkopt=-Wl,--disable-new-dtags --host_linkopt=-Wl,--disable-new-dtags --action_env=GCC_HOST_COMPILER_PATH=$EBROOTGCC/bin/gcc --host_action_env=GCC_HOST_COMPILER_PATH=$EBROOTGCC/bin/gcc ',
+                '--linkopt=-Wl,--disable-new-dtags --host_linkopt=-Wl,--disable-new-dtags --action_env=GCC_HOST_COMPILER_PATH=$EBROOTGCC/bin/gcc --host_action_env=GCC_HOST_COMPILER_PATH=$EBROOTGCC/bin/gcc',
             ]
 
         ec['pretestopts'] = (
@@ -1895,8 +1895,8 @@ PARSE_HOOKS = {
     'Mesa': parse_hook_mesa_use_llvm_minimal,
     'OpenBLAS': parse_hook_openblas_relax_lapack_tests_num_errors,
     'pybind11': parse_hook_pybind11_replace_catch2,
-    'TensorFlow': parse_hook_tensorflow_h5py_glibc,
     'Qt5': parse_hook_qt5_check_qtwebengine_disable,
+    'TensorFlow': parse_hook_tensorflow_h5py_glibc,
     'UCX': parse_hook_ucx_eprefix,
 }
 
