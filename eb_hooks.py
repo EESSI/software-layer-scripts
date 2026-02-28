@@ -652,7 +652,7 @@ def parse_hook_maturin(ec, eprefix):
 
 def parse_hook_tensorflow_h5py_glibc(ec, eprefix):
     """
-    Fix the Python and environment used while building and running tests for TensorFlow with CUDA
+    Fix the Python and environment used while building and running tests for TensorFlow-2.18.1
     """
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
     if ec.name == 'TensorFlow' and ec.version == '2.18.1':
@@ -677,18 +677,17 @@ def parse_hook_tensorflow_h5py_glibc(ec, eprefix):
             current_opts = current_opts.split()
             
         ec['buildopts'] = current_opts + [
-                '--linkopt=-Wl,--disable-new-dtags --host_linkopt=-Wl,--disable-new-dtags --action_env=GCC_HOST_COMPILER_PATH=$EBROOTGCC/bin/gcc --host_action_env=GCC_HOST_COMPILER_PATH=$EBROOTGCC/bin/gcc --linkopt=-Wl,-rpath,$EBROOTCUDA/lib:$EBROOTCUDNN/lib:$EBROOTNCCL/lib --host_linkopt=-Wl,-rpath,$EBROOTCUDA/lib:$EBROOTCUDNN/lib:$EBROOTNCCL/lib ',
+                '--linkopt=-Wl,--disable-new-dtags --host_linkopt=-Wl,--disable-new-dtags --action_env=GCC_HOST_COMPILER_PATH=$EBROOTGCC/bin/gcc --host_action_env=GCC_HOST_COMPILER_PATH=$EBROOTGCC/bin/gcc ',
             ]
 
         ec['pretestopts'] = (
                 """interppath=$(find "$EESSI_EPREFIX/lib64" -name 'ld-*' | grep -E 'so\\.1|so\\.2' | head -n1) && """
                 """pybin=$(find "%(builddir)s/%(name)s/bazel-root/" -type f -path "*/external/python_%(arch)s-unknown-linux-gnu/bin/python%(pyshortver)s" | head -n1) && """ 
                 """patchelf --set-interpreter "$interppath" "$pybin" && """
-                """export LD_LIBRARY_PATH="$EBROOTCUDA/lib:$EBROOTCUDNN/lib:$EBROOTNCCL/lib:$LD_LIBRARY_PATH" && """
                 )
-        print_msg("TensorFlow-glibc related changes have been applied")
+        print_msg("TensorFlow-h5py-glibc related changes have been applied")
     else:
-        raise EasyBuildError("TensorFlow-glibc specific hook triggered for non-TensorFlow-glibc easyconfig?!")
+        raise EasyBuildError("TensorFlow-h5py-glibc specific hook triggered for non-TensorFlow easyconfig?!")
 
 
 def parse_hook_ucx_eprefix(ec, eprefix):
