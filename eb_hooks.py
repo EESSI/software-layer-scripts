@@ -671,6 +671,12 @@ def parse_hook_tensorflow_h5py_glibc(ec, eprefix):
             'EOF\n'
             'python3 /tmp/fix_h5py.py && '
         )
+        if get_eessi_envvar('EESSI_CPU_FAMILY') == 'aarch64':
+            ec['prebuildopts'] = ec.get('prebuildopts', '') + (
+                # KleidiAI in TF 2.18 has similar -march/-mcpu conflict as XNNPACK
+                # The easyblock already excludes XNNPACK from -mcpu=native, extend the same exclusion to KleidiAI
+                'sed -i \'s|--per_file_copt=-.*XNNPACK/.*@-mcpu=native|--per_file_copt=-.*XNNPACK/.*,-.*KleidiAI/.*@-mcpu=native|g\' .tf_configure.bazelrc && '
+            )
         current_opts = ec.get('buildopts', [])
         if isinstance(current_opts, str):
             current_opts = current_opts.split()
