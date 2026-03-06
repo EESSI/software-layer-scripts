@@ -16,12 +16,12 @@ This script creates a sequence of easystack files that may be used to replicate 
 
 The script
  - Determines all software that was installed in the reference prefix
- - Sorts it in order of installation. For software that was later rebuild, the original installation time is used.
+ - Sorts it in order of installation. For software that was later rebuilt, the original installation time is used.
  - In the installation order, easyconfig names are added to easystack files
- - A new easystack file is started when either the easybuild version to be used changes, or when the maximum build
+ - A new easystack file is started when either the EasyBuild version to be used changes, or when the maximum build
  time is exceeded (build times of the software in the reference software subdir are used to estimate this)
 
-By sticking to the original order in which software was installed, using the robot should not be needed. Since nothing
+By sticking to the original order in which software was installed, using the robot option should not be needed. Since nothing
 is installed by the robot, one is able to guarantee that the same easyconfigs and easyblocks are used that were
 used during original installation time.
 
@@ -33,7 +33,7 @@ anything else, with the EasyBuild version provided as argument.
  python3 eessi_software_reproduce_stack.py --reference-software-subdir=x86_64/amd/zen2 --eessi-version 2025.06
  will create easystacks that allow you to replicate the software installed in
  /cvmfs/software.eessi.io/versions/2025.06/<eessi-version>/software/linux/<reference-software-subdir>, as
- provided the logs of these installations where backed up to
+ provided the logs of these installations were backed up to
  /cvmfs/software.eessi.io/versions/2025.06/<eessi-version>/software/linux/<reference-software-subdir>/reprod
  (which was standard practice starting with EESSI version 2025.06).
 """
