@@ -201,8 +201,7 @@ with Pool(processes = n_workers) as pool:
 
 # Each worker in the pool creates its own software info dict. The result of the map function is a list of these dicts
 # Here, we merge all these dicts into one. Note that we know the keys to be unique, so no risk of clashes
-
-software_info = {k: v for d in software_info_list if d for k, v in d.items()}   # laatste dict bepaalt de waarde
+software_info = {k: v for d in software_info_list if d for k, v in d.items()}
 print(f"Gathered information for {len(software_info)} software installations (including versions) in {root_dir}")
 if args.debug:
     import pprint
