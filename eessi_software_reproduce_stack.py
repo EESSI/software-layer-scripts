@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse
 import bz2
 import glob
