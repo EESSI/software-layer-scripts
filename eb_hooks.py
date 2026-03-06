@@ -956,7 +956,7 @@ def pre_prepare_hook_pytorch(self, *args, **kwargs):
         if self.version in ['2.6.0', '2.7.1', '2.9.1']:
             eessi_version = get_eessi_envvar('EESSI_VERSION')
             if eessi_version == '2025.06':
-                os.environ['GLIBC_TUNABLES=glibc.rtld.execstack'] = '2'
+                os.environ['GLIBC_TUNABLES'] = 'glibc.rtld.execstack=2'
     else:
         raise EasyBuildError("PyTorch-specific hook triggered for non-PyTorch easyconfig?!")
 
