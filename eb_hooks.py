@@ -940,6 +940,27 @@ def pre_prepare_hook_llvm_a64fx(self, *args, **kwargs):
             update_build_option('optarch', 'march=armv8.2-a')
 
 
+def pre_prepare_hook_pytorch(self, *args, **kwargs):
+    """
+    Solve PyTorch test failures due to:
+    cannot enable executable stack as shared object requires: Invalid argument
+
+    Glibc prevents loading of shared libraries with an executable stack.
+    We can work around it by reverting to old behavior by setting glibc.rtld.execstack=2.
+    See:
+    https://github.com/ValveSoftware/Source-1-Games/issues/6982
+    https://gitlab.archlinux.org/archlinux/packaging/packages/glibc/-/issues/19
+    https://sourceware.org/bugzilla/show_bug.cgi?id=32653
+    """
+    if self.name == 'PyTorch':
+        if self.version in ['2.6.0', '2.7.1', '2.9.1']:
+            eessi_version = get_eessi_envvar('EESSI_VERSION')
+            if self.eessi_version == '2025.06':
+                os.environ['GLIBC_TUNABLES=glibc.rtld.execstack'] = '2'
+    else:
+        raise EasyBuildError("PyTorch-specific hook triggered for non-PyTorch easyconfig?!")
+
+
 def post_prepare_hook_llvm_a64fx(self, *args, **kwargs):
     """
     Post-prepare hook for LLVM 14 and 15 on A64FX to reset optarch build option.
@@ -1866,6 +1887,7 @@ PRE_PREPARE_HOOKS = {
     'cuDNN': pre_prepare_hook_cudnn,
     'Highway': pre_prepare_hook_highway_handle_test_compilation_issues,
     'LLVM': pre_prepare_hook_llvm_a64fx,
+    'PyTorch': pre_prepare_hook_pytorch,
     'Rust': pre_prepare_hook_llvm_a64fx,
 }
 
