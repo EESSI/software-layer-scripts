@@ -244,6 +244,10 @@ if mode() == "unload" or mode() == "dependencyCk" or convertToCanonical(easybuil
   -- Set environment variables that are EESSI version specific
   if convertToCanonical(eessi_version) > convertToCanonical("2023.06") then
     setenv ("EASYBUILD_PREFER_PYTHON_SEARCH_PATH", "EBPYTHONPREFIXES")
+    -- Note: make sure to *not* use same setting for both module-search-path-headers and search-path-cpp-headers
+    -- EasyBuild configuration options, since this leads to trouble because (for example) $C_INCLUDE_PATH
+    -- only includes paths for the *direct* dependencies (not transitive dependencies)
+    -- when using EasyBuild v5.2.1 or earlier
     setenv ("EASYBUILD_MODULE_SEARCH_PATH_HEADERS", "include_paths")
     setenv ("EASYBUILD_SEARCH_PATH_CPP_HEADERS", "flags")
   end
