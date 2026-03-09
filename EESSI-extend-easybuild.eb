@@ -245,7 +245,7 @@ if mode() == "unload" or mode() == "dependencyCk" or convertToCanonical(easybuil
   if convertToCanonical(eessi_version) > convertToCanonical("2023.06") then
     setenv ("EASYBUILD_PREFER_PYTHON_SEARCH_PATH", "EBPYTHONPREFIXES")
     setenv ("EASYBUILD_MODULE_SEARCH_PATH_HEADERS", "include_paths")
-    setenv ("EASYBUILD_SEARCH_PATH_CPP_HEADERS", "include_paths")
+    setenv ("EASYBUILD_SEARCH_PATH_CPP_HEADERS", "flags")
   end
 end
 
