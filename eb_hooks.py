@@ -40,6 +40,7 @@ CPU_TARGET_CASCADELAKE = 'x86_64/intel/cascadelake'
 CPU_TARGET_ICELAKE = 'x86_64/intel/icelake'
 CPU_TARGET_SAPPHIRE_RAPIDS = 'x86_64/intel/sapphirerapids'
 CPU_TARGET_ZEN4 = 'x86_64/amd/zen4'
+CPU_TARGET_ZEN5 = 'x86_64/amd/zen5'
 
 EESSI_RPATH_OVERRIDE_ATTR = 'orig_rpath_override_dirs'
 EESSI_MODULE_ONLY_ATTR = 'orig_module_only'
@@ -697,7 +698,7 @@ def pre_fetch_hook_check_installation_path(self, *args, **kwargs):
     strict_eessi_installation = (
         bool(re.search(EESSI_INSTALLATION_REGEX, self.installdir)) or
         self.installdir.startswith(HOST_INJECTIONS_LOCATION))
-    if strict_eessi_installation:
+    if strict_eessi_installation and not os.getenv("EESSI_OVERRIDE_STRICT_INSTALLPATH_CHECK"):
         dependency_names = self.cfg.dependency_names()
         if self.cfg.name in accelerator_deps or any(dep in dependency_names for dep in accelerator_deps):
             # Make sure the path is an accelerator location
@@ -960,10 +961,11 @@ def pre_configure_hook(self, *args, **kwargs):
         self.cfg.update('configopts', 'CPPFLAGS="-DOF=_Z_OF ${CPPFLAGS}"')
 
 
-def pre_configure_hook_BLIS_a64fx(self, *args, **kwargs):
+def pre_configure_hook_BLIS(self, *args, **kwargs):
     """
-    Pre-configure hook for BLIS when building for A64FX to fix "Illegal instruction" problem
-    - add -DCACHE_SECTOR_SIZE_READONLY to $CFLAGS for BLIS 0.9.0, cfr. https://github.com/flame/blis/issues/800
+    Pre-configure hook for BLIS
+    - fix "Illegal instruction" problem on A64FX by adding -DCACHE_SECTOR_SIZE_READONLY to $CFLAGS for BLIS 0.9.0, cfr. https://github.com/flame/blis/issues/800
+    - fall back to zen3 for zen5 to solve "Unable to automatically detect hardware type" error
     """
     if self.name == 'BLIS':
         cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
@@ -974,6 +976,8 @@ def pre_configure_hook_BLIS_a64fx(self, *args, **kwargs):
             cflags_var = 'CFLAGS="$CFLAGS -DCACHE_SECTOR_SIZE_READONLY"'
             config_target = config_opts[-1]
             self.cfg['configopts'] = ' '.join(config_opts[:-1] + [cflags_var, config_target])
+        if self.version in ('1.0', '1.1', '2.0') and cpu_target == CPU_TARGET_ZEN5:
+          self.cfg['cpu_architecture'] = 'zen3'
     else:
         raise EasyBuildError("BLIS-specific hook triggered for non-BLIS easyconfig?!")
 
@@ -1089,7 +1093,7 @@ def pre_configure_hook_graphviz(self, *args, **kwargs):
         # Replace --with-ltdl-lib and --with-zlibdir options defined in the EC to point to compat layer
         lib_dir = os.path.join(usr_dir, 'lib64')
         new_items = set()
-        # Add to the new_items all the old items except the `--with-ltdl-lib` and `--with-ltdl-lib` for 
+        # Add to the new_items all the old items except the `--with-ltdl-lib` and `--with-ltdl-lib` for
         # which we fix the lib dir to lib64 instead of lib
         for item in old_items:
             if item.startswith('--with-ltdl-lib'):
@@ -1483,7 +1487,7 @@ def pre_test_hook_ignore_failing_tests_OpenBabel_a64fx(self, *args, **kwargs):
     Pre-test hook for OpenBabel: skip timeout tests for OpenBabel 3.1.1 on aarch64/a64fx
     see https://github.com/EESSI/software-layer/pull/1332#issuecomment-3877255228
     the `testroundtrip.py` test reads and writes tens of thousands of small files.
-    The test works fine when manually ran with EESSI-extend either directly or inside an eessi_container, but 
+    The test works fine when manually ran with EESSI-extend either directly or inside an eessi_container, but
     consistently fails with the bot
     """
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
@@ -1873,7 +1877,7 @@ POST_PREPARE_HOOKS = {
 }
 
 PRE_CONFIGURE_HOOKS = {
-    'BLIS': pre_configure_hook_BLIS_a64fx,
+    'BLIS': pre_configure_hook_BLIS,
     'CUDA-Samples': pre_configure_hook_CUDA_Samples_test_remove,
     'GObject-Introspection': pre_configure_hook_gobject_introspection,
     'Extrae': pre_configure_hook_extrae,
