@@ -26,16 +26,21 @@ used during original installation time.
 If an argument is provided for --eb-override-version, installations of EasyBuild itself are performed before
 anything else, with the EasyBuild version provided as argument.
 
- Example:
+Example:
 
- python3 eessi_software_reproduce_stack.py --reference-software-subdir=x86_64/amd/zen2 --eessi-version 2025.06
- will create easystacks that allow you to replicate the software installed in
- /cvmfs/software.eessi.io/versions/2025.06/<eessi-version>/software/linux/<reference-software-subdir>, as
- provided the logs of these installations where backed up to
- /cvmfs/software.eessi.io/versions/2025.06/<eessi-version>/software/linux/<reference-software-subdir>/reprod
- (which was standard practice starting with EESSI version 2025.06).
+python3 eessi_software_reproduce_stack.py --reference-software-subdir=x86_64/amd/zen2 --eessi-version 2025.06
+
+will create easystacks that allow you to replicate the software installed in
+/cvmfs/software.eessi.io/versions/2025.06/<eessi-version>/software/linux/<reference-software-subdir>,
+provided the logs of these installations where backed up to
+/cvmfs/software.eessi.io/versions/2025.06/<eessi-version>/software/linux/<reference-software-subdir>/reprod
+(which was standard practice starting with EESSI version 2025.06).
+
+Known limitations: if additional dependencies were added in rebuilds, building them at the original (first)
+build time will case a failure. See e.g. https://github.com/EESSI/software-layer/issues/1430
 """
-parser = argparse.ArgumentParser(description='Reproduce EESSI software stack')
+# Use of formatter_class RawDescriptionHelpFormatter preserves newlines in the description, making it more readable
+parser = argparse.ArgumentParser(description=description, formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('-m', '--max-build-time', type=int, default=240, help='Maximum build time in minutes for each easystack file')
 parser.add_argument('-o', '--eb-override-version', type=str, default=None, help='EasyBuild version used to install other EasyBuild versions. The default (None) means it will attempt to use the EasyBuild that was used in the reference-software-subdir, but if this was a bootstrapped build (e.g. EB-5.1.1 building EB-5.1.1) in practice the latest EB will be used by the EESSI build scripts - creating a false suggestion about which version was used to install EasyBuild.')
 parser.add_argument('-r', '--reference-software-subdir', type=str, required=True, help='Reference software subdirectory, e.g. x86_64/amd/zen4')
