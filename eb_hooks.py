@@ -946,7 +946,8 @@ def pre_prepare_hook_pytorch(self, *args, **kwargs):
     cannot enable executable stack as shared object requires: Invalid argument
 
     Glibc prevents loading of shared libraries with an executable stack.
-    We can work around it by reverting to old behavior by setting glibc.rtld.execstack=2.
+    We can work around it by reverting to old behavior by setting glibc.rtld.execstack=2,
+    which forces the stack to be executable at process startup.
     See:
     https://github.com/ValveSoftware/Source-1-Games/issues/6982
     https://gitlab.archlinux.org/archlinux/packaging/packages/glibc/-/issues/19
