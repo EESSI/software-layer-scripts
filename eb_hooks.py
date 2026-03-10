@@ -776,7 +776,7 @@ def is_unsupported_module(self):
                     cuda_ccs_string = re.sub(r'[a-zA-Z]', '', cuda_ccs_string).replace(',', '_')
                     # Also replace periods, those are not officially supported in environment variable names
                     var=f"EESSI_IGNORE_CUDNN_{cudnn_ver}_CC_{cuda_ccs_string}".replace('.', '_')
-                    errmsg = f"EasyConfigs using cuDNN {cudnn_ver} or older are not supported for (all) requested Compute "
+                    errmsg = f"EasyConfigs using cuDNN {cudnn_ver} or newer are not supported for (all) requested Compute "
                     errmsg +=f"Capabilities: {cuda_ccs}.\\n"
                     setattr(self, EESSI_UNSUPPORTED_MODULE_ATTR, UnsupportedModule(envvar=var,errmsg=errmsg))
                     return True
