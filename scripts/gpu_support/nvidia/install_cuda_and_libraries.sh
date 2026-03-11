@@ -107,6 +107,8 @@ for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
         echo_yellow ">> No EasyBuild/${eb_version} module found: skipping step to install easystack file ${easystack_file} (see output in ${module_avail_out})"
         continue
     fi
+    # Need to unload EESSI-extend before loading an EasyBuild version, as the unload behavior is dependent on the current EasyBuild version loaded
+    module unload EESSI-extend
     module load EasyBuild/${eb_version}
 
     # Make sure EESSI-extend does a site install here
@@ -115,7 +117,6 @@ for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
     unset EESSI_PROJECT_INSTALL
     unset EESSI_USER_INSTALL
     export EESSI_SITE_INSTALL=1
-    module unload EESSI-extend
     ml_av_eessi_extend_out=${tmpdir}/ml_av_eessi_extend.out
     # need to use --ignore_cache to avoid the case that the module was removed (to be
     # rebuilt) but it is still in the cache and the rebuild failed
