@@ -107,7 +107,7 @@ for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
         echo_yellow ">> No EasyBuild/${eb_version} module found: skipping step to install easystack file ${easystack_file} (see output in ${module_avail_out})"
         continue
     fi
-    # Need to unload EESSI-extend before loading an EasyBuild version, as the unload behavior is dependent on the current EasyBuild version loaded
+    # Safer to unload EESSI-extend before loading an EasyBuild version, in case unload behavior ever becomes dependent on EasyBuild version
     module unload EESSI-extend
     module load EasyBuild/${eb_version}
 
