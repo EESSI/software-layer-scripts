@@ -125,6 +125,19 @@ def print_warning(*args, **kwargs):
         orig_print_warning(*args, **kwargs)
 
 
+def get_cuda_cc_string(self):
+    # required keyword was introduce in 5.1.1
+    if EASYBUILD_VERSION >= '5.1.1':
+        cuda_ccs_string = self.cfg.get_cuda_cc_template_value('cuda_compute_capabilities', required=False)
+    # mimic the 'required=False' behavior pre-EB 5.1.1
+    else:
+        try:
+            cuda_ccs_string = self.cfg.get_cuda_cc_template_value('cuda_compute_capabilities')
+        except:
+            cuda_ccs_string = ''
+    return cuda_ccs_string
+
+
 def is_gcccore_1220_based(**kwargs):
 # ecname, ecversion, tcname, tcversion):
     """
@@ -760,7 +773,7 @@ def is_unsupported_module(self):
       cudnn_ver = get_dependency_software_version("cuDNN", ec=self.cfg, check_deps=True, check_builddeps=True)
       if cudnn_ver:
           # cuda_ccs_string is e.g. "8.0,9.0"
-          cuda_ccs_string = self.cfg.get_cuda_cc_template_value('cuda_compute_capabilities', required=False)
+          cuda_ccs_string = get_cuda_cc_string(self)
           # cuda_ccs is empty if none are defined
           if cuda_ccs_string:
               # cuda_ccs is a comma-seperated string. Convert to list for easier handling
@@ -788,7 +801,7 @@ def is_unsupported_module(self):
         cudaver = get_dependency_software_version("CUDA", ec=self.cfg, check_deps=True, check_builddeps=True)
         if cudaver:
             # cuda_ccs_string is e.g. "8.0,9.0"
-            cuda_ccs_string = self.cfg.get_cuda_cc_template_value('cuda_compute_capabilities', required=False)
+            cuda_ccs_string = get_cuda_cc_string(self)
             # cuda_ccs is empty if none are defined
             if cuda_ccs_string:
                 # cuda_ccs is a comma-seperated string. Convert to list for easier handling
