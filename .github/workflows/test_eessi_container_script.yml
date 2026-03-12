@@ -17,6 +17,8 @@ jobs:
         - help
         - listrepos_default
         - listrepos_custom
+        - no_cvmfs_mounts
+        - exec
         - run
         - shell
         - container
@@ -70,7 +72,24 @@ jobs:
                 ./eessi_container.sh --verbose --list-repos | tee ${outfile2}
                 grep "EESSI/20AB.CD" ${outfile2}
 
-              # test use of --mode run
+              # test use of --repository None
+              elif [[ ${{matrix.SCRIPT_TEST}} == 'no_cvmfs_mounts' ]]; then
+                outfile=out_nocvmfs.txt
+                ./eessi_container.sh --verbose --repository None --mode exec mount | tee ${outfile}
+                # make sure that there are no CVMFS mounts in the container, i.e. mount does not have any lines line:
+                # cvmfs2 on /cvmfs/...
+                ! grep "^cvmfs" ${outfile}
+
+              # test use of --mode exec
+              elif [[ ${{matrix.SCRIPT_TEST}} == 'exec' ]]; then
+                outfile=out_exec.txt
+                echo "${test_cmd}" > test_script.sh
+                chmod u+x test_script.sh
+                export SINGULARITY_BIND="$PWD:/test"
+                ./eessi_container.sh --verbose --mode exec /test/test_script.sh | tee ${outfile}
+                grep "${out_pattern}" ${outfile}
+
+              # test use of --mode run, which should now print a warning
               elif [[ ${{matrix.SCRIPT_TEST}} == 'run' ]]; then
                 outfile=out_run.txt
                 echo "${test_cmd}" > test_script.sh
@@ -78,6 +97,8 @@ jobs:
                 export SINGULARITY_BIND="$PWD:/test"
                 ./eessi_container.sh --verbose --mode run /test/test_script.sh | tee ${outfile}
                 grep "${out_pattern}" ${outfile}
+                warn_message="Note: the behaviour of the run mode has changed."
+                grep "${warn_message}" ${outfile}
 
               # test use of --mode shell
               elif [[ ${{matrix.SCRIPT_TEST}} == 'shell' ]]; then
@@ -100,7 +121,7 @@ jobs:
                 echo "touch /cvmfs/software.eessi.io/${fn}" > test_script.sh
                 chmod u+x test_script.sh
                 export SINGULARITY_BIND="$PWD:/test"
-                ./eessi_container.sh --verbose --access rw --mode run /test/test_script.sh > ${outfile}
+                ./eessi_container.sh --verbose --access rw --mode exec /test/test_script.sh > ${outfile}
 
                 tmpdir=$(grep "\-\-resume" ${outfile} | sed "s/.*--resume \([^']*\).*/\1/g")
                 # note: must use '--access rw' again here, since touched file is in overlay upper dir
@@ -143,7 +164,7 @@ jobs:
                 export SINGULARITY_BIND="$PWD:/test"
                 echo 'ls -ld /cvmfs*/software.eessi.io/*' > test_script.sh
                 chmod u+x test_script.sh
-                ./eessi_container.sh --verbose --container ${container} --access rw --overlay-tool unionfs --mode run /test/test_script.sh 2>&1 | tee ${outfile}
+                ./eessi_container.sh --verbose --container ${container} --access rw --overlay-tool unionfs --mode exec /test/test_script.sh 2>&1 | tee ${outfile}
                 for pattern in "/cvmfs/software.eessi.io/versions" "/cvmfs_ro/software.eessi.io/versions"; do
                   grep "${pattern}" ${outfile} || (echo "Pattern '${pattern}' not found in ${outfile}"; exit 1)
                 done

@@ -46,8 +46,13 @@ jobs:
             sed -i "s/__EESSI_VERSION_DEFAULT__/${{matrix.EESSI_VERSION}}/g" init/lmod/${shell}
           done
 
-      - name: Clone assert.sh script
-        run: git clone https://github.com/lehmannro/assert.sh.git
+      - name: Clone assert.sh at pinned commit
+        run: |
+          ASSERT_COMMIT_SHA=fe359e341670f1e8e86a3804ca00e5a3ebc30fa4
+          git clone --no-checkout https://github.com/lehmannro/assert.sh.git
+          cd assert.sh
+          git fetch --depth 1 origin $ASSERT_COMMIT_SHA
+          git checkout $ASSERT_COMMIT_SHA
 
       - name: Install missing shells
         run: |
@@ -55,9 +60,20 @@ jobs:
           sudo apt install zsh ksh fish tcsh
           echo "# INIT ZSH" > ~/.zshrc
 
-      - name: Run tests for available shells
+      - name: Run tests for available shells without system Lmod
         run: |
+          export EESSI_SOFTWARE_SUBDIR_OVERRIDE=${{matrix.EESSI_SOFTWARE_SUBDIR_OVERRIDE}}
           export EESSI_VERSION=${{matrix.EESSI_VERSION}}
           export EXPECTED_EASYBUILD_VERSION=${{matrix.EXPECTED_EASYBUILD_VERSION}}
           .github/workflows/scripts/test_init_scripts.sh "bash" "zsh" "ksh" "fish" "csh"
-
+      - name: Run tests for available shells with system Lmod
+        run: |
+          # We also want to perform the same test when there is an Lmod version available on the system
+          sudo apt install lmod
+          source /usr/share/lmod/lmod/init/bash
+          export MODULEPATH=/usr/share/lmod/lmod/modulefiles
+          module avail
+          export EESSI_SOFTWARE_SUBDIR_OVERRIDE=${{matrix.EESSI_SOFTWARE_SUBDIR_OVERRIDE}}
+          export EESSI_VERSION=${{matrix.EESSI_VERSION}}
+          export EXPECTED_EASYBUILD_VERSION=${{matrix.EXPECTED_EASYBUILD_VERSION}}
+          .github/workflows/scripts/test_init_scripts.sh "bash" "zsh" "ksh" "fish" "csh"

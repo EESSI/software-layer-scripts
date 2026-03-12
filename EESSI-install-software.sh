@@ -384,9 +384,9 @@ else
     for easystack_file in ${rebuild_easystacks} ${new_easystacks}; do
 
         # make sure that easystack file being picked up is for EESSI version that we're building for...
-        echo "${easystack_file}" | grep -q "^easystacks/$(basename ${EESSI_CVMFS_REPO})/${EESSI_VERSION}/"
+        echo "${easystack_file}" | grep -q "^easystacks/$(basename ${EESSI_CVMFS_REPO})/${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX}/"
         if [ $? -ne 0 ]; then
-            echo_yellow "Easystack file ${easystack_file} is not intended for EESSI version ${EESSI_VERSION}, skipping it..."
+            echo_yellow "Easystack file ${easystack_file} is not intended for EESSI version ${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX}, skipping it..."
         else
             echo -e "Processing easystack file ${easystack_file}...\n\n"
 
