@@ -311,9 +311,17 @@ def verify_toolchains_supported_by_eessi_version(easyconfigs):
         # It uses <= as there may be other dict entries in the values returned from get_toolchain_hierarchy()
         # but we only care that the toolchain dict (which has 'name' and 'version') appear.
         elif not any(toolchain.items() <= supported.items() for supported in supported_eessi_toolchains):
+            expected_site_top_level_toolchains = [toolchain] + site_top_level_toolchains
             raise EasyBuildError(
-                f"Toolchain {toolchain} (required by {ec['full_mod_name']}) is not supported in EESSI/{eessi_version}\n"
-                f"Supported toolchains are:\n" + "\n".join(sorted("  " + str(tc) for tc in supported_eessi_toolchains))
+                f"Toolchain {toolchain} (required by {ec['full_mod_name']}) is not supported in"
+                f"EESSI/{eessi_version}\n"
+                f"Supported toolchains are:\n"
+                + "\n".join(sorted("  " + str(tc) for tc in supported_eessi_toolchains))
+                + "\nIf you are using EESSI as a base for a local software stack, you can add locally supported "
+                " toolchains by setting the environment variable:\n"
+                f"\texport {site_top_level_toolchains_envvar}='{json.dumps(expected_site_top_level_toolchains)}'\n"
+                "(you only need to add the highest level toolchains you use, the toolchain hierarchy is automatically "
+                "supported)"
             )
 
 
