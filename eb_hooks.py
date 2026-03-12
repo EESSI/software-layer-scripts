@@ -313,7 +313,7 @@ def verify_toolchains_supported_by_eessi_version(easyconfigs):
         elif not any(toolchain.items() <= supported.items() for supported in supported_eessi_toolchains):
             expected_site_top_level_toolchains = [toolchain] + site_top_level_toolchains
             raise EasyBuildError(
-                f"Toolchain {toolchain} (required by {ec['full_mod_name']}) is not supported in"
+                f"Toolchain {toolchain} (required by {ec['full_mod_name']}) is not supported in "
                 f"EESSI/{eessi_version}\n"
                 f"Supported toolchains are:\n"
                 + "\n".join(sorted("  " + str(tc) for tc in supported_eessi_toolchains))
