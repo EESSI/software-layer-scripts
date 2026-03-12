@@ -125,6 +125,19 @@ def print_warning(*args, **kwargs):
         orig_print_warning(*args, **kwargs)
 
 
+def get_cuda_cc_string(self):
+    # required keyword was introduce in 5.1.1
+    if EASYBUILD_VERSION >= '5.1.1':
+        cuda_ccs_string = self.cfg.get_cuda_cc_template_value('cuda_compute_capabilities', required=False)
+    # mimic the 'required=False' behavior pre-EB 5.1.1
+    else:
+        try:
+            cuda_ccs_string = self.cfg.get_cuda_cc_template_value('cuda_compute_capabilities')
+        except:
+            cuda_ccs_string = ''
+    return cuda_ccs_string
+
+
 def is_gcccore_1220_based(**kwargs):
 # ecname, ecversion, tcname, tcversion):
     """
@@ -152,22 +165,21 @@ def is_gcccore_1220_based(**kwargs):
     )
 
 
-def get_cuda_version(ec, check_deps=True, check_builddeps=True):
+def get_dependency_software_version(software, ec, check_deps=True, check_builddeps=True):
     """
-    Returns the CUDA version that this EasyConfig (ec) uses as a (build)dependency.
-    If (ec) is simply CUDA itself, it will return the version.
-    If no CUDA is used as (build)dependency, this function returns None.
+    Returns the software version that this EasyConfig (ec) uses as a (build)dependency.
+    If (ec) is simply for the software itself, it will return the version.
+    If no software is used as (build)dependency, this function returns None.
     """
     # Provide default
-    cudaver = None
+    software_version = None
     ec_dict = ec.asdict()
 
-    # Is this CUDA itself?
-    if ec.name == 'CUDA':
-        cudaver = ec.version
+    # Is this easyconfig for the software itself?
+    if ec.name == software:
+        software_version = ec.version
 
-    # At this point, CUDA should be a builddependency due to inject_gpu_property
-    # changing any CUDA dep to a builddependency. But, for robustness, just check both
+    # Check if the software is used as (build) dependency.
     deps = []
     if check_deps:
         deps = deps + ec_dict['dependencies'][:]
@@ -175,10 +187,10 @@ def get_cuda_version(ec, check_deps=True, check_builddeps=True):
         deps = deps + ec_dict['builddependencies'][:]
 
     for dep in deps:
-        if dep['name'] == 'CUDA':
-            cudaver = dep['version']
+        if dep['name'] == software:
+            software_version = dep['version']
 
-    return cudaver
+    return software_version
 
 
 def is_cuda_cc_supported_by_toolkit(cuda_cc, toolkit_version):
@@ -757,13 +769,39 @@ def is_unsupported_module(self):
         setattr(self, EESSI_UNSUPPORTED_MODULE_ATTR, UnsupportedModule(envvar=var, errmsg=errmsg))
         return True
 
+    if not os.getenv("EESSI_OVERRIDE_CUDA_CC_CUDNN_CHECK"):
+      cudnn_ver = get_dependency_software_version("cuDNN", ec=self.cfg, check_deps=True, check_builddeps=True)
+      if cudnn_ver:
+          # cuda_ccs_string is e.g. "8.0,9.0"
+          cuda_ccs_string = get_cuda_cc_string(self)
+          # cuda_ccs is empty if none are defined
+          if cuda_ccs_string:
+              # cuda_ccs is a comma-seperated string. Convert to list for easier handling
+              cuda_ccs = cuda_ccs_string.split(',')
+              # cuDNN 9.12.0 dropped support for CC 7.0
+              if LooseVersion(cudnn_ver) >= '9.12.0' and any([LooseVersion(cuda_cc) <= '7.0' for cuda_cc in cuda_ccs]):
+                    msg = f"Requested a CUDA Compute Capability ({cuda_ccs}) that is not supported by the cuDNN "
+                    msg += f"version ({cudnn_ver}) used by this software. Switching to '--module-only --force' "
+                    msg += "and injectiong an LmodError into the modulefile. You can override this behaviour by "
+                    msg += "setting the EESSI_OVERRIDE_CUDA_CC_CUDNN_CHECK environment variable."
+                    print_warning(msg)
+                    # Use a normalized variable name for the CUDA ccs: strip any suffix, and replace commas
+                    cuda_ccs_string = re.sub(r'[a-zA-Z]', '', cuda_ccs_string).replace(',', '_')
+                    # Also replace periods, those are not officially supported in environment variable names
+                    var=f"EESSI_IGNORE_CUDNN_{cudnn_ver}_CC_{cuda_ccs_string}".replace('.', '_')
+                    errmsg = f"EasyConfigs using cuDNN {cudnn_ver} or newer are not supported for (all) requested Compute "
+                    errmsg +=f"Capabilities: {cuda_ccs}.\\n"
+                    setattr(self, EESSI_UNSUPPORTED_MODULE_ATTR, UnsupportedModule(envvar=var,errmsg=errmsg))
+                    return True
+
+
     # If the CUDA toolkit is a dependency, check that it supports (all) requested CUDA Compute Capabilities
     # Otherwise, mark this as unsupported
     if not os.getenv("EESSI_OVERRIDE_CUDA_CC_TOOLKIT_CHECK"):
-        cudaver = get_cuda_version(ec=self.cfg, check_deps=True, check_builddeps=True)
+        cudaver = get_dependency_software_version("CUDA", ec=self.cfg, check_deps=True, check_builddeps=True)
         if cudaver:
             # cuda_ccs_string is e.g. "8.0,9.0"
-            cuda_ccs_string = self.cfg.get_cuda_cc_template_value('cuda_compute_capabilities', required=False)
+            cuda_ccs_string = get_cuda_cc_string(self)
             # cuda_ccs is empty if none are defined
             if cuda_ccs_string:
                 # cuda_ccs is a comma-seperated string. Convert to list for easier handling
@@ -938,6 +976,28 @@ def pre_prepare_hook_llvm_a64fx(self, *args, **kwargs):
         if (self.name == 'LLVM' and self.version in ['14.0.6', '15.0.5']) or (self.name == 'Rust' and self.version == '1.65.0'):
             self.orig_optarch = build_option('optarch')
             update_build_option('optarch', 'march=armv8.2-a')
+
+
+def pre_prepare_hook_pytorch(self, *args, **kwargs):
+    """
+    Solve PyTorch test failures due to:
+    cannot enable executable stack as shared object requires: Invalid argument
+
+    Glibc prevents loading of shared libraries with an executable stack.
+    We can work around it by reverting to old behavior by setting glibc.rtld.execstack=2,
+    which forces the stack to be executable at process startup.
+    See:
+    https://github.com/ValveSoftware/Source-1-Games/issues/6982
+    https://gitlab.archlinux.org/archlinux/packaging/packages/glibc/-/issues/19
+    https://sourceware.org/bugzilla/show_bug.cgi?id=32653
+    """
+    if self.name == 'PyTorch':
+        if self.version in ['2.6.0', '2.7.1', '2.9.1']:
+            eessi_version = get_eessi_envvar('EESSI_VERSION')
+            if eessi_version == '2025.06':
+                os.environ['GLIBC_TUNABLES'] = 'glibc.rtld.execstack=2'
+    else:
+        raise EasyBuildError("PyTorch-specific hook triggered for non-PyTorch easyconfig?!")
 
 
 def post_prepare_hook_llvm_a64fx(self, *args, **kwargs):
@@ -1866,6 +1926,7 @@ PRE_PREPARE_HOOKS = {
     'cuDNN': pre_prepare_hook_cudnn,
     'Highway': pre_prepare_hook_highway_handle_test_compilation_issues,
     'LLVM': pre_prepare_hook_llvm_a64fx,
+    'PyTorch': pre_prepare_hook_pytorch,
     'Rust': pre_prepare_hook_llvm_a64fx,
 }
 
