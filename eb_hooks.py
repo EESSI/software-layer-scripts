@@ -904,8 +904,8 @@ def pre_configure_hook_llvm(self, *args, **kwargs):
 
         def recursive_set_deps(item, softwares):
             if isinstance(item, (list, tuple)):
-                for item in item:
-                    recursive_set_deps(item, softwares)
+                for elem in item:
+                    recursive_set_deps(elem, softwares)
             elif isinstance(item, Bundle):
                 recursive_set_deps(item.comp_instances, softwares)
             elif isinstance(item, EB_LLVM):
