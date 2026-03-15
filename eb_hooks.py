@@ -2023,6 +2023,7 @@ PARALLELISM_LIMITS = {
     },
     'PyTorch': {
         CPU_TARGET_AARCH64_GENERIC: (divide_by_factor, 2),
+        CPU_TARGET_A64FX: (set_maximum, 8),
         CPU_TARGET_NEOVERSE_N1: (divide_by_factor, 2),
         CPU_TARGET_NEOVERSE_V1: (divide_by_factor, 2),
     },
