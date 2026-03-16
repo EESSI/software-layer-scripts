@@ -1,0 +1,42 @@
+name: Test for mpi injection script
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read # to fetch code (actions/checkout)
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+        -  uses: actions/checkout@v4
+        -  uses: eessi/github-action-eessi@v3
+
+        - name: Inject OpenMPI libs
+          run: |
+            # Needed dir for the injected libs
+            mkdir /opt/eessi
+
+            # Load last OpenMPI from 2023b and declaring var for injection path
+            module load OpenMPI/4.1.6-GCC-13.2.0
+            export OPENMPI_TO_INJECT=$EBROOTOPENMPI
+            module purge
+
+            # Inject script
+            ./scripts/mpi_support/install_openmpi_host_injection.sh --mpi-path $OPENMPI_TO_INJECT
+            
+        - name: Check with OSU
+          run: |
+            # Load OSU version that uses older OpenMPI
+            module load OSU-Micro-Benchmarks/7.1-1-gompi-2023a
+
+            # Verify injected libs are being used
+            ldd $(which osu_latency) | grep host_injections
+
+            # Check it works correctly
+            mpirun -n 2 osu_latency
+            export output=$?
+            if [ $output -ne 0 ]; then
+                echo "MPI injection failed, check the logs for more detail"
+            else
+                echo "MPI injection succeded!"
+            fi
