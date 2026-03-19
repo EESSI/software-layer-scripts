@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
 # SPDX-License-Identifier: GPL-2.0-only
 # Copyright (C) 2020-2026 EESSI contributors
@@ -49,7 +49,12 @@ EESSI_CVMFS_REPO="${EESSI_CVMFS_REPO:-/cvmfs/software.eessi.io}"
 # (Note: in the repository which is home to this file a template value __EESSI_VERSION_DEFAULT__ is present in
 #  the line below which is replaced within our deployment pipeline.)
 EESSI_VERSION_DEFAULT="${__EESSI_VERSION_USED_FOR_INIT:-__EESSI_VERSION_DEFAULT__}"
-EESSI_VERSION="${EESSI_VERSION:-${EESSI_VERSION_DEFAULT}}"
+if [ -z "$__Init_EESSI_Default_Modules" ]; then
+    EESSI_VERSION="${EESSI_VERSION:-${EESSI_VERSION_DEFAULT}}"
+else
+    # If we have already initialised and this is being called again, then we must want the specific version
+    EESSI_VERSION="__EESSI_VERSION_DEFAULT__"
+fi
 # On the first run we want to record the EESSI version used for init as an environment variable so that if a different
 # version of this script is called (e.g, for a a different EESSI version) it retains a memory which EESSI
 # version was actually used in the initialisation. This is useful as __Init_EESSI_Default_Modules used below will
@@ -75,7 +80,7 @@ if [ -z "$__Init_EESSI_Default_Modules" ]; then
 
     # Lmod version in 2023.06 has a problem with newer Lmod caches, so let's stick to more recent Lmod
     # (has no effect except on Lmod itself, and compatible caches are still created/supported by EESSI)
-    LMOD_EESSI_VERSION=${EESSI_VERSION/2023.06/2025.06}
+    LMOD_EESSI_VERSION=$(printf '%s\n' "$EESSI_VERSION" | sed 's/2023\.06/2025\.06/')
 
     # Let's attempt a purge of any loaded modules as any environment variables currently set will survive EESSI initialisation
     # (it's ok if the module command does not exist)
@@ -96,10 +101,21 @@ if [ -z "$__Init_EESSI_Default_Modules" ]; then
         export EESSI_MODULE_UPDATE_PS1=1
     fi
 
+    # Figure out what shell we have
+    if [ -n "${BASH_VERSION-}" ]; then
+        shell=bash
+    elif [ -n "${ZSH_VERSION-}" ]; then
+        shell=zsh
+    elif [ -n "${KSH_VERSION-}" ]; then
+        shell=ksh
+    else
+        shell=sh
+    fi
+
     # Path to top-level module tree
     # - EESSI_EXTRA_MODULEPATH environment variable allows a site to append to MODULEPATH (lower priority than EESSI MODULEPATH)
     export MODULEPATH="${EESSI_CVMFS_REPO}/init/modules${EESSI_EXTRA_MODULEPATH:+:$EESSI_EXTRA_MODULEPATH}"
-    . "${EESSI_CVMFS_REPO}/versions/${LMOD_EESSI_VERSION}/compat/linux/$(uname -m)/usr/share/Lmod/init/bash"
+    . "${EESSI_CVMFS_REPO}/versions/${LMOD_EESSI_VERSION}/compat/linux/$(uname -m)/usr/share/Lmod/init/${shell}"
     module --initial_load --no_redirect restore
 
     # After initialising, we now know the architecture(s) that was/were selected so let's report them

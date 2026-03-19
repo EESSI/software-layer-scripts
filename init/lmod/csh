@@ -20,8 +20,16 @@ if ( ! $?__EESSI_VERSION_USED_FOR_INIT ) then
 else
     set EESSI_VERSION_DEFAULT = "$__EESSI_VERSION_USED_FOR_INIT"
 endif
-if ( ! $?EESSI_VERSION ) then
-    set EESSI_VERSION = "$EESSI_VERSION_DEFAULT"
+if ( ! $?__Init_EESSI_Default_Modules ) then
+    if ( $?EESSI_VERSION ) then
+        # keep existing value
+    else
+        set EESSI_VERSION "$EESSI_VERSION_DEFAULT"
+    endif
+else
+    # If we have already initialised and this is being called again,
+    # then we must want the specific version
+    set EESSI_VERSION "__EESSI_VERSION_DEFAULT__"
 endif
 # On first run, record the EESSI version used for init as an environment variable.
 # We use setenv to ensure it is available to child processes (equivalent to export).
