@@ -43,7 +43,11 @@ for shell in ${SHELLS[@]}; do
 
     # TEST 1: Source Script and check Module Output
     expected_pattern=".*EESSI has selected $EESSI_SOFTWARE_SUBDIR_OVERRIDE as the compatible CPU target for EESSI/$EESSI_VERSION.*"
-    assert_raises "$shell -c '. init/lmod/$shell' 2>&1 | grep -E \"${expected_pattern}\""
+    if [ "$shell" = "csh" ]; then
+      assert_raises "$shell -c 'source init/lmod/$shell' 2>&1 | grep -E \"${expected_pattern}\""
+    else
+      assert_raises "$shell -c '. init/lmod/$shell' 2>&1 | grep -E \"${expected_pattern}\""
+    fi
 
     # TEST 2: Check if module overviews first section is the loaded EESSI module
     if [ "$shell" = "csh" ]; then
@@ -124,7 +128,7 @@ for shell in ${SHELLS[@]}; do
           TEST_EESSI_WITHOUT_PURGE=$($shell -c 'echo $EESSI_NO_MODULE_PURGE_ON_INIT')
         elif [ "$shell" = "fish" ]; then
           TEST_EESSI_WITH_PURGE=$($shell -c "source $LMOD_PKG/init/$shell 2>/dev/null ; source init/lmod/$shell 2>/dev/null")
-          TEST_EESSI_WITHOUT_PURGE=$($shell -c "set -x EESSI_NO_MODULE_PURGE_ON_INIT 1 ; source $LMOD_PKG/init/$shell 2>/dev/null ; . init/lmod/$shell 2>/dev/null")
+          TEST_EESSI_WITHOUT_PURGE=$($shell -c "set -x EESSI_NO_MODULE_PURGE_ON_INIT 1 ; source $LMOD_PKG/init/$shell 2>/dev/null ; source init/lmod/$shell 2>/dev/null")
         else
           TEST_EESSI_WITH_PURGE=$($shell -c ". $LMOD_PKG/init/$shell 2>/dev/null ; . init/lmod/$shell 2>/dev/null")
           TEST_EESSI_WITHOUT_PURGE=$($shell -c "export EESSI_NO_MODULE_PURGE_ON_INIT=1 ; . $LMOD_PKG/init/$shell 2>/dev/null ; . init/lmod/$shell 2>/dev/null")
