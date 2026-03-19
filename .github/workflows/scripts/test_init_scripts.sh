@@ -26,7 +26,7 @@ if [ ! -d assert.sh ]; then
 fi
 . assert.sh/assert.sh
 
-TEST_SHELLS=("bash" "zsh" "fish" "ksh" "csh")
+TEST_SHELLS=("bash" "zsh" "fish" "ksh" "csh" "sh")
 SHELLS=$@
 
 for shell in ${SHELLS[@]}; do
@@ -139,7 +139,7 @@ for shell in ${SHELLS[@]}; do
     fi
 
     # Optional test 10, check if the prompt has been updated
-    if [ "$shell" = "bash" ] || [ "$shell" = "ksh" ] || [ "$shell" = "zsh" ]; then
+    if [ "$shell" = "bash" ] || [ "$shell" = "ksh" ] || [ "$shell" = "zsh" ] || [ "$shell" = "sh" ]; then
         # Typically this is a non-interactive shell, so manually unset PS1 and reset to a non-exported variable when testing
         TEST_EESSI_PS1_UPDATE=$($shell -c "unset PS1 ; PS1='$ ' ; source init/lmod/$shell 2>/dev/null ; echo \"\$PS1\"")
         TEST_EESSI_NO_PS1_UPDATE=$($shell -c "unset PS1 ; source init/lmod/$shell 2>/dev/null ; echo \"\$PS1\"")
