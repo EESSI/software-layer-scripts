@@ -43,7 +43,7 @@ for shell in ${SHELLS[@]}; do
 
     # TEST 1: Source Script and check Module Output
     expected_pattern=".*EESSI has selected $EESSI_SOFTWARE_SUBDIR_OVERRIDE as the compatible CPU target for EESSI/$EESSI_VERSION.*"
-    assert_raises "$shell -c 'source init/lmod/$shell' 2>&1 | grep -E \"${expected_pattern}\""
+    assert_raises "$shell -c '. init/lmod/$shell' 2>&1 | grep -E \"${expected_pattern}\""
 
     # TEST 2: Check if module overviews first section is the loaded EESSI module
     if [ "$shell" = "csh" ]; then
@@ -53,7 +53,7 @@ for shell in ${SHELLS[@]}; do
       echo "source init/lmod/$shell" > ~/.cshrc
       MODULE_SECTIONS=($($shell -c "module ov" 2>&1 | grep -e '---'))
     else
-      MODULE_SECTIONS=($($shell -c "source init/lmod/$shell >/dev/null 2>&1; module ov 2>&1 | grep -e '---'"))
+      MODULE_SECTIONS=($($shell -c ". init/lmod/$shell >/dev/null 2>&1; module ov 2>&1 | grep -e '---'"))
     fi
     PATTERN="/cvmfs/software\.eessi\.io/versions/$EESSI_VERSION/software/linux/$EESSI_SOFTWARE_SUBDIR_OVERRIDE/modules/all"
     assert_raises 'echo "${MODULE_SECTIONS[1]}" | grep -E "$PATTERN"'
@@ -68,7 +68,7 @@ for shell in ${SHELLS[@]}; do
       echo "source init/lmod/$shell" > ~/.cshrc
       command="$shell -c 'module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; eb --version' | tail -n 1 | awk '{print \$4}'"
     else
-      command="$shell -c 'source init/lmod/$shell >/dev/null 2>&1; module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; eb --version' | tail -n 1 | awk '{print \$4}'"
+      command="$shell -c '. init/lmod/$shell >/dev/null 2>&1; module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; eb --version' | tail -n 1 | awk '{print \$4}'"
     fi
     assert "$command" "$EXPECTED_EASYBUILD_VERSION"
 
@@ -77,7 +77,7 @@ for shell in ${SHELLS[@]}; do
       echo "source init/lmod/$shell" > ~/.cshrc
       EASYBUILD_PATH=$($shell -c "module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; which eb")
     else
-      EASYBUILD_PATH=$($shell -c "source init/lmod/$shell 2>/dev/null; module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; which eb")
+      EASYBUILD_PATH=$($shell -c ". init/lmod/$shell 2>/dev/null; module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; which eb")
     fi
     # escape the dots in ${EASYBUILD_VERSION}
     PATTERN="/cvmfs/software\.eessi\.io/versions/$EESSI_VERSION/software/linux/$EESSI_SOFTWARE_SUBDIR_OVERRIDE/software/EasyBuild/${EXPECTED_EASYBUILD_VERSION//./\\.}/bin/eb"
@@ -124,10 +124,10 @@ for shell in ${SHELLS[@]}; do
           TEST_EESSI_WITHOUT_PURGE=$($shell -c 'echo $EESSI_NO_MODULE_PURGE_ON_INIT')
         elif [ "$shell" = "fish" ]; then
           TEST_EESSI_WITH_PURGE=$($shell -c "source $LMOD_PKG/init/$shell 2>/dev/null ; source init/lmod/$shell 2>/dev/null")
-          TEST_EESSI_WITHOUT_PURGE=$($shell -c "set -x EESSI_NO_MODULE_PURGE_ON_INIT 1 ; source $LMOD_PKG/init/$shell 2>/dev/null ; source init/lmod/$shell 2>/dev/null")
+          TEST_EESSI_WITHOUT_PURGE=$($shell -c "set -x EESSI_NO_MODULE_PURGE_ON_INIT 1 ; source $LMOD_PKG/init/$shell 2>/dev/null ; . init/lmod/$shell 2>/dev/null")
         else
-          TEST_EESSI_WITH_PURGE=$($shell -c "source $LMOD_PKG/init/$shell 2>/dev/null ; source init/lmod/$shell 2>/dev/null")
-          TEST_EESSI_WITHOUT_PURGE=$($shell -c "export EESSI_NO_MODULE_PURGE_ON_INIT=1 ; source $LMOD_PKG/init/$shell 2>/dev/null ; source init/lmod/$shell 2>/dev/null")
+          TEST_EESSI_WITH_PURGE=$($shell -c ". $LMOD_PKG/init/$shell 2>/dev/null ; . init/lmod/$shell 2>/dev/null")
+          TEST_EESSI_WITHOUT_PURGE=$($shell -c "export EESSI_NO_MODULE_PURGE_ON_INIT=1 ; . $LMOD_PKG/init/$shell 2>/dev/null ; . init/lmod/$shell 2>/dev/null")
         fi
         # In the first case we should have the test and in the second case we shouldn't
         pattern="Modules purged before initialising EESSI"
@@ -141,8 +141,8 @@ for shell in ${SHELLS[@]}; do
     # Optional test 10, check if the prompt has been updated
     if [ "$shell" = "bash" ] || [ "$shell" = "ksh" ] || [ "$shell" = "zsh" ] || [ "$shell" = "sh" ]; then
         # Typically this is a non-interactive shell, so manually unset PS1 and reset to a non-exported variable when testing
-        TEST_EESSI_PS1_UPDATE=$($shell -c "unset PS1 ; PS1='$ ' ; source init/lmod/$shell 2>/dev/null ; echo \"\$PS1\"")
-        TEST_EESSI_NO_PS1_UPDATE=$($shell -c "unset PS1 ; source init/lmod/$shell 2>/dev/null ; echo \"\$PS1\"")
+        TEST_EESSI_PS1_UPDATE=$($shell -c "unset PS1 ; PS1='$ ' ; . init/lmod/$shell 2>/dev/null ; echo \"\$PS1\"")
+        TEST_EESSI_NO_PS1_UPDATE=$($shell -c "unset PS1 ; . init/lmod/$shell 2>/dev/null ; echo \"\$PS1\"")
         pattern="{EESSI/${EESSI_VERSION}} "
         assert_raises 'echo "$TEST_EESSI_PS1_UPDATE" | grep "$pattern"'
         assert_raises 'echo "$TEST_EESSI_NO_PS1_UPDATE" | grep "$pattern"' 1
