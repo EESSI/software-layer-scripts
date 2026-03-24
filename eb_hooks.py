@@ -1575,6 +1575,20 @@ def pre_test_hook_ignore_failing_tests_OpenBabel_a64fx(self, *args, **kwargs):
         self.cfg['testopts'] = "|| echo ignoring failing tests"
 
 
+def pre_test_hook_ignore_failing_tests_LAMMPS_ARM_generic(self, *args, **kwargs):
+    """
+    Pre-test hook for LAMMPS: skip failing ctest for selected LAMMPS version on ARM generic.
+
+    See: https://github.com/lammps/lammps/issues/4926
+    """
+    if ec.name == 'LAMMPS' and ec.version in ('22Jul2025',):
+        if os.getenv('EESSI_CPU_FAMILY') == 'aarch64':
+            mcpu_generic = '-DKokkos_ARCH_ARMV80=yes'
+                cflags = os.getenv('CFLAGS')
+                if mcpu_generic in cflags:
+                    self.cfg['testopts'] = "|| echo ignoring failing tests"
+
+
 def pre_single_extension_hook(ext, *args, **kwargs):
     """Main pre-extension: trigger custom functions based on software name."""
     if ext.name in PRE_SINGLE_EXTENSION_HOOKS:
@@ -1986,6 +2000,7 @@ PRE_TEST_HOOKS = {
     'netCDF': pre_test_hook_ignore_failing_tests_netCDF,
     'OpenBabel': pre_test_hook_ignore_failing_tests_OpenBabel_a64fx,
     'PyTorch': pre_test_hook_increase_max_failed_tests_arm_PyTorch,
+    'LAMMPS': pre_test_hook_ignore_failing_tests_LAMMPS_ARM_generic,
 }
 
 PRE_SINGLE_EXTENSION_HOOKS = {
