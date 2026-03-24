@@ -1584,9 +1584,9 @@ def pre_test_hook_ignore_failing_tests_LAMMPS_ARM_generic(self, *args, **kwargs)
     if ec.name == 'LAMMPS' and ec.version in ('22Jul2025',):
         if os.getenv('EESSI_CPU_FAMILY') == 'aarch64':
             mcpu_generic = '-DKokkos_ARCH_ARMV80=yes'
-                cflags = os.getenv('CFLAGS')
-                if mcpu_generic in cflags:
-                    self.cfg['testopts'] = "|| echo ignoring failing tests"
+            cflags = os.getenv('CFLAGS')
+            if mcpu_generic in cflags:
+                self.cfg['testopts'] = "|| echo ignoring failing tests"
 
 
 def pre_single_extension_hook(ext, *args, **kwargs):
