@@ -1581,7 +1581,7 @@ def pre_test_hook_ignore_failing_tests_LAMMPS_ARM_generic(self, *args, **kwargs)
 
     See: https://github.com/lammps/lammps/issues/4926
     """
-    if ec.name == 'LAMMPS' and ec.version in ('22Jul2025',):
+    if self.name == 'LAMMPS' and self.version in ('22Jul2025',):
         if os.getenv('EESSI_CPU_FAMILY') == 'aarch64':
             mcpu_generic = '-DKokkos_ARCH_ARMV80=yes'
             cflags = os.getenv('CFLAGS')
