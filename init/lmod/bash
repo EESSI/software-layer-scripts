@@ -93,7 +93,11 @@ if [ -z "$__Init_EESSI_Default_Modules" ]; then
     # (in an interactive shell PS1 is likely unset, so let's only do this if it is set)
     if [ -n "$PS1" ]; then
         export PS1
-        export EESSI_MODULE_UPDATE_PS1=${EESSI_MODULE_UPDATE_PS1:-1}
+        if [ "$EESSI_MODULE_UPDATE_PS1" -eq "0" ]; then
+            unset EESSI_MODULE_UPDATE_PS1
+        else
+            export EESSI_MODULE_UPDATE_PS1=1
+        fi
     fi
 
     # Path to top-level module tree
