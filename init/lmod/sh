@@ -52,7 +52,7 @@ EESSI_VERSION_DEFAULT="${__EESSI_VERSION_USED_FOR_INIT:-__EESSI_VERSION_DEFAULT_
 if [ -z "$__Init_EESSI_Default_Modules" ]; then
     EESSI_VERSION="${EESSI_VERSION:-${EESSI_VERSION_DEFAULT}}"
 else
-    # If we have already initiaised and this is being called again, then we must want the specific version
+    # If we have already initialised and this is being called again, then we must want the specific version
     EESSI_VERSION="__EESSI_VERSION_DEFAULT__"
 fi
 # On the first run we want to record the EESSI version used for init as an environment variable so that if a different
