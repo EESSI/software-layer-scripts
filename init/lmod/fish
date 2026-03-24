@@ -18,8 +18,16 @@ if not set -q __EESSI_VERSION_USED_FOR_INIT
 else
     set EESSI_VERSION_DEFAULT "$__EESSI_VERSION_USED_FOR_INIT"
 end
-if not set -q EESSI_VERSION
-    set EESSI_VERSION "$EESSI_VERSION_DEFAULT"
+if not set -q __Init_EESSI_Default_Modules
+    if set -q EESSI_VERSION
+        # keep existing value
+    else
+        set EESSI_VERSION $EESSI_VERSION_DEFAULT
+    end
+else
+    # If we have already initialised and this is being called again,
+    # then we must want the specific version
+    set EESSI_VERSION "__EESSI_VERSION_DEFAULT__"
 end
 
 # Record version used for init; -x exports it to the environment
