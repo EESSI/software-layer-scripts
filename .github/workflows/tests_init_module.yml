@@ -57,6 +57,7 @@ jobs:
       - name: Install missing shells
         run: |
           sudo apt update
+          # We're in Ubuntu so dash is already installed (and is symlinked to sh)
           sudo apt install zsh ksh fish tcsh
           echo "# INIT ZSH" > ~/.zshrc
 
@@ -65,7 +66,7 @@ jobs:
           export EESSI_SOFTWARE_SUBDIR_OVERRIDE=${{matrix.EESSI_SOFTWARE_SUBDIR_OVERRIDE}}
           export EESSI_VERSION=${{matrix.EESSI_VERSION}}
           export EXPECTED_EASYBUILD_VERSION=${{matrix.EXPECTED_EASYBUILD_VERSION}}
-          .github/workflows/scripts/test_init_scripts.sh "bash" "zsh" "ksh" "fish" "csh"
+          .github/workflows/scripts/test_init_scripts.sh "bash" "zsh" "ksh" "fish" "csh" "sh"
       - name: Run tests for available shells with system Lmod
         run: |
           # We also want to perform the same test when there is an Lmod version available on the system
@@ -76,4 +77,4 @@ jobs:
           export EESSI_SOFTWARE_SUBDIR_OVERRIDE=${{matrix.EESSI_SOFTWARE_SUBDIR_OVERRIDE}}
           export EESSI_VERSION=${{matrix.EESSI_VERSION}}
           export EXPECTED_EASYBUILD_VERSION=${{matrix.EXPECTED_EASYBUILD_VERSION}}
-          .github/workflows/scripts/test_init_scripts.sh "bash" "zsh" "ksh" "fish" "csh"
+          .github/workflows/scripts/test_init_scripts.sh "bash" "zsh" "ksh" "fish" "csh" "sh"
