@@ -25,7 +25,7 @@
 # - The EESSI module also listens to environment variables so that it can be silently configured by a site
 #   - EESSI_MODULE_FAMILY_NAME: use the value of the environment variable to set an Lmod family for the EESSI module
 #   - EESSI_MODULE_STICKY: make the EESSI module sticky
-#   - EESSI_MODULE_UPDATE_PS1: have the EESSI module update PS1 to give a prompt that is prepended with "{EESSI/...} " (requires exporting PS1)
+#   - EESSI_MODULE_UPDATE_PS1: set to 1 (by default), the EESSI module prepends  "{EESSI/...} " to PS1 (the shell prompt). Set to 0, PS1 remains unmodified.
 #  (- EESSI_MODULE_DEBUG_INIT: enable debug print statements when loading the EESSI module)
 #
 # Effects:
