@@ -98,6 +98,8 @@ if [ -z "$__Init_EESSI_Default_Modules" ]; then
     # (in an interactive shell PS1 is likely unset, so let's only do this if it is set)
     if [ -n "$PS1" ]; then
         if [ "${EESSI_MODULE_UPDATE_PS1-}" = "0" ] ; then
+            # For certainty, we now unset it to guarantee it is not picked up by the EESSI module
+            # (this guarantees PS1 is not updated, even if it is exported externally to this script)
             unset EESSI_MODULE_UPDATE_PS1
         else
             export EESSI_MODULE_UPDATE_PS1=1
