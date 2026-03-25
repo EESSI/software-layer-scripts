@@ -97,11 +97,11 @@ if [ -z "$__Init_EESSI_Default_Modules" ]; then
     # For the shells that use PS1 for the prompt, let's add the trigger to enable updating that by default
     # (in an interactive shell PS1 is likely unset, so let's only do this if it is set)
     if [ -n "$PS1" ]; then
-        export PS1
         if [ "${EESSI_MODULE_UPDATE_PS1-}" = "0" ] ; then
             unset EESSI_MODULE_UPDATE_PS1
         else
             export EESSI_MODULE_UPDATE_PS1=1
+            export PS1
         fi
     fi
 
