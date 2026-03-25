@@ -98,7 +98,12 @@ if [ -z "$__Init_EESSI_Default_Modules" ]; then
     # (in an interactive shell PS1 is likely unset, so let's only do this if it is set)
     if [ -n "$PS1" ]; then
         export PS1
-        export EESSI_MODULE_UPDATE_PS1=1
+        if [ -n "${__Init_EESSI_MODULE_UPDATE_PS1+x}" ] || [ $((EESSI_MODULE_UPDATE_PS1)) -eq 0 ]; then
+            export __Init_EESSI_MODULE_UPDATE_PS1=0
+            unset EESSI_MODULE_UPDATE_PS1
+        else
+            export EESSI_MODULE_UPDATE_PS1=1
+        fi
     fi
 
     # Figure out which shell was used to source this script, which we then use to source the corresponding

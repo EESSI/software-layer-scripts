@@ -150,6 +150,9 @@ for shell in ${SHELLS[@]}; do
         pattern="{EESSI/${EESSI_VERSION}} "
         assert_raises 'echo "$TEST_EESSI_PS1_UPDATE" | grep "$pattern"'
         assert_raises 'echo "$TEST_EESSI_NO_PS1_UPDATE" | grep "$pattern"' 1
+        TEST_EESSI_EXPLICIT_NO_PS1_UPDATE=$($shell -c "unset PS1 ; PS1='test> ' ; export EESSI_MODULE_UPDATE_PS1=0 ; . init/lmod/$shell 2>/dev/null ; echo \"\$PS1\"")
+        pattern='test> '
+        assert_raises 'echo "$TEST_EESSI_EXPLICIT_NO_PS1_UPDATE" | grep "$pattern"' 1
     fi
 
     # End Test Suite
