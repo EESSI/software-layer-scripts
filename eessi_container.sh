@@ -1039,9 +1039,13 @@ for arg in "${PASS_THROUGH[@]}"; do
     ADDITIONAL_CONTAINER_OPTIONS+=(${arg})
 done
 
-echo "Launching container with command (next line):"
-echo "singularity ${RUN_QUIET} ${MODE} ${ADDITIONAL_CONTAINER_OPTIONS[@]} ${EESSI_FUSE_MOUNTS[@]} ${CONTAINER} $@"
-singularity ${RUN_QUIET} ${MODE} "${ADDITIONAL_CONTAINER_OPTIONS[@]}" "${EESSI_FUSE_MOUNTS[@]}" ${CONTAINER} "$@"
+# using a sandbox image mode is more robust at the cleanup phase at the end
+CONTAINER_SANDBOX=CONTAINER.removesuffix(".sif") + ".sandbox"
+echo "Building a sandbox image with command (next line):"
+echo "singularity build --sandbox ${CONTAINER_SANDBOX} ${CONTAINER}"
+echo "Launching sandbox container with command (next line):"
+echo "singularity ${RUN_QUIET} ${MODE} ${ADDITIONAL_CONTAINER_OPTIONS[@]} ${EESSI_FUSE_MOUNTS[@]} ${CONTAINER_SANDBOX} $@"
+singularity ${RUN_QUIET} ${MODE} "${ADDITIONAL_CONTAINER_OPTIONS[@]}" "${EESSI_FUSE_MOUNTS[@]}" ${CONTAINER_SANDBOX} "$@"
 exit_code=$?
 
 # 6. save tmp if requested (arg -s|--save)
