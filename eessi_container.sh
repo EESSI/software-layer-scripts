@@ -1040,7 +1040,7 @@ for arg in "${PASS_THROUGH[@]}"; do
 done
 
 # using a sandbox image mode is more robust at the cleanup phase at the end
-CONTAINER_SANDBOX=CONTAINER.removesuffix(".sif") + ".sandbox"
+CONTAINER_SANDBOX="${CONTAINER%.sif}.sandbox"
 echo "Building a sandbox image with command (next line):"
 echo "singularity build --sandbox ${CONTAINER_SANDBOX} ${CONTAINER}"
 echo "Launching sandbox container with command (next line):"
