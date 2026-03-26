@@ -1581,11 +1581,15 @@ def pre_test_hook_ignore_failing_tests_LAMMPS_ARM_generic(self, *args, **kwargs)
 
     See: https://github.com/lammps/lammps/issues/4926
     """
-    if self.name == 'LAMMPS' and self.version in ('22Jul2025',):
+    print('build option before pre_test_hooki: ', build_option('ignore_test_failure'))
+    if self.name == 'LAMMPS' and self.version in ('22Jul2025'):
         cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+        print('Debug: ', cpu_target)
         if cpu_target == CPU_TARGET_AARCH64_GENERIC:
+            print('I will reset ignore_test_failure')
             self.orig_ignore_test_failure = build_option('ignore_test_failure')
             update_build_option('ignore_test_failure', True)
+            print(build_option('ignore_test_failure'))
 
 
 def post_test_hook(self, *args, **kwargs):
