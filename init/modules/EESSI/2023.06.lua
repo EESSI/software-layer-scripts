@@ -233,6 +233,13 @@ if os.getenv("EESSI_MODULE_STICKY") then
     load_message = load_message .. " (requires '--force' option to unload or purge)"
 end
 
+-- set CURL_CA_BUNDLE on RHEL-based systems
+ca_bundle_file_rhel = "/etc/pki/tls/certs/ca-bundle.crt"
+if isFile(ca_bundle_file_rhel) then
+    pushenv("CURL_CA_BUNDLE", ca_bundle_file_rhel)
+    eessiDebug("Setting CURL_CA_BUNDLE to " .. ca_bundle_file_rhel)
+end
+
 if mode() == "load" then
     if not os.getenv("EESSI_MODULE_QUIET_LOAD") then
         LmodMessage(load_message)
