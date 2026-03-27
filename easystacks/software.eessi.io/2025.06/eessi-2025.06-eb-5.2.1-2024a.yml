@@ -8,4 +8,3 @@ easyconfigs:
           # See https://github.com/easybuilders/easybuild-easyconfigs/pull/25133
           # and https://github.com/easybuilders/easybuild-easyconfigs/pull/25593
           from-commit: e2dedae93022d7e3f10bf2983ca8a03b03b0dca0
-          ignore-test-failure: True
