@@ -1575,23 +1575,6 @@ def pre_test_hook_ignore_failing_tests_OpenBabel_a64fx(self, *args, **kwargs):
         self.cfg['testopts'] = "|| echo ignoring failing tests"
 
 
-def pre_test_hook_ignore_failing_tests_LAMMPS_ARM_generic(self, *args, **kwargs):
-    """
-    Pre-test hook for LAMMPS: skip failing ctest for selected LAMMPS version on ARM generic.
-
-    See: https://github.com/lammps/lammps/issues/4926
-    """
-    print('build option before pre_test_hooki: ', build_option('ignore_test_failure'))
-    if self.name == 'LAMMPS' and self.version in ('22Jul2025'):
-        cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
-        print('Debug: ', cpu_target)
-        if cpu_target == CPU_TARGET_AARCH64_GENERIC:
-            print('I will reset ignore_test_failure')
-            self.orig_ignore_test_failure = build_option('ignore_test_failure')
-            update_build_option('ignore_test_failure', True)
-            print(build_option('ignore_test_failure'))
-
-
 def pre_single_extension_hook(ext, *args, **kwargs):
     """Main pre-extension: trigger custom functions based on software name."""
     if ext.name in PRE_SINGLE_EXTENSION_HOOKS:
@@ -1939,22 +1922,22 @@ if EASYBUILD_VERSION >= '5.1.1':
                 post_easyblock_hook_copy_easybuild_subdir(self, *args, **kwargs)
         else:
             self.log.debug("No CVMFS/site installation requested, not running post_easyblock_hook_copy_easybuild_subdir.")
-
-        # If self.orig_ignore_test_failure is set return it to its original value.
-        if hasattr(self, "orig_ignore_test_failure") and self.orig_ignore_test_failure != build_option('ignore_test_failure'):
-            update_build_option('ignore_test_failure', self.orig_ignore_test_failure)
 else:
     print_warning(f"Not enabling the post_easybuild_hook, as it requires EasyBuild 5.1.1 or newer (you are using {EASYBUILD_VERSION}).")
 
 
 def pre_run_shell_cmd_hook(cmd, work_dir=None, **kwargs):
     """Main pre_shell_cmd_hook: trigger custom funtions based on software name."""
+    
     # Ignore failing ctest for LAMMPS/22Jul2025 on aarch64/generic
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
     if cpu_target == CPU_TARGET_AARCH64_GENERIC:
         if bool(re.search('LAMMPS', work_dir)) and bool(re.search('22Jul2025', work_dir)):
             if isinstance(cmd, str) and cmd.startswith('ctest') and '-LE unstable' in cmd:
                 cmd = cmd + ' || true'
+
+
+
 
 PARSE_HOOKS = {
     'casacore': parse_hook_casacore_disable_vectorize,
@@ -2016,7 +1999,6 @@ PRE_TEST_HOOKS = {
     'netCDF': pre_test_hook_ignore_failing_tests_netCDF,
     'OpenBabel': pre_test_hook_ignore_failing_tests_OpenBabel_a64fx,
     'PyTorch': pre_test_hook_increase_max_failed_tests_arm_PyTorch,
-    'LAMMPS': pre_test_hook_ignore_failing_tests_LAMMPS_ARM_generic,
 }
 
 PRE_SINGLE_EXTENSION_HOOKS = {
