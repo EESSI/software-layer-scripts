@@ -150,6 +150,11 @@ for shell in ${SHELLS[@]}; do
         pattern="{EESSI/${EESSI_VERSION}} "
         assert_raises 'echo "$TEST_EESSI_PS1_UPDATE" | grep "$pattern"'
         assert_raises 'echo "$TEST_EESSI_NO_PS1_UPDATE" | grep "$pattern"' 1
+        # Also check when we explicitly ask for it not to be updated
+        TEST_EESSI_EXPLICIT_NO_PS1_UPDATE=$($shell -c "unset PS1 ; PS1='test> ' ; export EESSI_MODULE_UPDATE_PS1=0 ; . init/lmod/$shell 2>/dev/null ; echo \"\$PS1\"")
+        TEST_EESSI_EXPLICIT_NO_PS1_UPDATE_CALLED_TWICE=$($shell -c "unset PS1 ; PS1='$ ' ; export EESSI_MODULE_UPDATE_PS1=0 ; . init/lmod/$shell 2>/dev/null ; . init/lmod/$shell 2>/dev/null ; echo \"\$PS1\"")
+        assert_raises 'echo "$TEST_EESSI_EXPLICIT_NO_PS1_UPDATE" | grep "$pattern"' 1
+        assert_raises 'echo "$TEST_EESSI_EXPLICIT_NO_PS1_UPDATE_CALLED_TWICE" | grep "$pattern"' 1
     fi
 
     # End Test Suite
