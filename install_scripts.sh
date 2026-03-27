@@ -196,7 +196,7 @@ copy_files_by_list ${TOPDIR}/init/modules/EESSI ${INSTALL_PREFIX}/init/modules/E
 
 # Copy for init/lmod directory
 init_script_files=(
-    bash zsh ksh fish csh    
+    bash zsh ksh fish csh sh
 )
 copy_files_by_list ${TOPDIR}/init/lmod ${INSTALL_PREFIX}/init/lmod "${init_script_files[@]}"
 
