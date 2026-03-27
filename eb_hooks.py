@@ -1588,14 +1588,6 @@ def pre_test_hook_ignore_failing_tests_LAMMPS_ARM_generic(self, *args, **kwargs)
             update_build_option('ignore_test_failure', True)
 
 
-def post_test_hook(self, *args, **kwargs):
-    """
-    If self.orig_ignore_test_failure exists reset ignore_test_failure to its original value.
-    """
-    if hasattr(self, "orig_ignore_test_failure") and self.orig_ignore_test_failure != build_option('ignore_test_failure'):
-        update_build_option('ignore_test_failure', self.orig_ignore_test_failure)
-
-
 def pre_single_extension_hook(ext, *args, **kwargs):
     """Main pre-extension: trigger custom functions based on software name."""
     if ext.name in PRE_SINGLE_EXTENSION_HOOKS:
@@ -1943,6 +1935,10 @@ if EASYBUILD_VERSION >= '5.1.1':
                 post_easyblock_hook_copy_easybuild_subdir(self, *args, **kwargs)
         else:
             self.log.debug("No CVMFS/site installation requested, not running post_easyblock_hook_copy_easybuild_subdir.")
+
+        # If self.orig_ignore_test_failure is set return it to its original value.
+        if hasattr(self, "orig_ignore_test_failure") and self.orig_ignore_test_failure != build_option('ignore_test_failure'):
+            update_build_option('ignore_test_failure', self.orig_ignore_test_failure)
 else:
     print_warning(f"Not enabling the post_easybuild_hook, as it requires EasyBuild 5.1.1 or newer (you are using {EASYBUILD_VERSION}).")
 
