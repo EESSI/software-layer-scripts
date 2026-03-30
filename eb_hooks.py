@@ -1934,7 +1934,7 @@ def pre_run_shell_cmd_hook(cmd, work_dir=None, **kwargs):
     if cpu_target == CPU_TARGET_AARCH64_GENERIC:
         if bool(re.search('LAMMPS', work_dir)) and bool(re.search('22Jul2025', work_dir)):
             if isinstance(cmd, str) and cmd.startswith('ctest') and '-LE unstable' in cmd:
-                cmd = cmd + f' || echo "Ignoring failing tests when installing for {cpu_target}'
+                cmd = cmd + f' || echo "Ignoring failing tests when installing for {cpu_target}"'
                 return cmd
 
 
