@@ -1039,15 +1039,23 @@ for arg in "${PASS_THROUGH[@]}"; do
     ADDITIONAL_CONTAINER_OPTIONS+=(${arg})
 done
 
-# using a sandbox image mode is more robust at the cleanup phase at the end
-CONTAINER_SANDBOX="${CONTAINER%.sif}.sandbox"
-echo "Building a sandbox image with command (next line):"
-echo "singularity build --sandbox ${CONTAINER_SANDBOX} ${CONTAINER}"
-singularity build --sandbox ${CONTAINER_SANDBOX} ${CONTAINER}
-echo "Launching sandbox container with command (next line):"
-echo "singularity ${RUN_QUIET} ${MODE} ${ADDITIONAL_CONTAINER_OPTIONS[@]} ${EESSI_FUSE_MOUNTS[@]} ${CONTAINER_SANDBOX} $@"
-singularity ${RUN_QUIET} ${MODE} "${ADDITIONAL_CONTAINER_OPTIONS[@]}" "${EESSI_FUSE_MOUNTS[@]}" ${CONTAINER_SANDBOX} "$@"
+# EESSI_SINGULARITY_SANDBOX is an environment variable (typically set in site_config.sh, if needed)
+if [[ -n "$EESSI_SINGULARITY_SANDBOX" ]]; then
+    # using a sandbox image mode is more robust at the cleanup phase at the end
+    CONTAINER_SANDBOX="${CONTAINER%.sif}.sandbox"
+    echo "Building a sandbox image with command (next line):"
+    echo "singularity build --sandbox ${CONTAINER_SANDBOX} ${CONTAINER}"
+    singularity build --sandbox ${CONTAINER_SANDBOX} ${CONTAINER}
+    echo "Launching sandbox container with command (next line):"
+    echo "singularity ${RUN_QUIET} ${MODE} ${ADDITIONAL_CONTAINER_OPTIONS[@]} ${EESSI_FUSE_MOUNTS[@]} ${CONTAINER_SANDBOX} $@"
+    singularity ${RUN_QUIET} ${MODE} "${ADDITIONAL_CONTAINER_OPTIONS[@]}" "${EESSI_FUSE_MOUNTS[@]}" ${CONTAINER_SANDBOX} "$@"
 exit_code=$?
+else
+    echo "Launching container with command (next line):"
+    echo "singularity ${RUN_QUIET} ${MODE} ${ADDITIONAL_CONTAINER_OPTIONS[@]} ${EESSI_FUSE_MOUNTS[@]} ${CONTAINER} $@"
+    singularity ${RUN_QUIET} ${MODE} "${ADDITIONAL_CONTAINER_OPTIONS[@]}" "${EESSI_FUSE_MOUNTS[@]}" ${CONTAINER} "$@"
+exit_code=$?
+fi
 
 # 6. save tmp if requested (arg -s|--save)
 if [[ ! -z ${SAVE} ]]; then
