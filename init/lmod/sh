@@ -43,13 +43,13 @@
 # - Lmod initialisation cannot be undone
 
 # Choose an EESSI CVMFS repository
-EESSI_CVMFS_REPO="${EESSI_CVMFS_REPO:-/cvmfs/software.eessi.io}"
+internal_cvmfs_repo="${EESSI_CVMFS_REPO:-/cvmfs/software.eessi.io}"
 
 # Choose an EESSI version (the default is only used if the EESSI_VERSION environment variable is not provided)
 # (Note: in the repository which is home to this file a template value __EESSI_VERSION_DEFAULT__ is present in
 #  the line below which is replaced within our deployment pipeline.)
 EESSI_VERSION_DEFAULT="${__EESSI_VERSION_USED_FOR_INIT:-__EESSI_VERSION_DEFAULT__}"
-if [ -z "$__Init_EESSI_Default_Modules" ]; then
+if [ "${__Init_EESSI_Default_Modules-}" != "1" ]; then
     EESSI_VERSION="${EESSI_VERSION:-${EESSI_VERSION_DEFAULT}}"
 else
     # If we have already initialised and this is being called again, then we must want the specific version
@@ -75,8 +75,10 @@ export __EESSI_VERSION_USED_FOR_INIT="${__EESSI_VERSION_USED_FOR_INIT:-${EESSI_V
 LMOD_SYSTEM_DEFAULT_MODULES="${EESSI_DEFAULT_MODULES_PREPEND:+$EESSI_DEFAULT_MODULES_PREPEND:}EESSI/$EESSI_VERSION${EESSI_DEFAULT_MODULES_APPEND:+:$EESSI_DEFAULT_MODULES_APPEND}"
 export LMOD_SYSTEM_DEFAULT_MODULES
 
-if [ -z "$__Init_EESSI_Default_Modules" ]; then
-    export __Init_EESSI_Default_Modules=1;
+if [ "${__Init_EESSI_Default_Modules-}" != "1" ]; then
+    # We do _not_ export this as we do not want it picked up by a new shell
+    # (since the system module tool may be restored in that scenario)
+    __Init_EESSI_Default_Modules=1
 
     # Lmod version in 2023.06 has a problem with newer Lmod caches, so let's stick to more recent Lmod
     # (has no effect except on Lmod itself, and compatible caches are still created/supported by EESSI)
@@ -122,8 +124,8 @@ if [ -z "$__Init_EESSI_Default_Modules" ]; then
     # Path to top-level module tree
     # - EESSI_EXTRA_MODULEPATH environment variable allows a site to append to MODULEPATH
     #   (lower priority than EESSI MODULEPATH)
-    export MODULEPATH="${EESSI_CVMFS_REPO}/init/modules${EESSI_EXTRA_MODULEPATH:+:$EESSI_EXTRA_MODULEPATH}"
-    . "${EESSI_CVMFS_REPO}/versions/${LMOD_EESSI_VERSION}/compat/linux/$(uname -m)/usr/share/Lmod/init/${shell}"
+    export MODULEPATH="${internal_cvmfs_repo}/init/modules${EESSI_EXTRA_MODULEPATH:+:$EESSI_EXTRA_MODULEPATH}"
+    . "${internal_cvmfs_repo}/versions/${LMOD_EESSI_VERSION}/compat/linux/$(uname -m)/usr/share/Lmod/init/${shell}"
     module --initial_load --no_redirect restore
 
     # After initialising, we now know the architecture(s) that was/were selected so let's report them
