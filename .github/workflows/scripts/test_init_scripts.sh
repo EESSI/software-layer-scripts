@@ -54,6 +54,7 @@ for shell in ${SHELLS[@]}; do
     if [ "$shell" = "csh" ]; then
       # Cannot figure out how to chain shells with silenced output to test this in csh but it does work
       # assert_raises "$shell -c 'setenv LMOD_QUIET 1 ; source init/lmod/$shell ; ($shell -c \"unsetenv LMOD_QUIET ; source init/lmod/$shell\")' 2>&1 | grep -E \"${expected_pattern}\""
+      echo "Skipping chained shell check for csh as can't figure out how to silence output in first call"
     else
       assert_raises "$shell -c '. init/lmod/$shell > /dev/null 2>&1; $shell -c \". init/lmod/$shell\"' 2>&1 | grep -E \"${expected_pattern}\""
     fi
