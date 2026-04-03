@@ -222,6 +222,7 @@ local quiet_load = false
 if os.getenv("EESSI_MODULE_UPDATE_PS1") then
     local prompt = os.getenv("PS1")
     if prompt then
+        local prefix = "{EESSI/" .. eessi_version .. "} "
         if mode() == "load" then
             -- Prepend prefix to PS1 without evaluating its contents
             execute{cmd="PS1='" .. prefix .. "'\"$PS1\"", modeA={"load"}}
