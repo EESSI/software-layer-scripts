@@ -17,6 +17,9 @@
 base_dir=$(dirname $(realpath $0))
 source ${base_dir}/init/eessi_defaults
 
+ping github.com
+cat /etc/resolv.conf
+
 # Make sure we clone the latest version. This assumes versions are of the format "v1.2.3", then picks the latest
 # then checks it out
 TEST_CLONE="git clone https://github.com/EESSI/test-suite EESSI-test-suite && cd EESSI-test-suite"
