@@ -420,7 +420,7 @@ else
                         # copy to build logs dir (with context added)
                         copy_build_log "${eb_last_log}" "${build_logs_dir}"
                     else
-                        fatal_error "Could not copy EasyBuild log file because ${eb_last_log} does not exhist"
+                        fatal_error "Could not copy EasyBuild log file because ${eb_last_log} does not exist"
                     fi
                 fi
 
