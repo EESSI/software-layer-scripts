@@ -413,11 +413,15 @@ else
                 # copy EasyBuild log file if EasyBuild exited with an error
                 if [ ${ec} -ne 0 ]; then
                     eb_last_log=$(eb --last-log | grep ^/.*\.log)
-                    # copy to current working directory
-                    cp -a ${eb_last_log} .
-                    echo "Last EasyBuild log file copied from ${eb_last_log} to ${PWD}"
-                    # copy to build logs dir (with context added)
-                    copy_build_log "${eb_last_log}" "${build_logs_dir}"
+                    # copy to current working directory if file exhists
+		    if [ -e ${eb_last_log} ]; then
+                        cp -a ${eb_last_log} .
+                        echo "Last EasyBuild log file copied from ${eb_last_log} to ${PWD}"
+                        # copy to build logs dir (with context added)
+                        copy_build_log "${eb_last_log}" "${build_logs_dir}"
+                    else
+                        fatal_error "Could not copy EasyBuild log file because ${eb_last_log} does not exhist"
+                    fi
                 fi
 
                 $TOPDIR/check_missing_installations.sh ${easystack_file} ${pr_diff}
