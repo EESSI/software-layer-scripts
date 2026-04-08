@@ -124,7 +124,7 @@ local function eessi_cuda_and_libraries_enabled_load_hook(t)
     if packagesList[simpleName] then
         -- simpleName is a module in packagesList
         -- first, check the old host_injections path prior to https://github.com/EESSI/software-layer-scripts/pull/59
-        -- If that exists, print a more targetted, explanatory warning
+        -- If that exists, print a more targeted, explanatory warning
         local previousHostInjections = string.gsub(os.getenv('EESSI_SOFTWARE_PATH') or "", 'versions', 'host_injections')
         local previousPackageEasyBuildDir = previousHostInjections .. "/software/" .. t.modFullName .. "/easybuild"
         local previousPackageDirExists = isDir(previousPackageEasyBuildDir)
@@ -161,17 +161,28 @@ local function eessi_cuda_and_libraries_enabled_load_hook(t)
     local checkGpu = mt:haveProperty(simpleName,"arch","gpu")
     local overrideGpuCheck = os.getenv("EESSI_OVERRIDE_GPU_CHECK")
     if checkGpu and (overrideGpuCheck == nil) then
-        local arch = os.getenv("EESSI_CPU_FAMILY") or ""
-        local cvmfs_repo = os.getenv("EESSI_CVMFS_REPO") or ""
-        local cudaVersionFile = cvmfs_repo .. "/host_injections/nvidia/" .. arch .. "/latest/cuda_version.txt"
-        local cudaDriverFile = cvmfs_repo .. "/host_injections/nvidia/" .. arch .. "/latest/libcuda.so"
+        local eessi_version = os.getenv('EESSI_VERSION') or ""
+        local eessi_eprefix = os.getenv("EESSI_EPREFIX") or ""
+        if eessi_eprefix == nil or eessi_version == nil then
+            LmodError("EESSI_VERSION and EESSI_EPREFIX must be defined for GPU driver check to work\\n")
+        end
+        local cudaDriverDir = nil
+        if eessi_version == "2023.06" then
+            cudaDriverDir = string.gsub(eessi_eprefix, 'versions', 'host_injections') .. "/lib"
+        else
+            cudaDriverDir = eessi_eprefix .. "/lib/nvidia"
+        end
+        local cudaVersionFile = cudaDriverDir .. "/cuda_version.txt"
+        local cudaDriverFile = cudaDriverDir .. "/libcuda.so"
         local cudaDriverExists = isFile(cudaDriverFile)
         local singularityCudaExists = isFile("/.singularity.d/libs/libcuda.so")
         if not (cudaDriverExists or singularityCudaExists)  then
             local advice = "which relies on the CUDA runtime environment and driver libraries. "
             advice = advice .. "In order to be able to use the module, you will need "
-            advice = advice .. "to make sure EESSI can find the GPU driver libraries on your host system. You can "
-            advice = advice .. "override this check by setting the environment variable EESSI_OVERRIDE_GPU_CHECK but "
+            advice = advice .. "to make sure EESSI can find the GPU driver libraries on your host system. "
+            advice = advice .. "The file being checked for on your system is \\n" .. cudaDriverFile .. "\\n"
+            advice = advice .. "You can override this check by setting the environment variable "
+            advice = advice .. "EESSI_OVERRIDE_GPU_CHECK but "
             advice = advice .. "the loaded application will not be able to execute on your system.\\n"
             advice = advice .. refer_to_docs
             LmodError("\\nYou requested to load ", simpleName, " ", advice)
@@ -179,6 +190,9 @@ local function eessi_cuda_and_libraries_enabled_load_hook(t)
             -- CUDA driver exists, now we check its version to see if an update is needed
             if cudaDriverExists then
                 local cudaVersion = read_file(cudaVersionFile)
+                if not cudaVersion then
+                    LmodError("No CUDA version file\\n" .. cudaVersionFile .. "\\nfound. " .. refer_to_docs)
+                end
                 local cudaVersion_req = os.getenv("EESSICUDAVERSION")
                 -- driver CUDA versions don't give a patch version for CUDA
                 local major, minor = string.match(cudaVersion, "(%d+)%.(%d+)")
