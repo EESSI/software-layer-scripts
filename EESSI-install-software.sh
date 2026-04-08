@@ -412,7 +412,7 @@ else
 
                 # copy EasyBuild log file if EasyBuild exited with an error
                 if [ ${ec} -ne 0 ]; then
-                    eb_last_log=$(eb --last-log | grep | grep -vE "==|>>")
+                    eb_last_log=$(eb --last-log | grep -vE "==|>>")
                     # copy to current working directory
                     cp -a ${eb_last_log} .
                     echo "Last EasyBuild log file copied from ${eb_last_log} to ${PWD}"
