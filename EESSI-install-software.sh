@@ -412,12 +412,14 @@ else
 
                 # copy EasyBuild log file if EasyBuild exited with an error
                 if [ ${ec} -ne 0 ]; then
-                    eb_last_log=$(unset EB_VERBOSE; eb --last-log)
+	            eb_hooks=$EASYBUILD_HOOKS
+                    eb_last_log=$(unset EB_VERBOSE; unset EASYBUILD_HOOKS; eb --last-log)
                     # copy to current working directory
                     cp -a ${eb_last_log} .
                     echo "Last EasyBuild log file copied from ${eb_last_log} to ${PWD}"
                     # copy to build logs dir (with context added)
                     copy_build_log "${eb_last_log}" "${build_logs_dir}"
+		    export EASYBUILD_HOOKS=$eb_hooks
                 fi
 
                 $TOPDIR/check_missing_installations.sh ${easystack_file} ${pr_diff}
