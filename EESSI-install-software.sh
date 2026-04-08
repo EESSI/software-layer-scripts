@@ -414,7 +414,7 @@ else
                 if [ ${ec} -ne 0 ]; then
                     eb_last_log=$(eb --last-log | grep ^/.*\.log)
                     # copy to current working directory if file exhists
-		    if [ -e ${eb_last_log} ]; then
+                    if [ -e ${eb_last_log} ]; then
                         cp -a ${eb_last_log} .
                         echo "Last EasyBuild log file copied from ${eb_last_log} to ${PWD}"
                         # copy to build logs dir (with context added)
