@@ -17,7 +17,9 @@
 base_dir=$(dirname $(realpath $0))
 source ${base_dir}/init/eessi_defaults
 
+echo "DEBUG"
 ping github.com
+ping nameserver 10.141.10.246
 cat /etc/resolv.conf
 
 # Make sure we clone the latest version. This assumes versions are of the format "v1.2.3", then picks the latest
