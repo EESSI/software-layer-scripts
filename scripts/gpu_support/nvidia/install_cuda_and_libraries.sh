@@ -107,6 +107,8 @@ for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
         echo_yellow ">> No EasyBuild/${eb_version} module found: skipping step to install easystack file ${easystack_file} (see output in ${module_avail_out})"
         continue
     fi
+    # Safer to unload EESSI-extend before loading an EasyBuild version, in case unload behavior ever becomes dependent on EasyBuild version
+    module unload EESSI-extend
     module load EasyBuild/${eb_version}
 
     # Make sure EESSI-extend does a site install here
@@ -115,7 +117,6 @@ for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
     unset EESSI_PROJECT_INSTALL
     unset EESSI_USER_INSTALL
     export EESSI_SITE_INSTALL=1
-    module unload EESSI-extend
     ml_av_eessi_extend_out=${tmpdir}/ml_av_eessi_extend.out
     # need to use --ignore_cache to avoid the case that the module was removed (to be
     # rebuilt) but it is still in the cache and the rebuild failed
@@ -149,10 +150,9 @@ for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
     MODULEPATH=${EASYBUILD_INSTALLPATH}/.modules/all
     echo "set MODULEPATH=${MODULEPATH}"
 
-    # We don't want hooks used in this install, we need vanilla installations
-    touch "${tmpdir}"/none.py
-    export EASYBUILD_HOOKS="${tmpdir}/none.py"
-    
+    # We need to skip the hook that checks if CUDA software installed in an accelerator-specific prefix
+    export EESSI_OVERRIDE_STRICT_INSTALLPATH_CHECK=1
+
     # show EasyBuild configuration
     echo "Show EasyBuild configuration"
     eb --show-config
@@ -238,8 +238,6 @@ for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
     #        is run, it is not reinstalled.
     #  - ${accept_eula_opt}: We only set the --accept-eula-for=CUDA option if CUDA will be installed and if
     #        this script was called with the argument --accept-cuda-eula.
-    #  - hooks: We don't want hooks used in this install, we need vanilla
-    #        installations of CUDA and/or other libraries
     #  - easystack: Path to easystack file that defines which packages shall be
     #        installed
     accept_eula_opt=
@@ -256,7 +254,6 @@ for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
     touch "$tmpdir"/none.py
     eb_args="--prefix=$tmpdir"
     eb_args="$eb_args --installpath-modules=${EASYBUILD_INSTALLPATH}/.modules"
-    eb_args="$eb_args --hooks="$tmpdir"/none.py"
     eb_args="$eb_args --easystack ${EASYSTACK_FILE}"
     if [[ ! -z ${accept_eula_opt} ]]; then
         eb_args="$eb_args --accept-eula-for=$accept_eula_opt"
