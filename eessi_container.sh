@@ -1045,7 +1045,7 @@ if [[ -n "$EESSI_SINGULARITY_SANDBOX" ]]; then
     CONTAINER_SANDBOX="${CONTAINER%.sif}.sandbox"
     echo "Building a sandbox image with command (next line):"
     echo "singularity build --sandbox ${CONTAINER_SANDBOX} ${CONTAINER}"
-    singularity build --sandbox ${CONTAINER_SANDBOX} ${CONTAINER}
+    singularity build --sandbox --force ${CONTAINER_SANDBOX} ${CONTAINER}
     echo "Launching sandbox container with command (next line):"
     echo "singularity ${RUN_QUIET} ${MODE} ${ADDITIONAL_CONTAINER_OPTIONS[@]} ${EESSI_FUSE_MOUNTS[@]} ${CONTAINER_SANDBOX} $@"
     singularity ${RUN_QUIET} ${MODE} "${ADDITIONAL_CONTAINER_OPTIONS[@]}" "${EESSI_FUSE_MOUNTS[@]}" ${CONTAINER_SANDBOX} "$@"
