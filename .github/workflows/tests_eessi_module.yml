@@ -337,6 +337,7 @@ jobs:
           cvmfs_repositories: software.eessi.io
 
       - name: Make sure we are filtering LD_LIBRARY_PATH if necessary
+        run: |
           # Make sure we are using the EESSI module file from the repository
           export MODULEPATH=init/modules
 
