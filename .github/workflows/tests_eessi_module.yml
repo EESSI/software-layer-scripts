@@ -346,7 +346,7 @@ jobs:
 
           # Create LD_LIBRARY_PATH to test with
           export FAKE_PATH=/path/does/not/exist
-          # export INITIAL_LD_LIBRARY_PATH="/usr/lib:/usr/lib/x86_64-linux-gnu:$FAKE_PATH"
+          export LMOD_CMD="env -u LD_LIBRARY_PATH $LMOD_CMD"  # Can't do this in reality
           export INITIAL_LD_LIBRARY_PATH="/usr/lib:/usr/lib/x86_64-linux-gnu:$FAKE_PATH"
           export LD_LIBRARY_PATH="$INITIAL_LD_LIBRARY_PATH"
           module load "EESSI/${{matrix.EESSI_VERSION}}"
