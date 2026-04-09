@@ -233,6 +233,34 @@ if os.getenv("EESSI_MODULE_STICKY") then
     load_message = load_message .. " (requires '--force' option to unload or purge)"
 end
 
+-- Filter system paths from LD_LIBRARY_PATH
+-- Needs to be reversible so first make a copy
+append_path ("__EESSI_DEFAULT_HOST_LD_LIBRARY_PATH__", os.getenv("LD_LIBRARY_PATH") or "")
+local function remove_system_paths(var)
+    local paths = os.getenv(var)
+    local system_lib_patterns = {
+        "^/lib(64)?(/|$)",
+        "^/usr/lib(64)?(/|$)",
+        "^/usr/local/lib(64)?(/|$)",
+    }
+    if not paths then return end
+
+    for path in string.gmatch(paths, "([^:]+)") do
+        for _, pat in ipairs(system_lib_patterns) do
+            if path:match(pat) then
+                remove_path(var, path)
+                break
+            end
+        end
+    end
+end
+-- on unload the variable will no longer exist
+if mode() == "load" then
+    remove_system_paths("__EESSI_DEFAULT_HOST_LD_LIBRARY_PATH__")
+end
+-- now we can use pushenv to retain/restore the original value
+pushenv ("LD_LIBRARY_PATH", os.getenv("__EESSI_DEFAULT_HOST_LD_LIBRARY_PATH__") or "")
+
 -- set CURL_CA_BUNDLE on RHEL-based systems
 ca_bundle_file_rhel = "/etc/pki/tls/certs/ca-bundle.crt"
 if isFile(ca_bundle_file_rhel) then
