@@ -338,6 +338,9 @@ jobs:
 
       - name: Make sure we are filtering LD_LIBRARY_PATH if necessary
         run: |
+          # Initialise Lmod
+          . /cvmfs/software.eessi.io/versions/${{matrix.EESSI_VERSION}}/compat/linux/$(uname -m)/usr/share/Lmod/init/bash
+
           # Make sure we are using the EESSI module file from the repository
           export MODULEPATH=init/modules
 

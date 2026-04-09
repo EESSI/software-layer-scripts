@@ -235,7 +235,7 @@ end
 
 -- Filter system paths from LD_LIBRARY_PATH
 -- Needs to be reversible so first make a copy
-append_path ("EESSI_DEFAULT_HOST_LD_LIBRARY_PATH", os.getenv("LD_LIBRARY_PATH") or "")
+append_path ("__EESSI_DEFAULT_HOST_LD_LIBRARY_PATH__", os.getenv("LD_LIBRARY_PATH") or "")
 local function remove_system_paths(var)
     local paths = os.getenv(var)
     local system_lib_patterns = {
@@ -256,10 +256,10 @@ local function remove_system_paths(var)
 end
 -- on unload the variable will no longer exist
 if mode() == "load" then
-    remove_system_paths("EESSI_DEFAULT_HOST_LD_LIBRARY_PATH")
+    remove_system_paths("__EESSI_DEFAULT_HOST_LD_LIBRARY_PATH__")
 end
 -- now we can use pushenv to retain/restore the original value
-pushenv ("LD_LIBRARY_PATH", os.getenv("EESSI_DEFAULT_HOST_LD_LIBRARY_PATH") or "")
+pushenv ("LD_LIBRARY_PATH", os.getenv("__EESSI_DEFAULT_HOST_LD_LIBRARY_PATH__") or "")
 
 -- set CURL_CA_BUNDLE on RHEL-based systems
 ca_bundle_file_rhel = "/etc/pki/tls/certs/ca-bundle.crt"
