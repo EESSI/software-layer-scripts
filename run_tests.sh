@@ -27,10 +27,18 @@ CHECKOUT_LATEST="git checkout \${VERSION}"
 ./run_in_compat_layer_env.sh "${TEST_CLONE} && ${LATEST_VERSION} && ${CHECKOUT_LATEST}"
 echo "DEBUG"
 getent hosts github.com
-nslookup github.com
-host github.com
-python -c "import socket; print(socket.gethostbyname('github.com'))"
-ping nameserver 10.141.10.246
+
+echo "=== HTTPS test ==="
+curl -I https://github.com
+
+echo "=== Proxy env ==="
+env | grep -i proxy
+
+echo "=== Git proxy config ==="
+git config --list | grep proxy
+
+echo "=== Git remote test ==="
+git ls-remote https://github.com/EESSI/test-suite/ || true
 cat /etc/resolv.conf
 # Run the test suite
 ./test_suite.sh "$@"
