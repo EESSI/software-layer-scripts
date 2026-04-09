@@ -236,7 +236,6 @@ end
 -- Filter system paths from LD_LIBRARY_PATH
 -- Needs to be reversible so first make a copy
 append_path ("EESSI_DEFAULT_HOST_LD_LIBRARY_PATH", os.getenv("LD_LIBRARY_PATH") or "")
--- on unload the variable will no longer exist
 local function remove_system_paths(var)
     local paths = os.getenv(var)
     local system_lib_patterns = {
@@ -255,8 +254,9 @@ local function remove_system_paths(var)
         end
     end
 end
+-- on unload the variable will no longer exist
 if mode() == "load" then
-    remove_matching_paths("EESSI_DEFAULT_HOST_LD_LIBRARY_PATH")
+    remove_system_paths("EESSI_DEFAULT_HOST_LD_LIBRARY_PATH")
 end
 -- now we can use pushenv to retain/restore the original value
 pushenv ("LD_LIBRARY_PATH", os.getenv("EESSI_DEFAULT_HOST_LD_LIBRARY_PATH") or "")
