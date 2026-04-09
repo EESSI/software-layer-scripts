@@ -18,7 +18,10 @@ base_dir=$(dirname $(realpath $0))
 source ${base_dir}/init/eessi_defaults
 
 echo "DEBUG"
-ping github.com
+getent hosts github.com
+nslookup github.com
+host github.com
+python -c "import socket; print(socket.gethostbyname('github.com'))"
 ping nameserver 10.141.10.246
 cat /etc/resolv.conf
 
