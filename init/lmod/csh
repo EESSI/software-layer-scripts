@@ -13,6 +13,7 @@
 if ( ! $?EESSI_CVMFS_REPO) then
     set EESSI_CVMFS_REPO = "/cvmfs/software.eessi.io"
 endif
+set internal_cvmfs_repo = "$EESSI_CVMFS_REPO"
 
 # Choose an EESSI version (default is used if EESSI_VERSION is not provided)
 if ( ! $?__EESSI_VERSION_USED_FOR_INIT ) then
@@ -21,15 +22,13 @@ else
     set EESSI_VERSION_DEFAULT = "$__EESSI_VERSION_USED_FOR_INIT"
 endif
 if ( ! $?__Init_EESSI_Default_Modules ) then
-    if ( $?EESSI_VERSION ) then
-        # keep existing value
-    else
-        set EESSI_VERSION "$EESSI_VERSION_DEFAULT"
+    if ( ! $?EESSI_VERSION ) then
+        set EESSI_VERSION = "$EESSI_VERSION_DEFAULT"
     endif
 else
     # If we have already initialised and this is being called again,
     # then we must want the specific version
-    set EESSI_VERSION "__EESSI_VERSION_DEFAULT__"
+    set EESSI_VERSION = "__EESSI_VERSION_DEFAULT__"
 endif
 # On first run, record the EESSI version used for init as an environment variable.
 # We use setenv to ensure it is available to child processes (equivalent to export).
@@ -48,7 +47,7 @@ endif
 setenv LMOD_SYSTEM_DEFAULT_MODULES "${LMOD_SYSTEM_DEFAULT_MODULES}"
 
 if ( ! $?__Init_EESSI_Default_Modules ) then
-    setenv __Init_EESSI_Default_Modules 1
+    set __Init_EESSI_Default_Modules = 1
 
     # Lmod version in 2023.06 has a problem with newer Lmod caches, so let's stick to more recent Lmod
     # (has no effect except on Lmod itself, and compatible caches are still created/supported by EESSI)
@@ -67,7 +66,7 @@ if ( ! $?__Init_EESSI_Default_Modules ) then
     # and clear out any memory Lmod might have
     unsetenv _ModuleTable001_
     # Path to top-level module tree
-    set modulepath = "${EESSI_CVMFS_REPO}/init/modules"
+    set modulepath = "${internal_cvmfs_repo}/init/modules"
     if ( $?EESSI_EXTRA_MODULEPATH ) then
       # Now that we know it exists, check IF it is not empty
       if ( "$EESSI_EXTRA_MODULEPATH" != "" ) then
@@ -75,7 +74,7 @@ if ( ! $?__Init_EESSI_Default_Modules ) then
       endif
     endif
     setenv MODULEPATH "$modulepath"
-    source "${EESSI_CVMFS_REPO}/versions/${LMOD_EESSI_VERSION}/compat/linux/`uname -m`/usr/share/Lmod/init/csh"
+    source "${internal_cvmfs_repo}/versions/${LMOD_EESSI_VERSION}/compat/linux/`uname -m`/usr/share/Lmod/init/csh"
 
     module --initial_load --no_redirect restore
 
