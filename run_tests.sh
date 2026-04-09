@@ -17,14 +17,6 @@
 base_dir=$(dirname $(realpath $0))
 source ${base_dir}/init/eessi_defaults
 
-echo "DEBUG"
-getent hosts github.com
-nslookup github.com
-host github.com
-python -c "import socket; print(socket.gethostbyname('github.com'))"
-ping nameserver 10.141.10.246
-cat /etc/resolv.conf
-
 # Make sure we clone the latest version. This assumes versions are of the format "v1.2.3", then picks the latest
 # then checks it out
 TEST_CLONE="git clone https://github.com/EESSI/test-suite EESSI-test-suite && cd EESSI-test-suite"
@@ -33,6 +25,12 @@ CHECKOUT_LATEST="git checkout \${VERSION}"
 
 # Git clone has to be run in compat layer, to make the git command available
 ./run_in_compat_layer_env.sh "${TEST_CLONE} && ${LATEST_VERSION} && ${CHECKOUT_LATEST}"
-
+echo "DEBUG"
+getent hosts github.com
+nslookup github.com
+host github.com
+python -c "import socket; print(socket.gethostbyname('github.com'))"
+ping nameserver 10.141.10.246
+cat /etc/resolv.conf
 # Run the test suite
 ./test_suite.sh "$@"
