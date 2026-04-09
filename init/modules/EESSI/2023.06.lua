@@ -237,14 +237,26 @@ end
 -- Needs to be reversible so first make a copy
 append_path ("EESSI_DEFAULT_HOST_LD_LIBRARY_PATH", os.getenv("LD_LIBRARY_PATH") or "")
 -- on unload the variable will no longer exist
+local function remove_system_paths(var)
+    local paths = os.getenv(var)
+    local system_lib_patterns = {
+        "^/lib(64)?(/|$)",
+        "^/usr/lib(64)?(/|$)",
+        "^/usr/local/lib(64)?(/|$)",
+    }
+    if not paths then return end
+
+    for path in string.gmatch(paths, "([^:]+)") do
+        for _, pat in ipairs(system_lib_patterns) do
+            if path:match(pat) then
+                remove_path(var, path)
+                break
+            end
+        end
+    end
+end
 if mode() == "load" then
-    -- remove any standard paths that can interfere with the compat layer
-    remove_path ("EESSI_DEFAULT_HOST_LD_LIBRARY_PATH", "/lib")
-    remove_path ("EESSI_DEFAULT_HOST_LD_LIBRARY_PATH", "/lib64")
-    remove_path ("EESSI_DEFAULT_HOST_LD_LIBRARY_PATH", "/usr/lib")
-    remove_path ("EESSI_DEFAULT_HOST_LD_LIBRARY_PATH", "/usr/lib64")
-    remove_path ("EESSI_DEFAULT_HOST_LD_LIBRARY_PATH", "/usr/local/lib")
-    remove_path ("EESSI_DEFAULT_HOST_LD_LIBRARY_PATH", "/usr/local/lib64")
+    remove_matching_paths("EESSI_DEFAULT_HOST_LD_LIBRARY_PATH")
 end
 -- now we can use pushenv to retain/restore the original value
 pushenv ("LD_LIBRARY_PATH", os.getenv("EESSI_DEFAULT_HOST_LD_LIBRARY_PATH") or "")
