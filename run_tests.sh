@@ -22,23 +22,10 @@ source ${base_dir}/init/eessi_defaults
 TEST_CLONE="git clone https://github.com/EESSI/test-suite EESSI-test-suite && cd EESSI-test-suite"
 LATEST_VERSION="VERSION=\$(git tag | grep '^v[0-9]\+\.[0-9]\+\.[0-9]\+$' | sort -t. -k 1,1n -k 2,2n -k 3,3n | tail -n 1)"
 CHECKOUT_LATEST="git checkout \${VERSION}"
+DEBUG="getent hosts github.com && echo && echo DEBUG && git ls-remote https://github.com/EESSI/test-suite/"
 
 # Git clone has to be run in compat layer, to make the git command available
-./run_in_compat_layer_env.sh "${TEST_CLONE} && ${LATEST_VERSION} && ${CHECKOUT_LATEST}"
-echo "DEBUG"
-getent hosts github.com
+./run_in_compat_layer_env.sh "${DEBUG} && ${TEST_CLONE} && ${LATEST_VERSION} && ${CHECKOUT_LATEST}"
 
-echo "=== HTTPS test ==="
-curl -I https://github.com
-
-echo "=== Proxy env ==="
-env | grep -i proxy
-
-echo "=== Git proxy config ==="
-git config --list | grep proxy
-
-echo "=== Git remote test ==="
-git ls-remote https://github.com/EESSI/test-suite/ || true
-cat /etc/resolv.conf
 # Run the test suite
 ./test_suite.sh "$@"
