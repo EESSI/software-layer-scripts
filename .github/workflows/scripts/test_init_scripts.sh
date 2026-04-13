@@ -167,11 +167,12 @@ for shell in ${SHELLS[@]}; do
         assert_raises 'echo "$TEST_EESSI_EXPLICIT_NO_PS1_UPDATE_CALLED_TWICE" | grep "$pattern"' 1
         # Also check complex prompts, and unloading/purging the EESSI module
         prompt="\$(echo '\['✘) $ "
-        updated_prompt="{EESSI/${EESSI_VERSION}} \[✘ $ "
+        promptstr="\[✘ $ "
+        updated_promptstr="{EESSI/${EESSI_VERSION}} \[✘ $ "
         TEST_EESSI_PS1_UPDATE=$($shell -c "unset PS1 ; PS1=\"$prompt\" ; . init/lmod/$shell >/dev/null 2>&1 ; echo \"\$PS1\"")
-        TEST_EESSI_NO_PS1_UPDATE=$($shell -c "unset PS1 ; PS1=\"$prompt\" ; . init/lmod/$shell >/dev/null 2>&1 ; module purge; echo \"\$PS1\"")
-        assert "$TEST_EESSI_PS1_UPDATE" "$updated_prompt"
-        assert "$TEST_EESSI_NO_PS1_UPDATE" "$prompt"
+        TEST_EESSI_PS1_REVERT=$($shell -c "unset PS1 ; PS1=\"$prompt\" ; . init/lmod/$shell >/dev/null 2>&1 ; module purge; echo \"\$PS1\"")
+        assert "$TEST_EESSI_PS1_UPDATE" "$updated_promptstr"
+        assert "$TEST_EESSI_PS1_REVERT" "$promptstr"
     fi
 
     # End Test Suite
