@@ -190,9 +190,7 @@ local function eessi_cuda_and_libraries_enabled_load_hook(t)
             if cudaDriverExists then
                 local cudaVersion = os.getenv("EESSI_CUDA_DRIVER_VERSION")
                 if not cudaVersion or cudaVersion == "" then
-                    -- Hardcode for local testing
-                    -- local eessi_prefix = os.getenv("EESSI_PREFIX")
-                    local eessi_prefix = pathJoin('/home', 'casparl', 'EESSI', 'software-layer-scripts')
+                    local eessi_prefix = os.getenv("EESSI_PREFIX")
                     local script = pathJoin(eessi_prefix, 'scripts', 'gpu_support', 'nvidia', 'get_cuda_driver_version.sh')
                     -- Check return code first. We don't want source_sh to raise an LmodError, we just print
                     -- an LmodWarning stating we couldn't do a proper version compatibility check
