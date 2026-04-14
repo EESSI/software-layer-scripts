@@ -449,6 +449,9 @@ def pre_prepare_hook(self, *args, **kwargs):
     # Always trigger this, regardless of ec.name
     pre_prepare_hook_unsupported_modules(self, *args, **kwargs)
 
+    # Always trigger this, regardless of ec.name
+    pre_prepare_hook_cuda_dependant(self, *args, **kwargs)
+
 
 def post_prepare_hook_gcc_prefixed_ld_rpath_wrapper(self, *args, **kwargs):
     """
@@ -908,6 +911,20 @@ def post_easyblock_hook_copy_easybuild_subdir(self, *args, **kwargs):
     app_easybuild_dir = os.path.join(self.installdir, config.log_path(ec=self.cfg))
     app_reprod_dir = os.path.join(stack_reprod_dir, self.install_subdir, now_utc_timestamp, 'easybuild')
     copy_dir(app_easybuild_dir, app_reprod_dir)
+
+
+def pre_prepare_hook_cuda_dependant(self, *args, **kwargs):
+    """
+    CUDA 12.8.0 doesn't support the 12.0f target, only 12.0. This hook converts any CC 12.0f into 12.0
+    if the current package depends on CUDA.
+    """
+
+    cudaver = get_dependency_software_version("CUDA", ec=self.cfg, check_deps=True, check_builddeps=True)
+    if cudaver:
+        cuda_cc = build_option('cuda_compute_capabilities')
+        if cuda_cc and '12.0f' in cuda_cc:
+            updated_cuda_cc = [v.replace('12.0f', '12.0') for v in cuda_cc]
+            update_build_option('cuda_compute_capabilities', updated_cuda_cc)
 
 
 def pre_prepare_hook_cudnn(self, *args, **kwargs):
