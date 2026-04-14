@@ -188,7 +188,6 @@ local function eessi_cuda_and_libraries_enabled_load_hook(t)
         else
             -- CUDA driver exists, now we check its version to see if an update is needed
             if cudaDriverExists then
-                LmodMessage("EESSI_CUDA_DRIVER_VERSION initial: " .. os.getenv("EESSI_CUDA_DRIVER_VERSION"))
                 local cudaVersion = os.getenv("EESSI_CUDA_DRIVER_VERSION")
                 if not cudaVersion or cudaVersion == "" then
                     -- Hardcode for local testing
