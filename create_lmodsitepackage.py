@@ -172,7 +172,6 @@ local function eessi_cuda_and_libraries_enabled_load_hook(t)
         else
             cudaDriverDir = eessi_eprefix .. "/lib/nvidia"
         end
-        local cudaVersionFile = cudaDriverDir .. "/cuda_version.txt"
         local cudaDriverFile = cudaDriverDir .. "/libcuda.so"
         local cudaDriverExists = isFile(cudaDriverFile)
         local singularityCudaExists = isFile("/.singularity.d/libs/libcuda.so")
@@ -189,19 +188,31 @@ local function eessi_cuda_and_libraries_enabled_load_hook(t)
         else
             -- CUDA driver exists, now we check its version to see if an update is needed
             if cudaDriverExists then
-                local cudaVersion = read_file(cudaVersionFile)
-                if not cudaVersion then
-                    LmodError("No CUDA version file\\n" .. cudaVersionFile .. "\\nfound. " .. refer_to_docs)
+                LmodMessage("EESSI_CUDA_DRIVER_VERSION initial: " .. os.getenv("EESSI_CUDA_DRIVER_VERSION"))
+                local cudaVersion = os.getenv("EESSI_CUDA_DRIVER_VERSION")
+                if not cudaVersion or cudaVersion == "" then
+                    -- Hardcode for local testing
+                    -- local eessi_prefix = os.getenv("EESSI_PREFIX")
+                    local eessi_prefix = pathJoin('/home', 'casparl', 'EESSI', 'software-layer-scripts')
+                    local script = pathJoin(eessi_prefix, 'scripts', 'gpu_support', 'nvidia', 'get_cuda_driver_version.sh')
+                    LmodMessage("Getting version")
+                    source_sh("bash", script)
+                end
+                cudaVersion = os.getenv("EESSI_CUDA_DRIVER_VERSION")
+                LmodMessage("CUDA VERSION" .. cudaVersion)
+                if not cudaVersion or cudaVersion == "" then
+                    -- Change to warning?
+                    LmodError("Environment variable EESSI_CUDA_DRIVER_VERSION not found. " .. refer_to_docs)
                 end
                 local cudaVersion_req = os.getenv("EESSICUDAVERSION")
                 -- driver CUDA versions don't give a patch version for CUDA
                 local major, minor = string.match(cudaVersion, "(%d+)%.(%d+)")
                 local major_req, minor_req, patch_req = string.match(cudaVersion_req, "(%d+)%.(%d+)%.(%d+)")
                 local driver_libs_need_update = false
-                if major < major_req then
+                if tonumber(major) < tonumber(major_req) then
                     driver_libs_need_update = true
-                elseif major == major_req then
-                    if minor < minor_req then
+                elseif tonumber(major) == tonumber(major_req) then
+                    if tonumber(minor) < tonumber(minor_req) then
                         driver_libs_need_update = true
                     end
                 end
