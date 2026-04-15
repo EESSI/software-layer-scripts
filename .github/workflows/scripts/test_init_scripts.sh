@@ -154,22 +154,23 @@ for shell in ${SHELLS[@]}; do
 
     # Optional test 11, check if the prompt has been updated
     if [ "$shell" = "bash" ] || [ "$shell" = "ksh" ] || [ "$shell" = "zsh" ] || [ "$shell" = "sh" ]; then
-        # Typically this is a non-interactive shell, so manually unset PS1 and reset to a non-exported variable when testing
-        TEST_EESSI_PS1_UPDATE=$($shell -c "unset PS1 ; PS1='$ ' ; . init/lmod/$shell 2>/dev/null ; echo \"\$PS1\"")
-        TEST_EESSI_NO_PS1_UPDATE=$($shell -c "unset PS1 ; . init/lmod/$shell 2>/dev/null ; echo \"\$PS1\"")
-        pattern="{EESSI/${EESSI_VERSION}} "
-        assert_raises 'echo "$TEST_EESSI_PS1_UPDATE" | grep "$pattern"'
-        assert_raises 'echo "$TEST_EESSI_NO_PS1_UPDATE" | grep "$pattern"' 1
-        # Also check when we explicitly ask for it not to be updated
-        TEST_EESSI_EXPLICIT_NO_PS1_UPDATE=$($shell -c "unset PS1 ; PS1='test> ' ; export EESSI_MODULE_UPDATE_PS1=0 ; . init/lmod/$shell 2>/dev/null ; echo \"\$PS1\"")
-        TEST_EESSI_EXPLICIT_NO_PS1_UPDATE_CALLED_TWICE=$($shell -c "unset PS1 ; PS1='$ ' ; export EESSI_MODULE_UPDATE_PS1=0 ; . init/lmod/$shell 2>/dev/null ; . init/lmod/$shell 2>/dev/null ; echo \"\$PS1\"")
-        assert_raises 'echo "$TEST_EESSI_EXPLICIT_NO_PS1_UPDATE" | grep "$pattern"' 1
-        assert_raises 'echo "$TEST_EESSI_EXPLICIT_NO_PS1_UPDATE_CALLED_TWICE" | grep "$pattern"' 1
-        # Also check complex prompts, and unloading/purging the EESSI module
+        # Let's configure things to use the EESSI module within the PR
         sed 's|export MODULEPATH=.*|export MODULEPATH=init/modules|' init/lmod/sh >init/lmod/sh.test
         ln -srf init/lmod/sh.test init/lmod/bash.test
         ln -srf init/lmod/sh.test init/lmod/ksh.test
         ln -srf init/lmod/sh.test init/lmod/zsh.test
+        # Typically this is a non-interactive shell, so manually unset PS1 and reset to a non-exported variable when testing
+        TEST_EESSI_PS1_UPDATE=$($shell -c "unset PS1 ; PS1='$ ' ; . init/lmod/$shell.test 2>/dev/null ; echo \"\$PS1\"")
+        TEST_EESSI_NO_PS1_UPDATE=$($shell -c "unset PS1 ; . init/lmod/$shell.test 2>/dev/null ; echo \"\$PS1\"")
+        pattern="{EESSI/${EESSI_VERSION}} "
+        assert_raises 'echo "$TEST_EESSI_PS1_UPDATE" | grep "$pattern"'
+        assert_raises 'echo "$TEST_EESSI_NO_PS1_UPDATE" | grep "$pattern"' 1
+        # Also check when we explicitly ask for it not to be updated
+        TEST_EESSI_EXPLICIT_NO_PS1_UPDATE=$($shell -c "unset PS1 ; PS1='test> ' ; export EESSI_MODULE_UPDATE_PS1=0 ; . init/lmod/$shell.test 2>/dev/null ; echo \"\$PS1\"")
+        TEST_EESSI_EXPLICIT_NO_PS1_UPDATE_CALLED_TWICE=$($shell -c "unset PS1 ; PS1='$ ' ; export EESSI_MODULE_UPDATE_PS1=0 ; . init/lmod/$shell.test 2>/dev/null ; . init/lmod/$shell.test 2>/dev/null ; echo \"\$PS1\"")
+        assert_raises 'echo "$TEST_EESSI_EXPLICIT_NO_PS1_UPDATE" | grep "$pattern"' 1
+        assert_raises 'echo "$TEST_EESSI_EXPLICIT_NO_PS1_UPDATE_CALLED_TWICE" | grep "$pattern"' 1
+        # Also check complex prompts, and unloading/purging the EESSI module
         prompt="\$(echo '\['✘) $ "
         promptstr="\[✘ $ "
         updated_promptstr="{EESSI/${EESSI_VERSION}} \[✘ $ "
