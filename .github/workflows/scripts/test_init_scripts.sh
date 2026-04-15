@@ -173,8 +173,8 @@ for shell in ${SHELLS[@]}; do
         prompt="\$(echo '\['✘) $ "
         promptstr="\[✘ $ "
         updated_promptstr="{EESSI/${EESSI_VERSION}} \[✘ $ "
-        TEST_EESSI_PS1_UPDATE=$($shell -c "unset PS1 ; PS1=\"$prompt\" ; export EESSI_CVMFS_REPO=$PWD ; export LMOD_IGNORE_CACHE=1 ; . init/lmod/$shell.test >/dev/null ; echo \"\$PS1\"")
-        TEST_EESSI_PS1_REVERT=$($shell -c "unset PS1 ; PS1=\"$prompt\" ; export EESSI_CVMFS_REPO=$PWD ; export LMOD_IGNORE_CACHE=1 ; . init/lmod/$shell.test >/dev/null ; module purge; echo \"\$PS1\"")
+        TEST_EESSI_PS1_UPDATE=$($shell -c "unset PS1 ; PS1=\"$prompt\" ; . init/lmod/$shell.test >/dev/null ; echo \"\$PS1\"")
+        TEST_EESSI_PS1_REVERT=$($shell -c "unset PS1 ; PS1=\"$prompt\" ; . init/lmod/$shell.test >/dev/null ; module purge; echo \"\$PS1\"")
         assert 'echo "$TEST_EESSI_PS1_UPDATE"' "$updated_promptstr"
         assert 'echo "$TEST_EESSI_PS1_REVERT"' "$promptstr"
     fi
