@@ -222,7 +222,14 @@ local quiet_load = false
 if os.getenv("EESSI_MODULE_UPDATE_PS1") then
     local prompt = os.getenv("PS1")
     if prompt then
-        pushenv("PS1", "{EESSI/" .. eessi_version .. "} " .. prompt)
+        local prefix = "{EESSI/" .. eessi_version .. "} "
+        if mode() == "load" then
+            -- Prepend prefix to PS1 without evaluating its contents
+            execute{cmd="PS1=\"" .. prefix .. "$PS1\"", modeA={"load"}}
+        elseif mode() == "unload" then
+            -- Strip the prefix from beginning of PS1
+            execute{cmd="PS1=\"${PS1#\"" .. prefix .. "\"}\"", modeA={"unload"}}
+        end
     end
 end
 
