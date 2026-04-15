@@ -166,11 +166,15 @@ for shell in ${SHELLS[@]}; do
         assert_raises 'echo "$TEST_EESSI_EXPLICIT_NO_PS1_UPDATE" | grep "$pattern"' 1
         assert_raises 'echo "$TEST_EESSI_EXPLICIT_NO_PS1_UPDATE_CALLED_TWICE" | grep "$pattern"' 1
         # Also check complex prompts, and unloading/purging the EESSI module
+        sed 's/__EESSI_VERSION_DEFAULT__/2023.06/' init/lmod/sh >init/lmod/sh.test
+        ln -sr init/lmod/sh.test init/lmod/bash.test
+        ln -sr init/lmod/sh.test init/lmod/ksh.test
+        ln -sr init/lmod/sh.test init/lmod/zsh.test
         prompt="\$(echo '\['✘) $ "
         promptstr="\[✘ $ "
         updated_promptstr="{EESSI/${EESSI_VERSION}} \[✘ $ "
-        TEST_EESSI_PS1_UPDATE=$($shell -c "unset PS1 ; PS1=\"$prompt\" ; export EESSI_CVMFS_REPO=$PWD ; export LMOD_IGNORE_CACHE=1 ; . init/lmod/$shell >/dev/null 2>&1 ; echo \"\$PS1\"")
-        TEST_EESSI_PS1_REVERT=$($shell -c "unset PS1 ; PS1=\"$prompt\" ; export EESSI_CVMFS_REPO=$PWD ; export LMOD_IGNORE_CACHE=1 ; . init/lmod/$shell >/dev/null 2>&1 ; module purge; echo \"\$PS1\"")
+        TEST_EESSI_PS1_UPDATE=$($shell -c "unset PS1 ; PS1=\"$prompt\" ; export EESSI_CVMFS_REPO=$PWD ; . init/lmod/$shell.test >/dev/null 2>&1 ; echo \"\$PS1\"")
+        TEST_EESSI_PS1_REVERT=$($shell -c "unset PS1 ; PS1=\"$prompt\" ; export EESSI_CVMFS_REPO=$PWD ; . init/lmod/$shell.test >/dev/null 2>&1 ; module purge; echo \"\$PS1\"")
         assert 'echo "$TEST_EESSI_PS1_UPDATE"' "$updated_promptstr"
         assert 'echo "$TEST_EESSI_PS1_REVERT"' "$promptstr"
     fi
