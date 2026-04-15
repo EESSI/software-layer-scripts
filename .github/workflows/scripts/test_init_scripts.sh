@@ -166,10 +166,10 @@ for shell in ${SHELLS[@]}; do
         assert_raises 'echo "$TEST_EESSI_EXPLICIT_NO_PS1_UPDATE" | grep "$pattern"' 1
         assert_raises 'echo "$TEST_EESSI_EXPLICIT_NO_PS1_UPDATE_CALLED_TWICE" | grep "$pattern"' 1
         # Also check complex prompts, and unloading/purging the EESSI module
-        sed "s/__EESSI_VERSION_DEFAULT__/${EESSI_VERSION}/" init/lmod/sh >init/lmod/sh.test
-        ln -sr init/lmod/sh.test init/lmod/bash.test
-        ln -sr init/lmod/sh.test init/lmod/ksh.test
-        ln -sr init/lmod/sh.test init/lmod/zsh.test
+        sed 's|export MODULEPATH=.*|export MODULEPATH=init/modules|' init/lmod/sh >init/lmod/sh.test
+        ln -srf init/lmod/sh.test init/lmod/bash.test
+        ln -srf init/lmod/sh.test init/lmod/ksh.test
+        ln -srf init/lmod/sh.test init/lmod/zsh.test
         prompt="\$(echo '\['✘) $ "
         promptstr="\[✘ $ "
         updated_promptstr="{EESSI/${EESSI_VERSION}} \[✘ $ "
