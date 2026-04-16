@@ -118,6 +118,9 @@ display_help() {
   echo "                            [default: not set]; uses env var \$http_proxy if set"
   echo "  -y | --https-proxy URL  - provides URL for the env variable https_proxy"
   echo "                            [default: not set]; uses env var \$https_proxy if set"
+  echo "       --sandbox          - use sandbox mode (i.e. convert .sif image to sandbox and then run" 
+  echo "                            it instead"
+  echo "                            [default: not set]"
   echo
   echo " If value for --mode is 'exec' or 'run', the SCRIPT/COMMAND provided is executed. If"
   echo " arguments to the script/command start with '-' or '--', use the flag terminator"
@@ -292,6 +295,10 @@ while [[ $# -gt 0 ]]; do
       HTTPS_PROXY="$2"
       export https_proxy=${HTTPS_PROXY}
       shift 2
+      ;;
+    --sandbox)
+      SANDBOX=1
+      shift 1
       ;;
     --)
       shift
@@ -1040,7 +1047,7 @@ for arg in "${PASS_THROUGH[@]}"; do
 done
 
 # EESSI_SINGULARITY_SANDBOX is an environment variable (typically set in site_config.sh, if needed)
-if [[ -n "$EESSI_SINGULARITY_SANDBOX" ]]; then
+if [[ -n "$EESSI_SINGULARITY_SANDBOX"  ||  $SANDBOX -eq 1 ]]; then
     # using a sandbox image mode is more robust at the cleanup phase at the end
     CONTAINER_SANDBOX="${CONTAINER%.sif}.sandbox"
     echo "Building a sandbox image with command (next line):"
