@@ -318,8 +318,6 @@ echo "DEBUG: before loading EESSI-extend // EASYBUILD_INSTALLPATH='${EASYBUILD_I
 source $TOPDIR/load_eessi_extend_module.sh ${EESSI_VERSION}
 echo "DEBUG: after loading EESSI-extend //  EASYBUILD_INSTALLPATH='${EASYBUILD_INSTALLPATH}'"
 
-export EASYBUILD_HOOKS=$TOPDIR/eb_hooks.py
-
 # Install full CUDA SDK and cu* libraries in host_injections
 # (This is done *before* configuring EasyBuild as it may rely on an older EB version)
 # Hardcode this for now, see if it works
@@ -397,6 +395,8 @@ else
 
             # load EasyBuild module (will be installed if it's not available yet)
             source ${TOPDIR}/load_easybuild_module.sh ${eb_version}
+
+            export EASYBUILD_HOOKS=$TOPDIR/eb_hooks.py
 
             ${EB} --show-config
 
