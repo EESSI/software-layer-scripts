@@ -214,6 +214,7 @@ export PR_DIFF="$PWD/$pr_diff"
 if [[ -z ${EESSI_DEV_PROJECT} ]]; then
     ${TOPDIR}/install_scripts.sh --prefix ${EESSI_CVMFS_REPO}/versions/${EESSI_VERSION} --eessi-version ${EESSI_VERSION}
 fi
+${TOPDIR}/install_scripts.sh --prefix /cvmfs/software.eessi.io/versions/2025.06 --eessi-version 2025.06
 
 # Make sure we start with no modules and clean $MODULEPATH
 echo ">> Setting up \$MODULEPATH..."
@@ -395,8 +396,6 @@ else
 
             # load EasyBuild module (will be installed if it's not available yet)
             source ${TOPDIR}/load_easybuild_module.sh ${eb_version}
-
-            export EASYBUILD_HOOKS=$TOPDIR/eb_hooks.py
 
             ${EB} --show-config
 
