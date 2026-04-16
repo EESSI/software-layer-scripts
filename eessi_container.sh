@@ -113,14 +113,14 @@ display_help() {
   echo "                            when a directory is provided, the format of the"
   echo "                            tarball's name will be {REPO_ID}-{TIMESTAMP}.tgz"
   echo "                            [default: not set]"
+  echo "  -S | --sandbox          - use sandbox mode (i.e. convert .sif image to sandbox and then run" 
+  echo "                            it instead)"
+  echo "                            [default: not set]"
   echo "  -v | --verbose          - display more information [default: false]"
   echo "  -x | --http-proxy URL   - provides URL for the env variable http_proxy"
   echo "                            [default: not set]; uses env var \$http_proxy if set"
   echo "  -y | --https-proxy URL  - provides URL for the env variable https_proxy"
   echo "                            [default: not set]; uses env var \$https_proxy if set"
-  echo "       --sandbox          - use sandbox mode (i.e. convert .sif image to sandbox and then run" 
-  echo "                            it instead"
-  echo "                            [default: not set]"
   echo
   echo " If value for --mode is 'exec' or 'run', the SCRIPT/COMMAND provided is executed. If"
   echo " arguments to the script/command start with '-' or '--', use the flag terminator"
@@ -278,6 +278,10 @@ while [[ $# -gt 0 ]]; do
       SAVE="$2"
       shift 2
       ;;
+    -S|--sandbox)
+      SANDBOX=1
+      shift 1
+      ;;
     -u|--resume)
       RESUME="$2"
       shift 2
@@ -295,10 +299,6 @@ while [[ $# -gt 0 ]]; do
       HTTPS_PROXY="$2"
       export https_proxy=${HTTPS_PROXY}
       shift 2
-      ;;
-    --sandbox)
-      SANDBOX=1
-      shift 1
       ;;
     --)
       shift
