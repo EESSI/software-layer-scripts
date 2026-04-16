@@ -311,9 +311,17 @@ def verify_toolchains_supported_by_eessi_version(easyconfigs):
         # It uses <= as there may be other dict entries in the values returned from get_toolchain_hierarchy()
         # but we only care that the toolchain dict (which has 'name' and 'version') appear.
         elif not any(toolchain.items() <= supported.items() for supported in supported_eessi_toolchains):
+            expected_site_top_level_toolchains = [toolchain] + site_top_level_toolchains
             raise EasyBuildError(
-                f"Toolchain {toolchain} (required by {ec['full_mod_name']}) is not supported in EESSI/{eessi_version}\n"
-                f"Supported toolchains are:\n" + "\n".join(sorted("  " + str(tc) for tc in supported_eessi_toolchains))
+                f"Toolchain {toolchain} (required by {ec['full_mod_name']}) is not supported in "
+                f"EESSI/{eessi_version}\n"
+                f"Supported toolchains are:\n"
+                + "\n".join(sorted("  " + str(tc) for tc in supported_eessi_toolchains))
+                + "\nIf you are using EESSI as a base for a local software stack, you can add locally supported "
+                " toolchains by setting the environment variable:\n"
+                f"\texport {site_top_level_toolchains_envvar}='{json.dumps(expected_site_top_level_toolchains)}'\n"
+                "(you only need to add the highest level toolchains you use, the toolchain hierarchy is automatically "
+                "supported)"
             )
 
 
@@ -1195,12 +1203,24 @@ def pre_configure_hook_llvm(self, *args, **kwargs):
     into pointing to the compat layer.
     """
     if self.name in ['LLVM', 'ROCm-LLVM']:
+        from easybuild.easyblocks.generic.bundle import Bundle
+        from easybuild.easyblocks.llvm import EB_LLVM
+
         eprefix = get_eessi_envvar('EPREFIX')
 
-        for software in ('zlib', 'ncurses'):
-            var_name = get_software_root_env_var_name(software)
-            env.setvar(var_name, os.path.join(eprefix, 'usr'))
-            self.deps.append(software)
+        def recursive_set_deps(item, softwares):
+            if isinstance(item, (list, tuple)):
+                for elem in item:
+                    recursive_set_deps(elem, softwares)
+            elif isinstance(item, Bundle):
+                recursive_set_deps(item.comp_instances, softwares)
+            elif isinstance(item, EB_LLVM):
+                for sftw in softwares:
+                    var_name = get_software_root_env_var_name(sftw)
+                    env.setvar(var_name, os.path.join(eprefix, 'usr'))
+                    item.deps.append(sftw)
+
+        recursive_set_deps(self, softwares=('zlib', 'ncurses'))
     else:
         raise EasyBuildError("LLVM-specific hook triggered for non-LLVM easyconfig?!")
 
@@ -1904,6 +1924,18 @@ if EASYBUILD_VERSION >= '5.1.1':
             self.log.debug("No CVMFS/site installation requested, not running post_easyblock_hook_copy_easybuild_subdir.")
 else:
     print_warning(f"Not enabling the post_easybuild_hook, as it requires EasyBuild 5.1.1 or newer (you are using {EASYBUILD_VERSION}).")
+
+
+def pre_run_shell_cmd_hook(cmd, work_dir=None, **kwargs):
+    """Main pre_shell_cmd_hook: trigger custom funtions based on software name."""
+
+    # Ignore failing ctest for LAMMPS/22Jul2025 on aarch64/generic
+    cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+    if cpu_target == CPU_TARGET_AARCH64_GENERIC:
+        if bool(re.search('LAMMPS', work_dir)) and bool(re.search('22Jul2025', work_dir)):
+            if isinstance(cmd, str) and cmd.startswith('ctest') and '-LE unstable' in cmd:
+                cmd = cmd + f' || echo "Ignoring failing tests when installing for {cpu_target}"'
+                return cmd
 
 
 PARSE_HOOKS = {
