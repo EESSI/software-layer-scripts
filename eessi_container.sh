@@ -1056,12 +1056,12 @@ if [[ -n "${EESSI_SINGULARITY_SANDBOX}"  ||  ${SANDBOX} -eq 1 ]]; then
     echo "Launching sandbox container with command (next line):"
     echo "singularity ${RUN_QUIET} ${MODE} ${ADDITIONAL_CONTAINER_OPTIONS[@]} ${EESSI_FUSE_MOUNTS[@]} ${CONTAINER_SANDBOX} $@"
     singularity ${RUN_QUIET} ${MODE} "${ADDITIONAL_CONTAINER_OPTIONS[@]}" "${EESSI_FUSE_MOUNTS[@]}" ${CONTAINER_SANDBOX} "$@"
-exit_code=$?
+    exit_code=$?
 else
     echo "Launching container with command (next line):"
     echo "singularity ${RUN_QUIET} ${MODE} ${ADDITIONAL_CONTAINER_OPTIONS[@]} ${EESSI_FUSE_MOUNTS[@]} ${CONTAINER} $@"
     singularity ${RUN_QUIET} ${MODE} "${ADDITIONAL_CONTAINER_OPTIONS[@]}" "${EESSI_FUSE_MOUNTS[@]}" ${CONTAINER} "$@"
-exit_code=$?
+    exit_code=$?
 fi
 
 # 6. save tmp if requested (arg -s|--save)
