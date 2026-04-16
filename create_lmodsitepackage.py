@@ -192,8 +192,13 @@ local function eessi_cuda_and_libraries_enabled_load_hook(t)
                 if not cudaVersion or cudaVersion == "" then
                     local eessi_prefix = os.getenv("EESSI_PREFIX")
                     local script = pathJoin(eessi_prefix, 'scripts', 'gpu_support', 'nvidia', 'get_cuda_driver_version.sh')
-                    -- Check return code first. We don't want source_sh to raise an LmodError, we just print
-                    -- an LmodWarning stating we couldn't do a proper version compatibility check
+                    -- We cannot immedately use source_sh, since lmod has no way of catching a potential error
+                    -- and we don't want this to raise an LmodError just because nvidia-smi doesn't exist or
+                    -- doesn't print the right output (happens on a node with nvidia-smi but no driver installed).
+                    -- The only way to catch this is to source the script first with os.execute and make sure it
+                    -- returns with a zero exit code. Unfortunately, this means we have to run nvidia-smi twice, which
+                    -- is a bit slow. Since the result is then cached in the EESSI_CUDA_DRIVER_VERSION environment
+                    -- variable, this is probably acceptable
                     local r1, r2, r3 = os.execute("bash -c 'source " .. script .. "'")
                     local exit_code = 0
                     if type(r1) == "number" then
