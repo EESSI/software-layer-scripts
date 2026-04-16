@@ -1126,7 +1126,7 @@ def pre_configure_hook_dyninst(self, *args, **kwargs):
             print_msg("Defining LibIberty variables for Dyninst...")
             self.cfg.update('configopts', '-DLibIberty_ROOT_DIR=' + binutils_lib_path[0])
             self.cfg.update('configopts', '-DLibIberty_INCLUDE_DIRS=' + os.path.join(binutils_lib_path[0], 'include'))
-            self.cfg.update('configopts', '-DLibIberty_LIBRARIES=' + binutils_lib_path[0])
+            self.cfg.update('configopts', '-DLibIberty_LIBRARIES=' + os.path.join(binutils_lib_path[0], 'libiberty.a'))
         else:
             raise EasyBuildError("Failed to isolate path for binutils libraries using %s, got %s",
                                  binutils_lib_path_glob_pattern, binutils_lib_path)
