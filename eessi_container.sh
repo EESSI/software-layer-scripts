@@ -1047,7 +1047,7 @@ for arg in "${PASS_THROUGH[@]}"; do
 done
 
 # EESSI_SINGULARITY_SANDBOX is an environment variable (typically set in site_config.sh, if needed)
-if [[ -n "$EESSI_SINGULARITY_SANDBOX"  ||  $SANDBOX -eq 1 ]]; then
+if [[ -n "${EESSI_SINGULARITY_SANDBOX}"  ||  ${SANDBOX} -eq 1 ]]; then
     # using a sandbox image mode is more robust at the cleanup phase at the end
     CONTAINER_SANDBOX="${CONTAINER%.sif}.sandbox"
     echo "Building a sandbox image with command (next line):"
