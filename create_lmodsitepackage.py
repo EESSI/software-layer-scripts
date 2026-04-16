@@ -192,28 +192,13 @@ local function eessi_cuda_and_libraries_enabled_load_hook(t)
                 if not cudaVersion or cudaVersion == "" then
                     local eessi_prefix = os.getenv("EESSI_PREFIX")
                     local script = pathJoin(eessi_prefix, 'scripts', 'gpu_support', 'nvidia', 'get_cuda_driver_version.sh')
-                    -- We cannot immedately use source_sh, since lmod has no way of catching a potential error
-                    -- and we don't want this to raise an LmodError just because nvidia-smi doesn't exist or
-                    -- doesn't print the right output (happens on a node with nvidia-smi but no driver installed).
-                    -- The only way to catch this is to source the script first with os.execute and make sure it
-                    -- returns with a zero exit code. Unfortunately, this means we have to run nvidia-smi twice, which
-                    -- is a bit slow. Since the result is then cached in the EESSI_CUDA_DRIVER_VERSION environment
-                    -- variable, this is probably acceptable
-                    local r1, r2, r3 = os.execute("bash -c 'source " .. script .. "'")
-                    local exit_code = 0
-                    if type(r1) == "number" then
-                        -- Lua 5.1 or earlier, this is our exit code
-                        exit_code = r1
-                    else
-                        -- Lua 5.2 or later, r3 is our exit code
-                        exit_code = r3
-                    end
-                    if exit_code == 0 then
-                        source_sh("bash", script)
-                    end
+                    source_sh("bash", script)
                 end
                 cudaVersion = os.getenv("EESSI_CUDA_DRIVER_VERSION")
                 local cudaVersion_req = os.getenv("EESSICUDAVERSION")
+                -- Account for the fact that the script sourced above was designed to never return a non-zero exit
+                -- even if it failes to set EESSI_CUDA_DRIVER_VERSION
+                -- Essentially, we handle that case here by raising an error, which can be suppressed
                 if not cudaVersion or cudaVersion == "" then
                     local suppress_var = "EESSI_CUDA_DRIVER_VERSION_SUPPRESS_WARNING"
                     local warn = "Environment variable EESSI_CUDA_DRIVER_VERSION not found. "
