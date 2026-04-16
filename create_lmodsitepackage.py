@@ -194,8 +194,16 @@ local function eessi_cuda_and_libraries_enabled_load_hook(t)
                     local script = pathJoin(eessi_prefix, 'scripts', 'gpu_support', 'nvidia', 'get_cuda_driver_version.sh')
                     -- Check return code first. We don't want source_sh to raise an LmodError, we just print
                     -- an LmodWarning stating we couldn't do a proper version compatibility check
-                    local rc = os.execute("bash -c 'source " .. script .. "'")
-                    if rc == 0 then
+                    local r1, r2, r3 = os.execute("bash -c 'source " .. script .. "'")
+                    local exit_code = 0
+                    if type(r1) == "number" then
+                        -- Lua 5.1 or earlier, this is our exit code
+                        exit_code = r1
+                    else
+                        -- Lua 5.2 or later, r3 is our exit code
+                        exit_code = r3
+                    end
+                    if exit_code == 0 then
                         source_sh("bash", script)
                     end
                 end
