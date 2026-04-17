@@ -1110,6 +1110,31 @@ def pre_configure_hook_score_p(self, *args, **kwargs):
         raise EasyBuildError("Score-P-specific hook triggered for non-Score-P easyconfig?!")
 
 
+def pre_configure_hook_dyninst(self, *args, **kwargs):
+    """
+    Pre-configure hook for Dyninst
+    - specify correct path to binutils (in compat layer)
+    """
+    if self.name == 'Dyninst':
+
+        # determine path to Prefix installation in compat layer via $EPREFIX
+        eprefix = get_eessi_envvar('EPREFIX')
+
+        binutils_lib_path_glob_pattern = os.path.join(eprefix, 'usr', 'lib*', 'binutils', '*-linux-gnu', '2.*')
+        binutils_lib_path = glob.glob(binutils_lib_path_glob_pattern)
+        if len(binutils_lib_path) == 1:
+            print_msg("Defining LibIberty variables for Dyninst...")
+            self.cfg.update('configopts', '-DLibIberty_ROOT_DIR=' + binutils_lib_path[0])
+            self.cfg.update('configopts', '-DLibIberty_INCLUDE_DIRS=' + os.path.join(binutils_lib_path[0], 'include'))
+            self.cfg.update('configopts', '-DLibIberty_LIBRARIES=' + os.path.join(binutils_lib_path[0], 'libiberty.a'))
+        else:
+            raise EasyBuildError("Failed to isolate path for binutils libraries using %s, got %s",
+                                 binutils_lib_path_glob_pattern, binutils_lib_path)
+
+    else:
+        raise EasyBuildError("Dyninst-specific hook triggered for non-Dyninst easyconfig?!")
+
+
 def pre_configure_hook_extrae(self, *args, **kwargs):
     """
     Pre-configure hook for Extrae
@@ -1987,6 +2012,7 @@ PRE_CONFIGURE_HOOKS = {
     'WRF': pre_configure_hook_wrf_aarch64,
     'LAMMPS': pre_configure_hook_LAMMPS_zen4_and_aarch64_cuda,
     'Score-P': pre_configure_hook_score_p,
+    'Dyninst': pre_configure_hook_dyninst,
     'CMake': pre_configure_hook_cmake_system,
 }
 

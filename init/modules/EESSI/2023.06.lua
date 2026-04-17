@@ -222,7 +222,14 @@ local quiet_load = false
 if os.getenv("EESSI_MODULE_UPDATE_PS1") then
     local prompt = os.getenv("PS1")
     if prompt then
-        pushenv("PS1", "{EESSI/" .. eessi_version .. "} " .. prompt)
+        local prefix = "{EESSI/" .. eessi_version .. "} "
+        if mode() == "load" then
+            -- Prepend prefix to PS1 without evaluating its contents
+            execute{cmd="PS1=\"" .. prefix .. "$PS1\"", modeA={"load"}}
+        elseif mode() == "unload" then
+            -- Strip the prefix from beginning of PS1
+            execute{cmd="PS1=\"${PS1#\"" .. prefix .. "\"}\"", modeA={"unload"}}
+        end
     end
 end
 
@@ -233,11 +240,13 @@ if os.getenv("EESSI_MODULE_STICKY") then
     load_message = load_message .. " (requires '--force' option to unload or purge)"
 end
 
--- set CURL_CA_BUNDLE on RHEL-based systems
+-- set CURL_CA_BUNDLE and friends on RHEL-based systems
 ca_bundle_file_rhel = "/etc/pki/tls/certs/ca-bundle.crt"
 if isFile(ca_bundle_file_rhel) then
     pushenv("CURL_CA_BUNDLE", ca_bundle_file_rhel)
-    eessiDebug("Setting CURL_CA_BUNDLE to " .. ca_bundle_file_rhel)
+    pushenv("REQUESTS_CA_BUNDLE", ca_bundle_file_rhel)
+    pushenv("SSL_CERT_FILE", ca_bundle_file_rhel)
+    eessiDebug("Setting CURL_CA_BUNDLE,REQUESTS_CA_BUNDLE,SSL_CERT_FILE to " .. ca_bundle_file_rhel)
 end
 
 if mode() == "load" then
