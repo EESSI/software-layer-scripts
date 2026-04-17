@@ -396,8 +396,6 @@ else
             # load EasyBuild module (will be installed if it's not available yet)
             source ${TOPDIR}/load_easybuild_module.sh ${eb_version}
 
-            export EASYBUILD_HOOKS=$TOPDIR/eb_hooks.py
-
             ${EB} --show-config
 
             echo_green "All set, let's start installing some software with EasyBuild v${eb_version} in ${EASYBUILD_INSTALLPATH}..."
