@@ -208,7 +208,7 @@ end
 
 -- Set environment variables if building for AMDGCN compute capabilities
 if (easybuild_amdgcn_compute_capabilities ~= nil) then
-  setenv ("EASYBUILD_AMDGCN_COMPUTE_CAPABILITIES", easybuild_amdgcn_compute_capabilities)
+  setenv ("EASYBUILD_AMDGCN_CAPABILITIES", easybuild_amdgcn_compute_capabilities)
 end
 
 -- Set all related environment variables if we have project or user installations (including extending MODULEPATH)
