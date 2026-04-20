@@ -196,7 +196,7 @@ local function eessi_cuda_and_libraries_enabled_load_hook(t)
                 end
                 cudaVersion = os.getenv("EESSI_CUDA_DRIVER_VERSION")
                 local cudaVersion_req = os.getenv("EESSICUDAVERSION")
-                -- Account for the fact that the script sourced above was designed to never return a non-zero exit
+                -- Account for the fact that the script sourced above was designed to never return a non-zero exit code,
                 -- even if it fails to set EESSI_CUDA_DRIVER_VERSION
                 -- Essentially, we handle that case here by raising an error, which can be suppressed
                 if not cudaVersion or cudaVersion == "" then
