@@ -1,2 +1,4 @@
 easyconfigs:
-  - Extrae-4.2.0-gompi-2023b.eb
+  - Extrae-4.2.0-gompi-2023b.eb:
+      options:
+        rebuild: True
