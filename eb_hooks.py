@@ -1149,7 +1149,16 @@ def pre_configure_hook_extrae(self, *args, **kwargs):
         binutils_lib_path_glob_pattern = os.path.join(eprefix, 'usr', 'lib*', 'binutils', '*-linux-gnu', '2.*')
         binutils_lib_path = glob.glob(binutils_lib_path_glob_pattern)
         if len(binutils_lib_path) == 1:
-            self.cfg.update('configopts', '--with-binutils=' + binutils_lib_path[0])
+            if self.version < LooseVersion('5.0.0'):
+                self.cfg.update('configopts', '--with-binutils=' + binutils_lib_path[0])
+            else:
+                # Setting --with-binutils to the real binutils subdir (as for older versions) causes issues for finding addr2line,
+                # as it will try to find that binary in $BINUTILS_ROOT/bin,
+                # so we use $EPREFIX/usr instead.
+                # Also, as of version 5, we can use more specific flags for binutils headers and libraries.
+                self.cfg.update('configopts', '--with-binutils=' + os.path.join(eprefix, 'usr'))
+                self.cfg.update('configopts', '--with-binutils-headers=' + os.path.join(binutils_lib_path[0], 'include'))
+                self.cfg.update('configopts', '--with-binutils-libs=' + binutils_lib_path[0])
         else:
             raise EasyBuildError("Failed to isolate path for binutils libraries using %s, got %s",
                                  binutils_lib_path_glob_pattern, binutils_lib_path)
@@ -1157,14 +1166,12 @@ def pre_configure_hook_extrae(self, *args, **kwargs):
         # zlib is a filtered dependency, so we need to manually specify it's location to avoid the host version
         self.cfg.update('configopts', '--with-libz=' + eprefix)
 
-        # replace use of 'which' with 'command -v', since 'which' is broken in EESSI build container;
-        # this must be done *after* running configure script, because initial configuration re-writes configure script,
-        # and problem due to use of which only pops up when running make ?!
+        # replace use of 'which' with 'command -v' in several files, since 'which' is broken in EESSI build container
         self.cfg.update(
-            'prebuildopts',
-            "cp config/mpi-macros.m4 config/mpi-macros.m4.orig && "
-            "sed -i 's/`which /`command -v /g' config/mpi-macros.m4 && "
-            )
+            'preconfigopts',
+            "sed -i.orig 's/`which /`command -v /g' config/mpi-macros.m4 configure.ac config/macros.m4 include/Makefile.am Makefile.am tests/overhead/Makefile.am && "
+            "autoreconf -fi && "
+        )
     else:
         raise EasyBuildError("Extrae-specific hook triggered for non-Extrae easyconfig?!")
 
