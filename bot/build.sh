@@ -251,7 +251,7 @@ build_outerr=$(mktemp build.outerr.XXXX)
 
 # determine accelerator target (if any) from .architecture in ${JOB_CFG_FILE}
 ACCEL_OVERRIDES=$(cfg_get_value "architecture" "accelerator")
-if [[ -n "$ACCEL_OVERRIDE" ]]; then
+if [[ -n "$ACCEL_OVERRIDES" ]]; then
     for accel_override in ${ACCEL_OVERRIDES//+/ }
     do
         # bot job config does not include accel subdirectory
