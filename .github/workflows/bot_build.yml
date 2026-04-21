@@ -9,20 +9,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
-
-      - name: Git clone software-layer
-        run: git clone https://github.com/EESSI/software-layer.git
+      - name: Git clone software-layer and software-layer-scripts inside it
+        run: |
+          git clone https://github.com/EESSI/software-layer.git
+          cd software-layer
+          git clone https://github.com/EESSI/software-layer-scripts.git
 
       - name: Run symlink commands
         run: |
           set -e
+          cd software-layer
 
-          for file in $(ls software-layer | egrep -v 'easystacks|LICENSE|README.md|^bot'); do
-              ln -s software-layer/${file}
+          for file in $(ls software-layer-scripts | egrep -v 'easystacks|LICENSE|README.md|^bot'); do
+              ln -s software-layer-scripts/${file}
           done
 
-          for file in $(ls software-layer/bot | grep -v '^build.sh'); do
-              ln -s ../software-layer/bot/${file} bot/${file}
+          for file in $(ls software-layer-scripts/bot | grep -v '^build.sh'); do
+              ln -s ../software-layer-scripts/bot/${file} bot/${file}
           done
