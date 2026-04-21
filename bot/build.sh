@@ -252,7 +252,7 @@ build_outerr=$(mktemp build.outerr.XXXX)
 # determine accelerator target (if any) from .architecture in ${JOB_CFG_FILE}
 ACCEL_OVERRIDES=$(cfg_get_value "architecture" "accelerator")
 if [[ -n "$ACCEL_OVERRIDE" ]]; then
-    for accel_override in ${ACCEL_OVERRIDES//,/ }
+    for accel_override in ${ACCEL_OVERRIDES//+/ }
     do
         # bot job config does not include accel subdirectory
         export EESSI_ACCELERATOR_TARGET_OVERRIDE="accel/$ACCEL_OVERRIDE"
