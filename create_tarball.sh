@@ -68,8 +68,8 @@ echo "accel_subdirs 1: ${accel_subdirs}"
 if [ -n "${accel_subdirs}" ]; then
     # convert accel_subdirs into an array...
     #read -r -a accel_subdirs <<< ${accel_subdirs}
-    #mapfile -t accel_subdirs <<< "$accel_subdirs"
-    eval "accel_subdirs=(${accel_subdirs})"
+    mapfile -t accel_subdirs <<< "$accel_subdirs"
+    #eval "accel_subdirs=(${accel_subdirs})"
     echo "accel_subdirs 2: ${accel_subdirs}"
     # and prepend the cpu_arch_subdir to all elements
     accel_subdirs="${accel_subdirs[@]/#/${cpu_arch_subdir}/}"
