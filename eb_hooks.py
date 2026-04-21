@@ -915,15 +915,15 @@ def post_easyblock_hook_copy_easybuild_subdir(self, *args, **kwargs):
 
 def pre_prepare_hook_cuda_dependant(self, *args, **kwargs):
     """
-    CUDA 12.8.0 doesn't support the 12.0f target, only 12.0. This hook converts any CC 12.0f into 12.0
-    if the current package depends on CUDA.
+    CUDA 12.8.0 doesn't support the 10.0f and 12.0f targets, only 10.0 and 12.0. This hook converts
+    any CC 10.0f / 12.0f into 10.0 / 12.0 if the current package depends on CUDA.
     """
 
     cudaver = get_dependency_software_version("CUDA", ec=self.cfg, check_deps=True, check_builddeps=True)
-    if cudaver:
+    if cudaver and cudaver == '12.8.0':
         cuda_cc = build_option('cuda_compute_capabilities')
-        if cuda_cc and '12.0f' in cuda_cc:
-            updated_cuda_cc = [v.replace('12.0f', '12.0') for v in cuda_cc]
+        if cuda_cc and ('10.0f' in cuda_cc or '12.0f' in cuda_cc):
+            updated_cuda_cc = [v.replace('.0f', '.0') if v in ['10.0f', '12.0f'] else v for v in cuda_cc]
             update_build_option('cuda_compute_capabilities', updated_cuda_cc)
 
 
