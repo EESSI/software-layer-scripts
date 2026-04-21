@@ -449,6 +449,9 @@ def pre_prepare_hook(self, *args, **kwargs):
     # Always trigger this, regardless of ec.name
     pre_prepare_hook_unsupported_modules(self, *args, **kwargs)
 
+    # Always trigger this, regardless of ec.name
+    pre_prepare_hook_cuda_dependant(self, *args, **kwargs)
+
 
 def post_prepare_hook_gcc_prefixed_ld_rpath_wrapper(self, *args, **kwargs):
     """
@@ -910,6 +913,20 @@ def post_easyblock_hook_copy_easybuild_subdir(self, *args, **kwargs):
     copy_dir(app_easybuild_dir, app_reprod_dir)
 
 
+def pre_prepare_hook_cuda_dependant(self, *args, **kwargs):
+    """
+    CUDA 12.8.0 doesn't support the 10.0f and 12.0f targets, only 10.0 and 12.0. This hook converts
+    any CC 10.0f / 12.0f into 10.0 / 12.0 if the current package depends on CUDA.
+    """
+
+    cudaver = get_dependency_software_version("CUDA", ec=self.cfg, check_deps=True, check_builddeps=True)
+    if cudaver and cudaver == '12.8.0':
+        cuda_cc = build_option('cuda_compute_capabilities')
+        if cuda_cc and ('10.0f' in cuda_cc or '12.0f' in cuda_cc):
+            updated_cuda_cc = [v.replace('.0f', '.0') if v in ['10.0f', '12.0f'] else v for v in cuda_cc]
+            update_build_option('cuda_compute_capabilities', updated_cuda_cc)
+
+
 def pre_prepare_hook_cudnn(self, *args, **kwargs):
     """
     cuDNN is a binary install, that doesn't always have the device code for the suffixed CUDA
@@ -1108,6 +1125,31 @@ def pre_configure_hook_score_p(self, *args, **kwargs):
 
     else:
         raise EasyBuildError("Score-P-specific hook triggered for non-Score-P easyconfig?!")
+
+
+def pre_configure_hook_dyninst(self, *args, **kwargs):
+    """
+    Pre-configure hook for Dyninst
+    - specify correct path to binutils (in compat layer)
+    """
+    if self.name == 'Dyninst':
+
+        # determine path to Prefix installation in compat layer via $EPREFIX
+        eprefix = get_eessi_envvar('EPREFIX')
+
+        binutils_lib_path_glob_pattern = os.path.join(eprefix, 'usr', 'lib*', 'binutils', '*-linux-gnu', '2.*')
+        binutils_lib_path = glob.glob(binutils_lib_path_glob_pattern)
+        if len(binutils_lib_path) == 1:
+            print_msg("Defining LibIberty variables for Dyninst...")
+            self.cfg.update('configopts', '-DLibIberty_ROOT_DIR=' + binutils_lib_path[0])
+            self.cfg.update('configopts', '-DLibIberty_INCLUDE_DIRS=' + os.path.join(binutils_lib_path[0], 'include'))
+            self.cfg.update('configopts', '-DLibIberty_LIBRARIES=' + os.path.join(binutils_lib_path[0], 'libiberty.a'))
+        else:
+            raise EasyBuildError("Failed to isolate path for binutils libraries using %s, got %s",
+                                 binutils_lib_path_glob_pattern, binutils_lib_path)
+
+    else:
+        raise EasyBuildError("Dyninst-specific hook triggered for non-Dyninst easyconfig?!")
 
 
 def pre_configure_hook_extrae(self, *args, **kwargs):
@@ -1987,6 +2029,7 @@ PRE_CONFIGURE_HOOKS = {
     'WRF': pre_configure_hook_wrf_aarch64,
     'LAMMPS': pre_configure_hook_LAMMPS_zen4_and_aarch64_cuda,
     'Score-P': pre_configure_hook_score_p,
+    'Dyninst': pre_configure_hook_dyninst,
     'CMake': pre_configure_hook_cmake_system,
 }
 
