@@ -255,7 +255,8 @@ if [[ -n "$ACCEL_OVERRIDES" ]]; then
     for ACCEL_OVERRIDE in ${ACCEL_OVERRIDES//+/ }
     do
         # bot job config does not include accel subdirectory
-        export EESSI_ACCELERATOR_TARGET_OVERRIDE="accel/$ACCEL_OVERRIDE"
+        export EESSI_ACCELERATOR_TARGET_OVERRIDE="accel/${ACCEL_OVERRIDE}"
+        echo "bot/build.sh: EESSI_ACCELERATOR_TARGET_OVERRIDE='accel/${ACCEL_OVERRIDE}'"
         echo "Executing command to build software:"
         echo "$software_layer_dir/eessi_container.sh ${COMMON_ARGS[@]} ${BUILD_STEP_ARGS[@]}"
         echo "                     -- $software_layer_dir/install_software_layer.sh \"${INSTALL_SCRIPT_ARGS[@]}\" \"$@\" 2>&1 | tee -a ${build_outerr}"
