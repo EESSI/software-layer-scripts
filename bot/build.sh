@@ -254,7 +254,6 @@ ACCEL_OVERRIDES=$(cfg_get_value "architecture" "accelerator")
 if [[ -n "$ACCEL_OVERRIDES" ]]; then
     IFS='+' read -ra ACCEL_OVERRIDES_ARRAY <<< "$ACCEL_OVERRIDES"
     for ACCEL_OVERRIDE in "${ACCEL_OVERRIDES_ARRAY[@]}"; do
-    do
         # bot job config does not include accel subdirectory
         export EESSI_ACCELERATOR_TARGET_OVERRIDE="accel/${ACCEL_OVERRIDE}"
         echo "bot/build.sh: EESSI_ACCELERATOR_TARGET_OVERRIDE='accel/${ACCEL_OVERRIDE}'"
