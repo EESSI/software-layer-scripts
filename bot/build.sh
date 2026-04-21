@@ -251,12 +251,15 @@ build_outerr=$(mktemp build.outerr.XXXX)
 
 # determine accelerator target (if any) from .architecture in ${JOB_CFG_FILE}
 ACCEL_OVERRIDES=$(cfg_get_value "architecture" "accelerator")
+IFS='+' read -ra ACCEL_OVERRIDES_ARRAY <<< "$ACCEL_OVERRIDES"
+EESSI_ACCELERATOR_TARGET_OVERRIDE=("${ACCEL_OVERRIDES_ARRAY[@]/#/accel/}")
 if [[ -n "$ACCEL_OVERRIDES" ]]; then
-    IFS='+' read -ra ACCEL_OVERRIDES_ARRAY <<< "$ACCEL_OVERRIDES"
     for ACCEL_OVERRIDE in "${ACCEL_OVERRIDES_ARRAY[@]}"; do
         # bot job config does not include accel subdirectory
-        export EESSI_ACCELERATOR_TARGET_OVERRIDE="accel/${ACCEL_OVERRIDE}"
-        echo "bot/build.sh: EESSI_ACCELERATOR_TARGET_OVERRIDE='accel/${ACCEL_OVERRIDE}'"
+        #export EESSI_ACCELERATOR_TARGET_OVERRIDE="accel/${ACCEL_OVERRIDE}"
+        #echo "bot/build.sh: EESSI_ACCELERATOR_TARGET_OVERRIDE='accel/${ACCEL_OVERRIDE}'"
+        export EESSI_ACCELERATOR_TARGET_OVERRIDE="${ACCEL_OVERRIDE}"
+        echo "bot/build.sh: EESSI_ACCELERATOR_TARGET_OVERRIDE='${ACCEL_OVERRIDE}'"
         echo "Executing command to build software:"
         echo "$software_layer_dir/eessi_container.sh ${COMMON_ARGS[@]} ${BUILD_STEP_ARGS[@]}"
         echo "                     -- $software_layer_dir/install_software_layer.sh \"${INSTALL_SCRIPT_ARGS[@]}\" \"$@\" 2>&1 | tee -a ${build_outerr}"
@@ -328,6 +331,6 @@ echo "Executing command to create tarball:"
 echo "$software_layer_dir/eessi_container.sh ${COMMON_ARGS[@]} ${TARBALL_STEP_ARGS[@]}"
 echo "                     -- $software_layer_dir/create_tarball.sh ${TMP_IN_CONTAINER} ${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE} \"${EESSI_ACCELERATOR_TARGET_OVERRIDE}\" /eessi_bot_job/${TARBALL} 2>&1 | tee -a ${tar_outerr}"
 $software_layer_dir/eessi_container.sh "${COMMON_ARGS[@]}" "${TARBALL_STEP_ARGS[@]}" \
-                     -- $software_layer_dir/create_tarball.sh ${TMP_IN_CONTAINER} ${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE} "${EESSI_ACCELERATOR_TARGET_OVERRIDE}" /eessi_bot_job/${TARBALL} 2>&1 | tee -a ${tar_outerr}
+                     -- $software_layer_dir/create_tarball.sh ${TMP_IN_CONTAINER} ${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE} "${ACCEL_OVERRIDES_ARRAY[@]}" /eessi_bot_job/${TARBALL} 2>&1 | tee -a ${tar_outerr}
 
 exit 0
