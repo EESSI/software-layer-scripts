@@ -64,17 +64,21 @@ fi
 
 # consider both CPU-only and accelerator subdirectories (if an accelerator was configured)
 sw_subdirs=${cpu_arch_subdir}
+echo "accel_subdirs 1: ${accel_subdirs}"
 if [ -n "${accel_subdirs}" ]; then
     # convert accel_subdirs into an array...
     #read -r -a accel_subdirs <<< ${accel_subdirs}
     #mapfile -t accel_subdirs <<< "$accel_subdirs"
     eval "accel_subdirs=(${accel_subdirs})"
+    echo "accel_subdirs 2: ${accel_subdirs}"
     # and prepend the cpu_arch_subdir to all elements
     accel_subdirs="${accel_subdirs[@]/#/${cpu_arch_subdir}/}"
+    echo "accel_subdirs 3: ${accel_subdirs}"
     sw_subdirs="${sw_subdirs} ${accel_subdirs[@]}"
 fi
 for subdir in ${sw_subdirs}; do
 
+    echo "subdir: ${subdir}"
     if [ -d ${eessi_version}/software/${os}/${subdir}/modules ]; then
         # module files
         find ${eessi_version}/software/${os}/${subdir}/modules -type f \! -name '.wh.*' >> ${files_list}
