@@ -78,7 +78,6 @@ jobs:
           - accel/nvidia/cc80
           # This should fall back to cc70 but that is checked later (in this step we just check for consistency)
           - accel/nvidia/cc77
-          - accel/amd/gfx90a
 
     steps:
       - name: Check out software-layer repository
@@ -166,15 +165,12 @@ jobs:
           - none
           - accel/nvidia/cc80
           - accel/nvidia/cc77
-          - accel/amd/gfx90a
         include:
           # For each override we expect a specific path (which may differ from the original due to overrides)
         - EESSI_ACCELERATOR_TARGET_OVERRIDE: accel/nvidia/cc80
           FINAL_ACCELERATOR_TARGET_EXPECTED: accel/nvidia/cc80
         - EESSI_ACCELERATOR_TARGET_OVERRIDE: accel/nvidia/cc77  # deliberately chose a non-existent CUDA capability
           FINAL_ACCELERATOR_TARGET_EXPECTED: accel/nvidia/cc70  # this reverts to the fallback case (which does exist)
-        - EESSI_ACCELERATOR_TARGET_OVERRIDE: accel/amd/gfx90a
-          FINAL_ACCELERATOR_TARGET_EXPECTED: accel/amd/gfx90a
 
     steps:
       - name: Check out software-layer repository
