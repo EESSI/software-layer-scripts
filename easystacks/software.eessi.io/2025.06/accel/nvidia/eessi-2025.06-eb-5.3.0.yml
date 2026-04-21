@@ -1,4 +1,0 @@
-easyconfigs:
-  - NCCL-2.27.7-GCCcore-14.2.0-CUDA-12.8.0.eb:
-      options:
-        cuda-sanity-check-accept-missing-ptx: True
