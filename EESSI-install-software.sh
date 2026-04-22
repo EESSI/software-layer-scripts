@@ -221,6 +221,7 @@ module --force purge
 module unuse $MODULEPATH
 
 # Initialize the EESSI environment
+export EESSI_DEBUG_INIT=1
 module use $TOPDIR/init/modules
 module load EESSI/$EESSI_VERSION
 
@@ -318,9 +319,8 @@ echo "EESSI environment before loading EESSI-extend:"
 env | grep EESSI
 
 echo "DEBUG: before loading EESSI-extend // EASYBUILD_INSTALLPATH='${EASYBUILD_INSTALLPATH}'"
-export LMOD_DEBUG=1
 source $TOPDIR/load_eessi_extend_module.sh ${EESSI_VERSION}
-unset LMOD_DEBUG
+unset EESSI_DEBUG_INIT
 echo "DEBUG: after loading EESSI-extend //  EASYBUILD_INSTALLPATH='${EASYBUILD_INSTALLPATH}'"
 echo "EESSI environment after loading EESSI-extend:"
 env | grep EESSI
