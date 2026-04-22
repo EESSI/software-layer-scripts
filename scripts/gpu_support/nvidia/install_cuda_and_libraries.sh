@@ -93,7 +93,7 @@ echo "Created temporary directory '${tmpdir}'"
 SAVE_MODULEPATH=${MODULEPATH}
 
 for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
-    echo -e "Processing easystack file ${easystack_file}...\n\n"
+    echo -e "Processing easystack file ${EASYSTACK_FILE}...\n\n"
 
     # determine version of EasyBuild module to load based on EasyBuild version included in name of easystack file
     eb_version=$(echo ${EASYSTACK_FILE} | sed 's/.*eb-\([0-9.]*\).*.yml/\1/g')
@@ -104,7 +104,7 @@ for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
     if [[ $? -eq 0 ]]; then
         echo_green ">> Found an EasyBuild/${eb_version} module"
     else
-        echo_yellow ">> No EasyBuild/${eb_version} module found: skipping step to install easystack file ${easystack_file} (see output in ${module_avail_out})"
+        echo_yellow ">> No EasyBuild/${eb_version} module found: skipping step to install easystack file ${EASYSTACK_FILE} (see output in ${module_avail_out})"
         continue
     fi
     # Safer to unload EESSI-extend before loading an EasyBuild version, in case unload behavior ever becomes dependent on EasyBuild version
