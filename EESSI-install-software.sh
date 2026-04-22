@@ -314,9 +314,17 @@ elif [[ -n "$EESSI_ACCELERATOR_TARGET_OVERRIDE" ]]; then
   export EESSI_ACCELERATOR_INSTALL=1
 fi
 
+echo "EESSI environment before loading EESSI-extend:"
+env | grep EESSI
+
 echo "DEBUG: before loading EESSI-extend // EASYBUILD_INSTALLPATH='${EASYBUILD_INSTALLPATH}'"
+export LMOD_DEBUG=1
 source $TOPDIR/load_eessi_extend_module.sh ${EESSI_VERSION}
+unset LMOD_DEBUG
 echo "DEBUG: after loading EESSI-extend //  EASYBUILD_INSTALLPATH='${EASYBUILD_INSTALLPATH}'"
+echo "EESSI environment after loading EESSI-extend:"
+env | grep EESSI
+
 
 # Install full CUDA SDK and cu* libraries in host_injections
 # (This is done *before* configuring EasyBuild as it may rely on an older EB version)
