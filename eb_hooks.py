@@ -1487,6 +1487,25 @@ def pre_test_hook_ignore_failing_tests_FFTWMPI(self, *args, **kwargs):
         self.cfg['testopts'] = "|| echo ignoring failing tests"
 
 
+def pre_test_hook_lammps_ignore_failure_arm_generic(self, *args, **kwargs):
+    """
+    Ignore failing tests on ARM generic target for LAMMPS version 22Jul2025
+    """
+    # Ignore failing ctest for LAMMPS/22Jul2025 on aarch64/generic
+    cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+    if cpu_target == CPU_TARGET_AARCH64_GENERIC:
+        if self.name == 'LAMMPS' and self.version == '22Jul2025':
+            # This command matches what is in
+            # https://github.com/easybuilders/easybuild-easyblocks/blob/71b010288084e1777fbdd0e3db319f0104134b1d/easybuild/easyblocks/l/lammps.py#L682
+            # If a test_cmd is already defined, the easyblock linked above should not overwrite it anymore
+            test_cmd = 'ctest '
+            test_cmd += '--no-tests=error '
+            test_cmd += '-LE unstable -E "TestMliapPyUnified|AtomicPairStyle:meam_spline|KSpaceStyle:scafacos.*" '
+            test_cmd += f' || echo "Ignoring failing tests when installing for {cpu_target}"'
+            self.log.debug(f"Running tests using test_cmd = '{test_cmd}' as test_cmd")
+            self.cfg['test_cmd'] = test_cmd
+
+
 def pre_test_hook_ignore_failing_tests_SciPybundle(self, *args, **kwargs):
     """
     Pre-test hook for SciPy-bundle: skip failing tests for selected SciPy-bundle versions
@@ -1968,18 +1987,6 @@ else:
     print_warning(f"Not enabling the post_easybuild_hook, as it requires EasyBuild 5.1.1 or newer (you are using {EASYBUILD_VERSION}).")
 
 
-def pre_run_shell_cmd_hook(cmd, work_dir=None, **kwargs):
-    """Main pre_shell_cmd_hook: trigger custom funtions based on software name."""
-
-    # Ignore failing ctest for LAMMPS/22Jul2025 on aarch64/generic
-    cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
-    if cpu_target == CPU_TARGET_AARCH64_GENERIC:
-        if bool(re.search('LAMMPS', work_dir)) and bool(re.search('22Jul2025', work_dir)):
-            if isinstance(cmd, str) and cmd.startswith('ctest') and '-LE unstable' in cmd:
-                cmd = cmd + f' || echo "Ignoring failing tests when installing for {cpu_target}"'
-                return cmd
-
-
 PARSE_HOOKS = {
     'casacore': parse_hook_casacore_disable_vectorize,
     'CGAL': parse_hook_cgal_toolchainopts_precise,
@@ -2037,6 +2044,7 @@ PRE_TEST_HOOKS = {
     'ESPResSo': pre_test_hook_ignore_failing_tests_ESPResSo,
     'FFTW.MPI': pre_test_hook_ignore_failing_tests_FFTWMPI,
     'Highway': pre_test_hook_exclude_failing_test_Highway,
+    'LAMMPS': pre_test_hook_lammps_ignore_failure_arm_generic,
     'SciPy-bundle': pre_test_hook_ignore_failing_tests_SciPybundle,
     'netCDF': pre_test_hook_ignore_failing_tests_netCDF,
     'OpenBabel': pre_test_hook_ignore_failing_tests_OpenBabel_a64fx,
