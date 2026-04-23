@@ -175,11 +175,106 @@ cpupath(){
     fi
 }
 
+nvidia_accelpath() {
+    # Check for NVIDIA GPUs via nvidia-smi command
+    local nvidia_smi
+    nvidia_smi=$(command -v nvidia-smi)
+    
+    if [[ $? -eq 0 ]]; then
+        log "DEBUG" "nvidia_accelpath: nvidia-smi command found @ ${nvidia_smi}"
+        local nvidia_smi_out
+        nvidia_smi_out=$(mktemp -p /tmp nvidia_smi_out.XXXXX)
+        
+        nvidia-smi --query-gpu=gpu_name,count,driver_version,compute_cap --format=csv,noheader 2>&1 > $nvidia_smi_out
+        if [[ $? -eq 0 ]]; then
+            local nvidia_smi_info=$(head -n 1 $nvidia_smi_out)
+            local cuda_cc=$(echo $nvidia_smi_info | sed 's/, /,/g' | cut -f4 -d, | sed 's/\.//g')
+            log "DEBUG" "nvidia_accelpath: CUDA compute capability '${cuda_cc}' derived from nvidia-smi output '${nvidia_smi_info}'"
+            
+            echo "accel/nvidia/cc${cuda_cc}"
+            rm -f $nvidia_smi_out
+            return 0
+        else
+            log "DEBUG" "nvidia_accelpath: nvidia-smi command failed, see output in $nvidia_smi_out"
+            return 3
+        fi
+    else
+        log "DEBUG" "nvidia_accelpath: nvidia-smi command not found"
+        return 2
+    fi
+}
+
+amd_accelpath() {
+    # Method 1: Check for AMD GPUs via KFD sysfs interface (No amd-smi or Python required)
+    local kfd_nodes="/sys/devices/virtual/kfd/kfd/topology/nodes"
+
+    if [[ -d "$kfd_nodes" ]]; then
+        log "DEBUG" "amd_accelpath: KFD sysfs path found @ ${kfd_nodes}"
+        local amdgcn_cc=""
+
+        # ls -1v ensures numeric/version sorting (nodes/0, nodes/1, ..., nodes/10)
+        for node in $(ls -1v "$kfd_nodes" 2>/dev/null); do
+            local prop_file="$kfd_nodes/$node/properties"
+            
+            if [[ -f "$prop_file" ]]; then
+                # Extract the integer value. 2>/dev/null suppresses read errors.
+                local gfx_ver=$(grep "^gfx_target_version" "$prop_file" 2>/dev/null | awk '{print $2}')
+                
+                # If gfx_ver is non-empty and greater than 0 (0 means it's a CPU node)
+                if [[ -n "$gfx_ver" && "$gfx_ver" -gt 0 ]]; then
+                    local major=$(( (gfx_ver / 10000) % 100 ))
+                    local minor=$(( (gfx_ver / 100) % 100 ))
+                    local step=$(( gfx_ver % 100 ))
+                    
+                    amdgcn_cc=$(printf "gfx%d%d%x" $major $minor $step)
+                    log "DEBUG" "amd_accelpath: AMDGCN compute capability '${amdgcn_cc}' derived from KFD node ${node}"
+                    break 
+                fi
+            fi
+        done
+
+        if [[ -n "$amdgcn_cc" ]]; then
+            echo "accel/amd/${amdgcn_cc}"
+            return 0
+        fi
+        log "DEBUG" "amd_accelpath: KFD topology found, but no AMD GPUs detected. Falling back to amd-smi."
+    else
+        log "DEBUG" "amd_accelpath: KFD sysfs path not found. Falling back to amd-smi."
+    fi
+
+    # Method 2: Fallback to AMD GPUs via amd-smi command using /tmp files
+    local amd_smi
+    amd_smi=$(command -v amd-smi)
+    
+    if [[ $? -eq 0 ]]; then
+        log "DEBUG" "amd_accelpath: amd-smi command found @ ${amd_smi}"
+        local amd_smi_out
+        amd_smi_out=$(mktemp -p /tmp amd_smi_out.XXXXX)
+        
+        amd-smi static --asic | grep TARGET_GRAPHICS_VERSION 2>&1 > $amd_smi_out
+        if [[ $? -eq 0 ]]; then
+            local amd_smi_info=$(head -n 1 $amd_smi_out)
+            local amdgcn_cc=$(echo $amd_smi_info | sed 's/.*: //')
+            log "DEBUG" "amd_accelpath: AMDGCN compute capability '${amdgcn_cc}' derived from amd-smi output '${amd_smi_info}'"
+            
+            echo "accel/amd/${amdgcn_cc}"
+            rm -f $amd_smi_out
+            return 0
+        else
+            log "DEBUG" "amd_accelpath: amd-smi command failed, see output in $amd_smi_out"
+            return 3
+        fi
+    else
+        log "DEBUG" "amd_accelpath: amd-smi command not found"
+        return 2
+    fi
+}
+
 accelpath() {
     # If EESSI_ACCELERATOR_TARGET_OVERRIDE is set, use it
     log "DEBUG" "accelpath: Override variable set as '$EESSI_ACCELERATOR_TARGET_OVERRIDE' "
     if [ ! -z $EESSI_ACCELERATOR_TARGET_OVERRIDE ]; then
-        # Regex that allows both NVIDIA and AMD overrides
+        # Updated regex to allow both NVIDIA and AMD overrides
         if [[ "$EESSI_ACCELERATOR_TARGET_OVERRIDE" =~ ^accel/(nvidia/cc[0-9]+|amd/gfx[0-9a-f]+)$ ]]; then
             echo "$EESSI_ACCELERATOR_TARGET_OVERRIDE"
             return 0
@@ -189,28 +284,27 @@ accelpath() {
         fi
     fi
 
-    # check for NVIDIA GPUs via nvidia-smi command
-    nvidia_smi=$(command -v nvidia-smi)
+    # 1. Check for NVIDIA GPUs
+    local nv_res
+    nv_res=$(nvidia_accelpath)
     if [[ $? -eq 0 ]]; then
-        log "DEBUG" "accelpath: nvidia-smi command found @ ${nvidia_smi}"
-        nvidia_smi_out=$(mktemp -p /tmp nvidia_smi_out.XXXXX)
-        nvidia-smi --query-gpu=gpu_name,count,driver_version,compute_cap --format=csv,noheader 2>&1 > $nvidia_smi_out
-        if [[ $? -eq 0 ]]; then
-            nvidia_smi_info=$(head -n 1 $nvidia_smi_out)
-            cuda_cc=$(echo $nvidia_smi_info | sed 's/, /,/g' | cut -f4 -d, | sed 's/\.//g')
-            log "DEBUG" "accelpath: CUDA compute capability '${cuda_cc}' derived from nvidia-smi output '${nvidia_smi_info}'"
-            res="accel/nvidia/cc${cuda_cc}"
-            log "DEBUG" "accelpath: result: ${res}"
-            echo $res
-            rm -f $nvidia_smi_out
-        else
-            log "DEBUG" "accelpath: nvidia-smi command failed, see output in $nvidia_smi_out"
-            exit 3
-        fi
-    else
-        log "DEBUG" "accelpath: nvidia-smi command not found"
-        exit 2
+        log "DEBUG" "accelpath: result: ${nv_res}"
+        echo "$nv_res"
+        return 0
     fi
+
+    # 2. Check for AMD GPUs
+    local amd_res
+    amd_res=$(amd_accelpath)
+    if [[ $? -eq 0 ]]; then
+        log "DEBUG" "accelpath: result: ${amd_res}"
+        echo "$amd_res"
+        return 0
+    fi
+
+    # 3. Fail gracefully if neither is found
+    log "DEBUG" "accelpath: No supported accelerators found on this system."
+    exit 2
 }
 
 # Parse command line arguments
