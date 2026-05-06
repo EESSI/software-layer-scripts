@@ -663,7 +663,7 @@ def parse_hook_qt6_libinput(ec, eprefix):
     qt6_toolchain_version_to_libinput_version_map = {'14.3.0': '1.30.1'}
     if ec.name == 'Qt6':
         # Only enforcing from GCCcore 14.3.0 onwards for Qt6 6.9.3 onwards
-        if ec.toolchain.version >= '14.3.0':
+        if ec.toolchain.version >= LooseVersion('14.3.0'):
             if ec.version >= LooseVersion('6.9.3'):
                 dep_names = [dep[0] for dep in ec['dependencies']]
                 if 'libinput' not in dep_names:
