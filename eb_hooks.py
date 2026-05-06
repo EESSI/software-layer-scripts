@@ -55,6 +55,7 @@ HOST_INJECTIONS_LOCATION = "/cvmfs/software.eessi.io/host_injections/"
 
 # Make sure a single environment variable name is used for this throughout the hooks
 EESSI_IGNORE_ZEN4_GCC1220_ENVVAR="EESSI_IGNORE_LMOD_ERROR_ZEN4_GCC1220"
+EESSI_IGNORE_AARCH64_ROCMLLVM641_ENVVAR="EESSI_IGNORE_LMOD_ERROR_AARCH64_ROCMLLVM641"
 
 STACK_REPROD_SUBDIR = 'reprod'
 
@@ -839,6 +840,19 @@ def is_unsupported_module(self):
                     errmsg +=f"Capabilities: {cuda_ccs}.\\n"
                     setattr(self, EESSI_UNSUPPORTED_MODULE_ATTR, UnsupportedModule(envvar=var,errmsg=errmsg))
                     return True
+
+    # ROCm-LLVM 6.4.1 is not supported on aarch64
+    # see: https://github.com/EESSI/software-layer/pull/1473#issuecomment-4370846033
+    if not os.getenv("EESSI_OVERRIDE_ROCM_VERSION_CHECK"):
+        if ec.name == 'ROCm-LLVM' and ec.version in ('6.4.1',):
+            if get_eessi_envvar('EESSI_CPU_FAMILY') == 'aarch64':
+                msg = "ROCm-LLVM/6.4.1 is not supported on aarch64 architectures. "
+                msg += "Building with '--module-only --force' and injecting an LmodError into the modulefile."
+                msg += "You can override this behaviour by setting the EESSI_OVERRIDE_ROCM_VERSION_CHECK environment variable."
+                print_warning(msg)
+                var=EESSI_IGNORE_AARCH64_ROCMLLVM641_ENVVAR
+                setattr(self, EESSI_UNSUPPORTED_MODULE_ATTR, UnsupportedModule(envvar=var, errmsg=errmsg))
+                return True
 
     # If all the above logic passed, this module is supported
     setattr(self, EESSI_SUPPORTED_MODULE_ATTR, True)
