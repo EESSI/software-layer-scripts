@@ -846,10 +846,11 @@ def is_unsupported_module(self):
     if not os.getenv("EESSI_OVERRIDE_ROCM_VERSION_CHECK"):
         if self.cfg.name == 'ROCm-LLVM' and self.cfg.version in ('6.4.1',):
             if get_eessi_envvar('EESSI_CPU_FAMILY') == 'aarch64':
-                msg = "ROCm-LLVM/6.4.1 is not supported on aarch64 architectures. "
                 msg += "Building with '--module-only --force' and injecting an LmodError into the modulefile."
                 msg += "You can override this behaviour by setting the EESSI_OVERRIDE_ROCM_VERSION_CHECK environment variable."
                 print_warning(msg)
+                errmsg = "ROCm-LLVM/6.4.1 is not supported on the aarch64 architecture."
+                errmsg += "For more details, see: https://github.com/EESSI/software-layer/pull/1473#issuecomment-4370846033"
                 var=EESSI_IGNORE_AARCH64_ROCMLLVM641_ENVVAR
                 setattr(self, EESSI_UNSUPPORTED_MODULE_ATTR, UnsupportedModule(envvar=var, errmsg=errmsg))
                 return True
