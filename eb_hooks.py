@@ -844,7 +844,7 @@ def is_unsupported_module(self):
     # ROCm-LLVM 6.4.1 is not supported on aarch64
     # see: https://github.com/EESSI/software-layer/pull/1473#issuecomment-4370846033
     if not os.getenv("EESSI_OVERRIDE_ROCM_VERSION_CHECK"):
-        if ec.name == 'ROCm-LLVM' and ec.version in ('6.4.1',):
+        if self.cfg.name == 'ROCm-LLVM' and self.cfg.version in ('6.4.1',):
             if get_eessi_envvar('EESSI_CPU_FAMILY') == 'aarch64':
                 msg = "ROCm-LLVM/6.4.1 is not supported on aarch64 architectures. "
                 msg += "Building with '--module-only --force' and injecting an LmodError into the modulefile."
