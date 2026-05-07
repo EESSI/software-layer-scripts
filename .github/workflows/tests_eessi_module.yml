@@ -316,6 +316,45 @@ jobs:
           GREP_PATTERN="Lmod is automatically replacing \"EESSI/${{matrix.EESSI_VERSION}}\" with \"${LOCAL_STACK_NAME}/${LOCAL_STACK_VERSION}\"."
           module load "${LOCAL_STACK_NAME}/${LOCAL_STACK_VERSION}" |& grep "${GREP_PATTERN}"
 
+  check_cpu_family_override:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        EESSI_VERSION:
+          - '2025.06'
+
+    steps:
+      - name: Check out software-layer repository
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+
+      - name: Mount EESSI CernVM-FS repository
+        uses: cvmfs-contrib/github-action-cvmfs@55899ca74cf78ab874bdf47f5a804e47c198743c # v4.0
+        with:
+          cvmfs_config_package: https://github.com/EESSI/filesystem-layer/releases/download/latest/cvmfs-config-eessi_latest_all.deb
+          cvmfs_http_proxy: DIRECT
+          cvmfs_repositories: software.eessi.io,dev.eessi.io
+
+      - name: Test if we can override the CPU family to check aarch64 modules on an x86 system
+        run: |
+          # Initialise Lmod
+          . /cvmfs/software.eessi.io/versions/${{matrix.EESSI_VERSION}}/compat/linux/$(uname -m)/usr/share/Lmod/init/bash
+
+          # Unload EESSI
+          module purge
+
+          # Set the overrides we want to test
+          export EESSI_CPU_FAMILY_OVERRIDE=x86_64  # Running on an x86_64 system, so we need x86_64 compat layer
+          export EESSI_SOFTWARE_SUBDIR_OVERRIDE=riscv64/generic  # Get modules for riscv64/generic
+          export EESSI_VERSION_OVERRIDE=2025.06-001  # Override EESSI version, as versioning for riscv repo is different
+
+          # Check that we have a riscv MODULEPATH
+          if [[ "$MODULEPATH" == *"riscv"* ]]; then
+              echo "MODULEPATH contains riscv prefix ($MODULEPATH)"
+          else
+              exit 1
+          fi
+
   check_PS1_update_eessi_module:
     runs-on: ubuntu-24.04
     strategy:
