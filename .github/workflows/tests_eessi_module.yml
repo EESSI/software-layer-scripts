@@ -338,17 +338,15 @@ jobs:
       - name: Test if we can override the CPU family to check risc-v modules on an x86 system
         run: |
           # Initialise Lmod
-          . /cvmfs/software.eessi.io/versions/${{matrix.EESSI_VERSION}}/init/lmod/bash
-
-          # Unload EESSI
-          module purge
+          . /cvmfs/software.eessi.io/versions/${{matrix.EESSI_VERSION}}/compat/linux/$(uname -m)/usr/share/Lmod/init/bash
+          
+          export MODULEPATH=init/modules
 
           # Set the overrides we want to test
           export EESSI_CPU_FAMILY_OVERRIDE=x86_64  # Running on an x86_64 system, so we need x86_64 compat layer
           export EESSI_SOFTWARE_SUBDIR_OVERRIDE=riscv64/generic  # Get modules for riscv64/generic
           export EESSI_VERSION_OVERRIDE=2025.06-001  # Override EESSI version, as versioning for riscv repo is different
-
-          # Load EESSI again with the overrides
+          
           module load EESSI/${{matrix.EESSI_VERSION}}
           
           # Make sure the compat layer works with a simple ls
