@@ -95,7 +95,7 @@ jobs:
           if [[ "${{ matrix.EESSI_VERSION }}" != "2023.06" ]]; then
             check_env_var "EASYBUILD_PREFER_PYTHON_SEARCH_PATH" "EBPYTHONPREFIXES"
             check_env_var "EASYBUILD_MODULE_SEARCH_PATH_HEADERS" "include_paths"
-            check_env_var "EASYBUILD_SEARCH_PATH_CPP_HEADERS" "include_paths"
+            check_env_var "EASYBUILD_SEARCH_PATH_CPP_HEADERS" "flags"
           fi
           # verify the configuration is actually valid
           eb --show-config
