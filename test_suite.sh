@@ -13,6 +13,7 @@
 display_help() {
   echo "usage: $0 [OPTIONS]"
   echo "  -g | --generic         -  instructs script to test for generic architecture target"
+  echo "  -p | --partition       -  the partition name on which to test (used by ReFrame to load the right config)"
   echo "  -h | --help            -  display this usage information"
   echo "  -x | --http-proxy URL  -  provides URL for the environment variable http_proxy"
   echo "  -y | --https-proxy URL -  provides URL for the environment variable https_proxy"
@@ -25,6 +26,10 @@ while [[ $# -gt 0 ]]; do
     -g|--generic)
       DETECTION_PARAMETERS="--generic"
       shift
+      ;;
+    -p|--partition)
+      REFRAME_PARTITION_NAME="${2}"
+      shift 2
       ;;
     -h|--help)
       display_help  # Call your function
@@ -153,13 +158,6 @@ export RFM_CHECK_SEARCH_PATH=$TESTSUITEPREFIX/eessi/testsuite/tests
 export RFM_CHECK_SEARCH_RECURSIVE=1
 export RFM_PREFIX=$PWD/reframe_runs
 
-# Get the correct partition name
-REFRAME_PARTITION_NAME=${EESSI_SOFTWARE_SUBDIR//\//_}
-if [ ! -z "$EESSI_ACCELERATOR_TARGET_OVERRIDE" ]; then
-    REFRAME_PARTITION_NAME=${REFRAME_PARTITION_NAME}_${EESSI_ACCELERATOR_TARGET_OVERRIDE//\//_}
-fi
-echo "Constructed partition name based on EESSI_SOFTWARE_SUBDIR and EESSI_ACCELERATOR_TARGET: ${REFRAME_PARTITION_NAME}"
-
 # Set the reframe system name, including partition
 export RFM_SYSTEM="BotBuildTests:${REFRAME_PARTITION_NAME}"
 
@@ -171,7 +169,11 @@ echo "ReFrame config file used:"
 cat "${RFM_CONFIG_FILES}"
 
 # Workaround for https://github.com/EESSI/software-layer/pull/467#issuecomment-1973341966
-export PSM3_DEVICES='self,shm'  # this is enough, since we only run single node for now
+# export PSM3_DEVICES='self,shm'  # this is enough, since we only run single node for now
+# The above one stopped working in 2025.06, see
+# https://github.com/EESSI/software-layer-scripts/pull/121
+# Disable the psm3 provider instead:
+export FI_PROVIDER="^psm3"
 
 # Check we can run reframe
 reframe --version
@@ -180,6 +182,28 @@ if [[ $? -eq 0 ]]; then
 else
     fatal_error "Failed to run 'reframe --version'"
 fi
+
+# Check if the partition specified by RFM_SYSTEM is in the config file
+# Redirect to /dev/null because we don't want to print an ERROR, we want to try a fallback
+reframe --show-config | grep -v "could not find a configuration entry for the requested system/partition combination" > /dev/null
+if [[ $? -eq 1 ]]; then
+    # There was a match by grep, so we failed to find the system/partition combination
+    # Try the previous approach for backwards compatibility
+    # This fallback can be scrapped once all bots have adopted the new naming convention
+    # (i.e. using the node_type name from app.cfg) for ReFrame partitions
+    # Get the correct partition name
+    echo "Falling back to old naming scheme for REFRAME_PARTITION_NAME."
+    echo "This naming scheme is deprecated, please update your partition names in the ReFrame config file."
+    REFRAME_PARTITION_NAME=${EESSI_SOFTWARE_SUBDIR//\//_}
+    if [ ! -z "$EESSI_ACCELERATOR_TARGET_OVERRIDE" ]; then
+        REFRAME_PARTITION_NAME=${REFRAME_PARTITION_NAME}_${EESSI_ACCELERATOR_TARGET_OVERRIDE//\//_}
+    fi
+    echo "Constructed partition name based on EESSI_SOFTWARE_SUBDIR and EESSI_ACCELERATOR_TARGET: ${REFRAME_PARTITION_NAME}"
+    export RFM_SYSTEM="BotBuildTests:${REFRAME_PARTITION_NAME}"
+fi    
+
+# Log the config for this partition:
+reframe --show-config
 
 # Get the subset of test names based on the test mapping and tags (e.g. CI, 1_node)
 module_list="module_files.list.txt"

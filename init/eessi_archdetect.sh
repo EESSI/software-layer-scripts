@@ -93,11 +93,11 @@ cpupath(){
     # Identify the best matching CPU architecture from a list of supported specifications for the host CPU
     # Return the path to the installation files in EESSI of the best matching architecture
     local cpu_arch_spec=()
-  
+
     # Identify the host CPU architecture
     local machine_type=${EESSI_MACHINE_TYPE:-$(uname -m)}
     log "DEBUG" "cpupath: Host CPU architecture identified as '$machine_type'"
-  
+
     # Populate list of supported specs for this architecture
     case $machine_type in
         "x86_64") local spec_file="eessi_arch_x86.spec";;
@@ -109,14 +109,28 @@ cpupath(){
     # spec files are located in a subfolder with this script
     local base_dir=$(dirname $(readlink -f $0))
     update_arch_specs "$base_dir/arch_specs/${spec_file}"
-  
+
     # Identify the host CPU vendor
     local cpu_vendor=$(get_cpuinfo "vendor[ _]id")
     if [ "${cpu_vendor}" == "" ]; then
         cpu_vendor=$(get_cpuinfo "cpu[ _]implementer")
     fi
     log "DEBUG" "cpupath: CPU vendor of host system: '$cpu_vendor'"
-  
+    # Construct a list of known cpu vendors
+    local cpu_vendors=()
+    for spec in "${cpu_arch_spec[@]}"; do
+        eval "cols=$spec"
+        cpu_vendors+=("${cols[1]}")
+    done
+    log "DEBUG" "cpupath: Known CPU vendors: ${cpu_vendors[*]}"
+    # For ARM, if CPU vendor is as-yet-unknown fall back to a default ARM vendor 0x41
+    if [ "${machine_type}" == "aarch64" ]; then
+        if [[ " ${cpu_vendors[*]} " != *" $cpu_vendor "* ]]; then
+            log "DEBUG" "cpupath: Unknown ARM CPU vendor '$cpu_vendor', falling back to '0x41'"
+            cpu_vendor="0x41"
+        fi
+    fi
+
     # Identify the host CPU flags or features
     # cpuinfo systems print different line identifiers, eg features, instead of flags
     local cpu_flag_tag;
@@ -132,14 +146,14 @@ cpupath(){
     else
         cpu_flag_tag='flags'
     fi
-  
+
     local cpu_flags=$(get_cpuinfo "$cpu_flag_tag")
     log "DEBUG" "cpupath: CPU flags of host system: '$cpu_flags'"
-  
+
     # Default to generic CPU
     local best_arch_match="$machine_type/generic"
     local all_arch_matches=$best_arch_match
-  
+
     # Iterate over the supported CPU specifications to find the best match for host CPU
     # Order of the specifications matters, the last one to match will be selected
     for arch in "${cpu_arch_spec[@]}"; do
@@ -151,7 +165,7 @@ cpupath(){
                 log "DEBUG" "cpupath: host CPU best match updated to $best_arch_match" 
         fi
     done
-  
+
     if [ "allx" == "${CPUPATH_RESULT}x" ]; then
         log "INFO" "cpupath: all matches for host CPU: $all_arch_matches"
         echo "$all_arch_matches"
@@ -165,13 +179,14 @@ accelpath() {
     # If EESSI_ACCELERATOR_TARGET_OVERRIDE is set, use it
     log "DEBUG" "accelpath: Override variable set as '$EESSI_ACCELERATOR_TARGET_OVERRIDE' "
     if [ ! -z $EESSI_ACCELERATOR_TARGET_OVERRIDE ]; then
-        if [[ "$EESSI_ACCELERATOR_TARGET_OVERRIDE" =~ ^accel/nvidia/cc[0-9][0-9]$ ]]; then
-            echo ${EESSI_ACCELERATOR_TARGET_OVERRIDE}
+        # Regex that allows both NVIDIA and AMD overrides
+        if [[ "$EESSI_ACCELERATOR_TARGET_OVERRIDE" =~ ^accel/(nvidia/cc[0-9]+|amd/gfx[0-9a-f]+)$ ]]; then
+            echo "$EESSI_ACCELERATOR_TARGET_OVERRIDE"
             return 0
         else
-            log "ERROR" "Value of \$EESSI_ACCELERATOR_TARGET_OVERRIDE should match 'accel/nvidia/cc[0-9[0-9]', but it does not: '$EESSI_ACCELERATOR_TARGET_OVERRIDE'"
+            log "ERROR" "Value of \$EESSI_ACCELERATOR_TARGET_OVERRIDE should match 'accel/nvidia/cc[0-9]+' or 'accel/amd/gfx[0-9a-f]+', but it does not: '$EESSI_ACCELERATOR_TARGET_OVERRIDE'"
+            return 1
         fi
-        return 0
     fi
 
     # check for NVIDIA GPUs via nvidia-smi command
@@ -181,7 +196,7 @@ accelpath() {
         nvidia_smi_out=$(mktemp -p /tmp nvidia_smi_out.XXXXX)
         nvidia-smi --query-gpu=gpu_name,count,driver_version,compute_cap --format=csv,noheader 2>&1 > $nvidia_smi_out
         if [[ $? -eq 0 ]]; then
-            nvidia_smi_info=$(head -1 $nvidia_smi_out)
+            nvidia_smi_info=$(head -n 1 $nvidia_smi_out)
             cuda_cc=$(echo $nvidia_smi_info | sed 's/, /,/g' | cut -f4 -d, | sed 's/\.//g')
             log "DEBUG" "accelpath: CUDA compute capability '${cuda_cc}' derived from nvidia-smi output '${nvidia_smi_info}'"
             res="accel/nvidia/cc${cuda_cc}"

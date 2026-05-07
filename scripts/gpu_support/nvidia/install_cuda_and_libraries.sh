@@ -93,7 +93,7 @@ echo "Created temporary directory '${tmpdir}'"
 SAVE_MODULEPATH=${MODULEPATH}
 
 for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
-    echo -e "Processing easystack file ${easystack_file}...\n\n"
+    echo -e "Processing easystack file ${EASYSTACK_FILE}...\n\n"
 
     # determine version of EasyBuild module to load based on EasyBuild version included in name of easystack file
     eb_version=$(echo ${EASYSTACK_FILE} | sed 's/.*eb-\([0-9.]*\).*.yml/\1/g')
@@ -104,9 +104,11 @@ for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
     if [[ $? -eq 0 ]]; then
         echo_green ">> Found an EasyBuild/${eb_version} module"
     else
-        echo_yellow ">> No EasyBuild/${eb_version} module found: skipping step to install easystack file ${easystack_file} (see output in ${module_avail_out})"
+        echo_yellow ">> No EasyBuild/${eb_version} module found: skipping step to install easystack file ${EASYSTACK_FILE} (see output in ${module_avail_out})"
         continue
     fi
+    # Safer to unload EESSI-extend before loading an EasyBuild version, in case unload behavior ever becomes dependent on EasyBuild version
+    module unload EESSI-extend
     module load EasyBuild/${eb_version}
 
     # Make sure EESSI-extend does a site install here
@@ -115,7 +117,6 @@ for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
     unset EESSI_PROJECT_INSTALL
     unset EESSI_USER_INSTALL
     export EESSI_SITE_INSTALL=1
-    module unload EESSI-extend
     ml_av_eessi_extend_out=${tmpdir}/ml_av_eessi_extend.out
     # need to use --ignore_cache to avoid the case that the module was removed (to be
     # rebuilt) but it is still in the cache and the rebuild failed
@@ -130,16 +131,28 @@ for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
     module --ignore_cache load EESSI-extend/${EESSI_EXTEND_VERSION}
     unset EESSI_EXTEND_VERSION
 
+    # If there is a GPU on the node, the installation path will by default have an
+    # accelerator subdirectory. For CUDA and cu*, these are binary installations and
+    # we don't care about the target compute capability nor the CPU microarchitecture.
+    # Our hooks are aware of this and therefore expect CUDA to be available under 
+    # something like EESSI_SITE_SOFTWARE_PATH, but then with the CPU micro-architecture
+    # stripped
+    # This sed command will capture everything from the EESSI_SITE_SOFTWARE_PATH up until
+    # the EESSI_VERSION in a capture group. It will the replace that with the content
+    # of the capture group and then have the EESSI_CPU_FAMILY appended
+    # Thus EESSI_SITE_CPU_FAMILY_PATH is then something like /cvmfs/software.eessi.io/host_injections/x86_64
+    EESSI_SITE_CPU_FAMILY_PATH=$(echo "$EESSI_SITE_SOFTWARE_PATH" | sed 's|\(.*\)'"$EESSI_VERSION"/software/"$EESSI_OS_TYPE"/"$EESSI_SOFTWARE_SUBDIR"'|\1'"$EESSI_CPU_FAMILY"'|')
+    export EASYBUILD_INSTALLPATH=$EESSI_SITE_CPU_FAMILY_PATH
+
     # Install modules in hidden .modules dir to keep track of what was installed before
     # (this action is temporary, and we do not call Lmod again within the current shell context, but in EasyBuild
     # subshells, so loaded modules are not automatically unloaded)
-    MODULEPATH=${EESSI_SITE_SOFTWARE_PATH}/.modules/all
+    MODULEPATH=${EASYBUILD_INSTALLPATH}/.modules/all
     echo "set MODULEPATH=${MODULEPATH}"
 
-    # We don't want hooks used in this install, we need vanilla installations
-    touch "${tmpdir}"/none.py
-    export EASYBUILD_HOOKS="${tmpdir}/none.py"
-    
+    # We need to skip the hook that checks if CUDA software installed in an accelerator-specific prefix
+    export EESSI_OVERRIDE_STRICT_INSTALLPATH_CHECK=1
+
     # show EasyBuild configuration
     echo "Show EasyBuild configuration"
     eb --show-config
@@ -198,10 +211,14 @@ for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
       required_space_in_tmpdir=$((required_space_in_tmpdir + ${base_storage_space}))
     fi
     
+    # Checking disk space on a non-existing folder returns a permission denied, but the error then seems to 
+    # incorrectly suggest there is insufficient disk space. Let's make sure this directory exists.
+    mkdir -p ${EASYBUILD_INSTALLPATH}
+
     # The install is pretty fat, you need lots of space for download/unpack/install
     # (~3*${base_storage_space}*1000 Bytes),
     # need to do a space check before we proceed
-    avail_space=$(df --output=avail "${EESSI_SITE_SOFTWARE_PATH}"/ | tail -n 1 | awk '{print $1}')
+    avail_space=$(df --output=avail "${EASYBUILD_INSTALLPATH}"/ | tail -n 1 | awk '{print $1}')
     min_disk_storage=$((3 * ${base_storage_space}))
     if (( avail_space < ${min_disk_storage} )); then
       fatal_error "Need at least $(echo "${min_disk_storage} / 1000000" | bc) GB disk space to install CUDA and other libraries under ${EESSI_SITE_SOFTWARE_PATH}, exiting now..."
@@ -221,8 +238,6 @@ for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
     #        is run, it is not reinstalled.
     #  - ${accept_eula_opt}: We only set the --accept-eula-for=CUDA option if CUDA will be installed and if
     #        this script was called with the argument --accept-cuda-eula.
-    #  - hooks: We don't want hooks used in this install, we need vanilla
-    #        installations of CUDA and/or other libraries
     #  - easystack: Path to easystack file that defines which packages shall be
     #        installed
     accept_eula_opt=
@@ -239,7 +254,6 @@ for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
     touch "$tmpdir"/none.py
     eb_args="--prefix=$tmpdir"
     eb_args="$eb_args --installpath-modules=${EASYBUILD_INSTALLPATH}/.modules"
-    eb_args="$eb_args --hooks="$tmpdir"/none.py"
     eb_args="$eb_args --easystack ${EASYSTACK_FILE}"
     if [[ ! -z ${accept_eula_opt} ]]; then
         eb_args="$eb_args --accept-eula-for=$accept_eula_opt"
@@ -252,7 +266,7 @@ for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
       cp -a ${eb_last_log} .
       fatal_error "some installation failed, please check EasyBuild logs ${PWD}/$(basename ${eb_last_log})..."
     else
-      echo_green "all installations at ${EESSI_SITE_SOFTWARE_PATH}/software/... succeeded!"
+      echo_green "all installations at ${EASYBUILD_INSTALLPATH}/software/... succeeded!"
     fi
 
     # clean up tmpdir content
