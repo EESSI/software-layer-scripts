@@ -181,7 +181,7 @@ if not (archdetect_accel == nil or archdetect_accel == '') then
     eessi_module_path_accel = pathJoin(eessi_accel_software_path, archdetect_accel, eessi_modules_subdir)
     eessiDebug("Checking if " .. eessi_module_path_accel .. " exists")
     if eessi_cpu_family == "aarch64" and archdetect_accel:match("^accel/amd/") then
-        LmodMessage("aarch64 CPU detected, no support for AMD GPUs in production repository yet.")
+        LmodMessage("aarch64 CPU detected, AMD ROCm doesn't support aarch64 yet")
     end
     if not isDir(eessi_module_path_accel) then
         -- fall back to major version GPU arch if the exact one is not an option (i.e, 7.5 -> 7.0)
