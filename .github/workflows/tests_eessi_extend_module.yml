@@ -14,7 +14,7 @@ jobs:
       matrix:
         EESSI_VERSION:
           - '2023.06'
-          #- '2025.06'
+          - '2025.06'
     steps:
       - name: Check out software-layer repository
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
@@ -95,7 +95,7 @@ jobs:
           if [[ "${{ matrix.EESSI_VERSION }}" != "2023.06" ]]; then
             check_env_var "EASYBUILD_PREFER_PYTHON_SEARCH_PATH" "EBPYTHONPREFIXES"
             check_env_var "EASYBUILD_MODULE_SEARCH_PATH_HEADERS" "include_paths"
-            check_env_var "EASYBUILD_SEARCH_PATH_CPP_HEADERS" "include_paths"
+            check_env_var "EASYBUILD_SEARCH_PATH_CPP_HEADERS" "flags"
           fi
           # verify the configuration is actually valid
           eb --show-config
