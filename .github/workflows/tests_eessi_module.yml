@@ -316,7 +316,7 @@ jobs:
           GREP_PATTERN="Lmod is automatically replacing \"EESSI/${{matrix.EESSI_VERSION}}\" with \"${LOCAL_STACK_NAME}/${LOCAL_STACK_VERSION}\"."
           module load "${LOCAL_STACK_NAME}/${LOCAL_STACK_VERSION}" |& grep "${GREP_PATTERN}"
 
-  check_cpu_family_override:
+  check_riscv_cpu_override:
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -335,10 +335,10 @@ jobs:
           cvmfs_http_proxy: DIRECT
           cvmfs_repositories: software.eessi.io,dev.eessi.io
 
-      - name: Test if we can override the CPU family to check aarch64 modules on an x86 system
+      - name: Test if we can override the CPU family to check risc-v modules on an x86 system
         run: |
           # Initialise Lmod
-          . /cvmfs/software.eessi.io/versions/${{matrix.EESSI_VERSION}}/compat/linux/$(uname -m)/usr/share/Lmod/init/bash
+          . /cvmfs/software.eessi.io/versions/${{matrix.EESSI_VERSION}}/init/lmod/bash
 
           # Unload EESSI
           module purge
