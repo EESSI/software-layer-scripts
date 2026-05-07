@@ -676,7 +676,7 @@ def parse_hook_qt6_libinput(ec, eprefix):
                             f"No libinput dependency found for {ec.name} {ec.version}, please update relevant Qt6 hook"
                         )
     else:
-        raise EasyBuildError("maturin-specific hook triggered for non-maturin easyconfig?!")
+        raise EasyBuildError("Qt6-specific hook triggered for non-maturin easyconfig?!")
 
 def parse_hook_maturin(ec, eprefix):
     """
