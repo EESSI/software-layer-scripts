@@ -19,7 +19,18 @@ jobs:
 
     - name: Initialize EESSI
       uses: eessi/github-action-eessi@v3
-      
+
+    - name: Test function nvidia_gpu_available before setup of libraries
+      run: |
+         source scripts/utils.sh
+         if nvidia_gpu_available; then
+             echo "Error: Found NVIDIA libraries before the mock libraries were set up."
+             exit 1
+         else
+             echo "NVIDIA libraries were not found."
+             echo "Proceeding to setting up the mock NVIDIA libraries."
+         fi
+
     - name: Setup mock NVIDIA libraries
       run: |
         # Run the script to create mock libraries
@@ -47,6 +58,16 @@ jobs:
         # Add to PATH
         echo "Updating PATH"
         echo "PATH=/tmp/nvidia-bin:$PATH" >> $GITHUB_ENV
+
+    - name: Test nvidia_gpu_available after setup of mock libraries
+      run: |
+        source scripts/utils.sh
+        if nvidia_gpu_available; then
+             echo "mock NVIDIA libraries and nvidia-smi were set up"
+         else
+             echo "Error: mock nvidia-smi is not available."
+             exit 1
+         fi
 
     - name: Test LD_PRELOAD mode
       run: |

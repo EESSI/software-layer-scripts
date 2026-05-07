@@ -17,11 +17,6 @@ display_help() {
   echo "  --skip-cuda-install    -  disable installing a full CUDA SDK in the host_injections prefix (e.g. in CI)"
 }
 
-# Function to check if a command exists
-function command_exists() {
-    command -v "$1" >/dev/null 2>&1
-}
-
 function copy_build_log() {
     # copy specified build log to specified directory, with some context added
     build_log=${1}
@@ -154,7 +149,30 @@ else
 
       # make sure the the software and modules directory exist
       # (since it's expected by init/eessi_environment_variables when using archdetect and by the EESSI module)
-      mkdir -p ${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/{modules,software}
+      mkdir -p -v ${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/{modules,software}
+
+      # If EESSI_ACCELERATOR_TARGET_OVERRIDE is defined, we are building for an accelerator target
+      # In that case, make sure the modulepath for the accelerator subdir exists, otherwise the EESSI module will not
+      # set EESSI_ACCELERATOR_TARGET and the if-condition later in this script which checks if EESSI_ACCELERATOR_TARGET
+      # is equal to EESSI_ACCELERATOR_TARGET_OVERRIDE will fail 
+      # See https://github.com/EESSI/software-layer-scripts/pull/59#issuecomment-3173593882
+      if [ -n $EESSI_ACCELERATOR_TARGET_OVERRIDE ]; then
+          # Note that ${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/${EESSI_ACCELERATOR_TARGET_OVERRIDE}/modules/all
+          # is only the correct path if EESSI_ACCEL_SOFTWARE_SUBDIR_OVERRIDE is not set
+          if [ -z $EESSI_ACCEL_SOFTWARE_SUBDIR_OVERRIDE ]; then
+              mkdir -p -v ${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/${EESSI_ACCELERATOR_TARGET_OVERRIDE}/modules/all
+          else
+              # At runtime, one might want to use a different CPU subdir for a given accelerator. E.g. one could use
+              # a zen2 CPU subdir on a zen4 node if the required GPU software isn't available in the zen4 tree.
+              # At build time, this doesn't make a lot of sense: we'd probably build in a CPU prefix that is different
+              # from what the code will be optimized for, and we wouldn't want that
+              # So this message _should_ never be printed...
+              msg="When building the software subdirectory for the CPU should almost certainly be that of the host."
+              msg="$msg If you think this is incorrect, please implement behaviour that makes sense in "
+              msg="$msg EESSI-software-installation.sh, essentially replacing this error."
+              fatal_error "$msg"
+          fi
+      fi
   )
 fi
 
@@ -189,7 +207,7 @@ fi
 
 # the install_scripts.sh script relies on knowing the location of the PR diff
 # assume there's only one diff file that corresponds to the PR patch file
-pr_diff=$(ls [0-9]*.diff | head -1)
+pr_diff=$(ls [0-9]*.diff | head -n 1)
 export PR_DIFF="$PWD/$pr_diff"
 
 # Only run install_scripts.sh if not in dev.eessi.io for security
@@ -231,6 +249,8 @@ fi
 
 # avoid that pyc files for EasyBuild are stored in EasyBuild installation directory
 export PYTHONPYCACHEPREFIX=$TMPDIR/pycache
+# force Python's stdout and stderr streams to be unbuffered
+export PYTHONUNBUFFERED=1
 
 # if we run the script for the first time, e.g., to start building for a new
 #   stack, we need to ensure certain files are present in
@@ -299,6 +319,7 @@ source $TOPDIR/load_eessi_extend_module.sh ${EESSI_VERSION}
 echo "DEBUG: after loading EESSI-extend //  EASYBUILD_INSTALLPATH='${EASYBUILD_INSTALLPATH}'"
 
 # Install full CUDA SDK and cu* libraries in host_injections
+# (This is done *before* configuring EasyBuild as it may rely on an older EB version)
 # Hardcode this for now, see if it works
 # TODO: We should make a nice yaml and loop over all CUDA versions in that yaml to figure out what to install
 # Allow skipping CUDA SDK install in e.g. CI environments
@@ -315,19 +336,11 @@ else
 fi
 
 # Install NVIDIA drivers in host_injections (if they exist)
-if command_exists "nvidia-smi"; then
-    export LD_LIBRARY_PATH="/.singularity.d/libs:${LD_LIBRARY_PATH}"
-    nvidia-smi --version
-    ec=$?
-    if [ ${ec} -eq 0 ]; then 
-        echo "Command 'nvidia-smi' found. Installing NVIDIA drivers for use in prefix shell..."
-        ${EESSI_PREFIX}/scripts/gpu_support/nvidia/link_nvidia_host_libraries.sh
-    else
-        echo "Warning: command 'nvidia-smi' found, but 'nvidia-smi --version' did not run succesfully."
-        echo "This script now assumes this is NOT a GPU node."
-        echo "If, and only if, the current node actually does contain Nvidia GPUs, this should be considered an error."
-    fi
+if nvidia_gpu_available; then
+    echo "Installing NVIDIA drivers for use in prefix shell..."
+    ${EESSI_PREFIX}/scripts/gpu_support/nvidia/link_nvidia_host_libraries.sh
 fi
+
 
 if [ ! -z "${shared_fs_path}" ]; then
     shared_eb_sourcepath=${shared_fs_path}/easybuild/sources
@@ -337,7 +350,7 @@ fi
 
 # if an accelerator target is specified, we need to make sure that the CPU-only modules are also still available
 if [ ! -z ${EESSI_ACCELERATOR_TARGET} ]; then
-    CPU_ONLY_MODULES_PATH=$(echo $EASYBUILD_INSTALLPATH | sed "s@/accel/${EESSI_ACCELERATOR_TARGET}@@g")/modules/all
+    CPU_ONLY_MODULES_PATH=$(echo $EASYBUILD_INSTALLPATH | sed "s@/${EESSI_ACCELERATOR_TARGET}@@g")/modules/all
     if [ -d ${CPU_ONLY_MODULES_PATH} ]; then
         module use ${CPU_ONLY_MODULES_PATH}
     else
@@ -357,7 +370,9 @@ else
 fi
 
 # use PR patch file to determine in which easystack files stuff was added
-changed_easystacks=$(cat ${pr_diff} | grep '^+++' | cut -f2 -d' ' | sed 's@^[a-z]/@@g' | grep 'easystacks/.*yml$' | egrep -v 'known-issues|missing') 
+# Note that we exclude the scripts/gpu_support/ dir, since those are not meant to be built in the
+# software-layer, but they are helper easystacks for installing e.g. CUDA in host_injections
+changed_easystacks=$(cat ${pr_diff} | grep '^+++' | cut -f2 -d' ' | sed 's@^[a-z]/@@g' | grep 'easystacks/.*yml$' | egrep -v 'known-issues|missing' | (grep -v "scripts/gpu_support/" || true)) 
 if [ -z "${changed_easystacks}" ]; then
     echo "No missing installations, party time!"  # Ensure the bot report success, as there was nothing to be build here
 else
@@ -369,46 +384,50 @@ else
     for easystack_file in ${rebuild_easystacks} ${new_easystacks}; do
 
         # make sure that easystack file being picked up is for EESSI version that we're building for...
-        echo "${easystack_file}" | grep -q "^easystacks/$(basename ${EESSI_CVMFS_REPO})/${EESSI_VERSION}/"
+        echo "${easystack_file}" | grep -q "^easystacks/$(basename ${EESSI_CVMFS_REPO})/${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX}/"
         if [ $? -ne 0 ]; then
-            fatal_error "Easystack file ${easystack_file} is not intended for EESSI version ${EESSI_VERSION}, giving up!"
-        fi
-
-        echo -e "Processing easystack file ${easystack_file}...\n\n"
-
-        # determine version of EasyBuild module to load based on EasyBuild version included in name of easystack file
-        eb_version=$(echo ${easystack_file} | sed 's/.*eb-\([0-9.]*\).*.yml/\1/g')
-
-        # load EasyBuild module (will be installed if it's not available yet)
-        source ${TOPDIR}/load_easybuild_module.sh ${eb_version}
-
-        ${EB} --show-config
-
-        echo_green "All set, let's start installing some software with EasyBuild v${eb_version} in ${EASYBUILD_INSTALLPATH}..."
-
-        if [ -f ${easystack_file} ]; then
-            echo_green "Feeding easystack file ${easystack_file} to EasyBuild..."
-
-            if [[ ${easystack_file} == *"/rebuilds/"* ]]; then
-                ${EB} --easystack ${easystack_file} --rebuild
-            else
-                ${EB} --easystack ${easystack_file} --robot
-            fi
-            ec=$?
-
-            # copy EasyBuild log file if EasyBuild exited with an error
-            if [ ${ec} -ne 0 ]; then
-                eb_last_log=$(unset EB_VERBOSE; eb --last-log)
-                # copy to current working directory
-                cp -a ${eb_last_log} .
-                echo "Last EasyBuild log file copied from ${eb_last_log} to ${PWD}"
-                # copy to build logs dir (with context added)
-                copy_build_log "${eb_last_log}" "${build_logs_dir}"
-            fi
-    
-            $TOPDIR/check_missing_installations.sh ${easystack_file} ${pr_diff}
+            echo_yellow "Easystack file ${easystack_file} is not intended for EESSI version ${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX}, skipping it..."
         else
-            fatal_error "Easystack file ${easystack_file} not found!"
+            echo -e "Processing easystack file ${easystack_file}...\n\n"
+
+            # determine version of EasyBuild module to load based on EasyBuild version included in name of easystack file
+            eb_version=$(echo ${easystack_file} | sed 's/.*eb-\([0-9.]*\).*.yml/\1/g')
+
+            # load EasyBuild module (will be installed if it's not available yet)
+            source ${TOPDIR}/load_easybuild_module.sh ${eb_version}
+
+            ${EB} --show-config
+
+            echo_green "All set, let's start installing some software with EasyBuild v${eb_version} in ${EASYBUILD_INSTALLPATH}..."
+
+            if [ -f ${easystack_file} ]; then
+                echo_green "Feeding easystack file ${easystack_file} to EasyBuild..."
+
+                if [[ ${easystack_file} == *"/rebuilds/"* ]]; then
+                    ${EB} --easystack ${easystack_file} --rebuild
+                else
+                    ${EB} --easystack ${easystack_file} --robot
+                fi
+                ec=$?
+
+                # copy EasyBuild log file if EasyBuild exited with an error
+                if [ ${ec} -ne 0 ]; then
+                    eb_last_log=$(eb --last-log | grep ^/.*\.log)
+                    # copy to current working directory if file exhists
+                    if [ -f ${eb_last_log} ]; then
+                        cp -a ${eb_last_log} .
+                        echo "Last EasyBuild log file copied from ${eb_last_log} to ${PWD}"
+                        # copy to build logs dir (with context added)
+                        copy_build_log "${eb_last_log}" "${build_logs_dir}"
+                    else
+                        fatal_error "Could not copy EasyBuild log file because ${eb_last_log} does not exist"
+                    fi
+                fi
+
+                $TOPDIR/check_missing_installations.sh ${easystack_file} ${pr_diff}
+            else
+                fatal_error "Easystack file ${easystack_file} not found!"
+            fi
         fi
 
     done
@@ -428,7 +447,7 @@ lmod_rc_file="$LMOD_CONFIG_DIR/lmodrc.lua"
 echo "DEBUG: lmod_rc_file='${lmod_rc_file}'"
 if [[ ! -z ${EESSI_ACCELERATOR_TARGET} ]]; then
     # EESSI_ACCELERATOR_TARGET is set, so let's remove the accelerator path from $lmod_rc_file
-    lmod_rc_file=$(echo ${lmod_rc_file} | sed "s@/accel/${EESSI_ACCELERATOR_TARGET}@@")
+    lmod_rc_file=$(echo ${lmod_rc_file} | sed "s@/${EESSI_ACCELERATOR_TARGET}@@")
     echo "Path to lmodrc.lua changed to '${lmod_rc_file}'"
 fi
 lmodrc_changed=$(cat ${pr_diff} | grep '^+++' | cut -f2 -d' ' | sed 's@^[a-z]/@@g' | grep '^create_lmodrc.py$' > /dev/null; echo $?)
@@ -441,7 +460,7 @@ fi
 lmod_sitepackage_file="$LMOD_PACKAGE_PATH/SitePackage.lua"
 if [[ ! -z ${EESSI_ACCELERATOR_TARGET} ]]; then
     # EESSI_ACCELERATOR_TARGET is set, so let's remove the accelerator path from $lmod_sitepackage_file
-    lmod_sitepackage_file=$(echo ${lmod_sitepackage_file} | sed "s@/accel/${EESSI_ACCELERATOR_TARGET}@@")
+    lmod_sitepackage_file=$(echo ${lmod_sitepackage_file} | sed "s@/${EESSI_ACCELERATOR_TARGET}@@")
     echo "Path to SitePackage.lua changed to '${lmod_sitepackage_file}'"
 fi
 sitepackage_changed=$(cat ${pr_diff} | grep '^+++' | cut -f2 -d' ' | sed 's@^[a-z]/@@g' | grep '^create_lmodsitepackage.py$' > /dev/null; echo $?)
