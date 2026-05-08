@@ -981,6 +981,18 @@ def pre_prepare_hook_cudnn(self, *args, **kwargs):
                 update_build_option('cuda_compute_capabilities', updated_cuda_cc)
 
 
+def pre_prepare_hook_gromacs(self, *args, **kwargs):
+    """
+    Solve GROMACS build issue on NVIDIA Grace CPUs when hwloc support is enabled.
+    """
+    cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+    if self.name == 'GROMACS':
+        if self.version < '2026.3' and cpu_target == CPU_TARGET_NVIDIA_GRACE:
+            os.environ['HWLOC_KEEP_NVIDIA_GPU_NUMA_NODES'] = '0'
+    else:
+        raise EasyBuildError("GROMACS-specific hook triggered for non-GROMACS easyconfig?!")
+
+
 def pre_prepare_hook_highway_handle_test_compilation_issues(self, *args, **kwargs):
     """
     Solve issues with compiling or running the tests on both
@@ -2041,6 +2053,7 @@ PRE_FETCH_HOOKS = {}
 
 PRE_PREPARE_HOOKS = {
     'cuDNN': pre_prepare_hook_cudnn,
+    'GROMACS': pre_prepare_hook_gromacs,
     'Highway': pre_prepare_hook_highway_handle_test_compilation_issues,
     'LLVM': pre_prepare_hook_llvm_a64fx,
     'PyTorch': pre_prepare_hook_pytorch,
