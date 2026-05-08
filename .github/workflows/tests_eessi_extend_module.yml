@@ -33,7 +33,7 @@ jobs:
           source .github/workflows/scripts/test_utils.sh
 
           # Let's start from a clean slate (unload the EESSI module)
-          module purge
+          module --force purge
           check_disallowed_env_prefix EESSI_
           check_disallowed_env_prefix EASYBUILD_
 
@@ -67,7 +67,7 @@ jobs:
           source .github/workflows/scripts/test_utils.sh
 
           # Let's start from a clean slate
-          module purge
+          module --force purge
           module load EESSI/${{matrix.EESSI_VERSION}}
           # Access the installed EESSI-extend
           module use "$MY_INSTALLATION_PATH"/modules/all
@@ -161,7 +161,7 @@ jobs:
           export STORED_CUDA_CC="8.0"
 
           # Let's start from a clean slate
-          module purge
+          module --force purge
           export EESSI_ACCELERATOR_TARGET_OVERRIDE=$STORED_EESSI_ACCELERATOR_TARGET_OVERRIDE
           module load EESSI/${{matrix.EESSI_VERSION}}
           # Access the installed EESSI-extend
