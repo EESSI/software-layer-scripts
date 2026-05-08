@@ -179,13 +179,14 @@ accelpath() {
     # If EESSI_ACCELERATOR_TARGET_OVERRIDE is set, use it
     log "DEBUG" "accelpath: Override variable set as '$EESSI_ACCELERATOR_TARGET_OVERRIDE' "
     if [ ! -z $EESSI_ACCELERATOR_TARGET_OVERRIDE ]; then
-        if [[ "$EESSI_ACCELERATOR_TARGET_OVERRIDE" =~ ^accel/nvidia/cc[0-9]+$ ]]; then
-            echo ${EESSI_ACCELERATOR_TARGET_OVERRIDE}
+        # Regex that allows both NVIDIA and AMD overrides
+        if [[ "$EESSI_ACCELERATOR_TARGET_OVERRIDE" =~ ^accel/(nvidia/cc[0-9]+|amd/gfx[0-9a-f]+)$ ]]; then
+            echo "$EESSI_ACCELERATOR_TARGET_OVERRIDE"
             return 0
         else
-            log "ERROR" "Value of \$EESSI_ACCELERATOR_TARGET_OVERRIDE should match 'accel/nvidia/cc[0-9]+', but it does not: '$EESSI_ACCELERATOR_TARGET_OVERRIDE'"
+            log "ERROR" "Value of \$EESSI_ACCELERATOR_TARGET_OVERRIDE should match 'accel/nvidia/cc[0-9]+' or 'accel/amd/gfx[0-9a-f]+', but it does not: '$EESSI_ACCELERATOR_TARGET_OVERRIDE'"
+            return 1
         fi
-        return 0
     fi
 
     # check for NVIDIA GPUs via nvidia-smi command
