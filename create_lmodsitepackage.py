@@ -225,6 +225,7 @@ local function eessi_cuda_and_libraries_enabled_load_hook(t)
                                 warn = warn .. "https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html .\\n"
                                 if not suppress_warn or suppress_warn == 1 then
                                     LmodWarning("\\nYour driver CUDA version is ", cudaVersion, " ", warn)
+                                    setenv(suppress_var, "1")
                                 end
                             end
                         end
