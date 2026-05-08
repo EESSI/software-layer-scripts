@@ -229,12 +229,6 @@ local function eessi_cuda_and_libraries_enabled_load_hook(t)
                                         pushenv(suppress_var, myModuleName())
                                     end
                                 end
-                                if (mode() == "unload") then
-                                    if suppress_warn == myModuleName() then
-                                        -- make sure the variable eventually gets unset
-                                        pushenv(suppress_var, myModuleName())
-                                    end
-                                end
                             end
                         end
                         if driver_libs_need_update == true then
