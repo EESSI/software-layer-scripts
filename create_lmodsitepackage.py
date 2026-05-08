@@ -201,13 +201,13 @@ local function eessi_cuda_and_libraries_enabled_load_hook(t)
                     -- Account for the fact that the script sourced above was designed to never return a non-zero exit code,
                     -- even if it fails to set EESSI_CUDA_DRIVER_VERSION
                     -- Essentially, we handle that case here by raising an error, which can be suppressed
+                    local suppress_var = "EESSI_CUDA_DRIVER_VERSION_SUPPRESS_WARNING"
+                    local suppress_warn = os.getenv(suppress_var)
                     if not cudaVersion or cudaVersion == "" then
-                        local suppress_var = "EESSI_CUDA_DRIVER_VERSION_SUPPRESS_WARNING"
                         local warn = "Environment variable EESSI_CUDA_DRIVER_VERSION not found. "
                         warn = warn .. "Cannot ensure that driver version is new enough for CUDA toolkit version: '"
                         warn = warn .. cudaVersion_req .. "'. This module will still be loaded, but may not function "
                         warn = warn .. "as expected. Export " .. suppress_var .. "=1"
-                        local suppress_warn = os.getenv(suppress_var)
                         if not suppress_warn or suppress_warn == 1 then
                             LmodWarning(warn)
                         end
@@ -220,14 +220,16 @@ local function eessi_cuda_and_libraries_enabled_load_hook(t)
                             driver_libs_need_update = true
                         elseif tonumber(major) == tonumber(major_req) then
                             if tonumber(minor) < tonumber(minor_req) then
-                                local advice = "but the module you want to load requires CUDA  " .. cudaVersion_req .. ". "
-                                advice = advice .. "You will therefore be in minor version compatibility mode as described in "
-                                advice = advice .. "https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html .\\n"
-                                LmodWarning("\\nYour driver CUDA version is ", cudaVersion, " ", advice)
+                                local warn = "but the module you want to load requires CUDA " .. cudaVersion_req .. ". "
+                                warn = warn .. "You will therefore be in minor version compatibility mode as described in "
+                                warn = warn .. "https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html .\\n"
+                                if not suppress_warn or suppress_warn == 1 then
+                                    LmodWarning("\\nYour driver CUDA version is ", cudaVersion, " ", warn)
+                                end
                             end
                         end
                         if driver_libs_need_update == true then
-                            local advice = "but the module you want to load requires CUDA  " .. cudaVersion_req .. ". "
+                            local advice = "but the module you want to load requires CUDA " .. cudaVersion_req .. ". "
                             advice = advice .. "Please update your CUDA driver libraries and then "
                             advice = advice .. "let EESSI know about the update.\\n"
                             advice = advice .. refer_to_docs
