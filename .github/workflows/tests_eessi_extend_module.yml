@@ -34,7 +34,7 @@ jobs:
 
           # Let's start from a clean slate (unload the EESSI module)
           module --force purge
-          check_disallowed_env_prefix EESSI_
+          check_disallowed_env_prefix EESSI_ EESSI_MODULE_STICKY
           check_disallowed_env_prefix EASYBUILD_
 
           # Load the EESSI module
