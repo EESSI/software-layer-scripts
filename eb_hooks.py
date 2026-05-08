@@ -2156,4 +2156,7 @@ PARALLELISM_LIMITS = {
         CPU_TARGET_NEOVERSE_N1: (divide_by_factor, 2),
         CPU_TARGET_NEOVERSE_V1: (divide_by_factor, 2),
     },
+    'ROCm-LLVM': {
+        '*': (set_maximum, 12),
+    },
 }
