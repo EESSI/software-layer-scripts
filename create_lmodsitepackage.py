@@ -208,7 +208,7 @@ local function eessi_cuda_and_libraries_enabled_load_hook(t)
                         warn = warn .. "Cannot ensure that driver version is new enough for CUDA toolkit version: '"
                         warn = warn .. cudaVersion_req .. "'. This module will still be loaded, but may not function "
                         warn = warn .. "as expected. Export " .. suppress_var .. "=1"
-                        if not suppress_warn or suppress_warn == 1 then
+                        if not suppress_warn or suppress_warn == "1" then
                             LmodWarning(warn)
                         end
                     else
@@ -223,9 +223,17 @@ local function eessi_cuda_and_libraries_enabled_load_hook(t)
                                 local warn = "but the module you want to load requires CUDA " .. cudaVersion_req .. ". "
                                 warn = warn .. "You will therefore be in minor version compatibility mode as described in "
                                 warn = warn .. "https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html .\\n"
-                                if not suppress_warn or suppress_warn == 1 then
+                                if not suppress_warn or suppress_warn == "1" then
                                     LmodWarning("\\nYour driver CUDA version is ", cudaVersion, " ", warn)
-                                    setenv(suppress_var, "1")
+                                    if not suppress_warn then
+                                        pushenv(suppress_var, myModuleName())
+                                    end
+                                end
+                                if (mode() == "unload") then
+                                    if suppress_warn == myModuleName() then
+                                        -- make sure the variable eventually gets unset
+                                        pushenv(suppress_var, myModuleName())
+                                    end
                                 end
                             end
                         end
