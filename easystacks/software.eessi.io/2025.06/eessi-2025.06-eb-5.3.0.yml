@@ -5,4 +5,4 @@ easyconfigs:
         from-commit: 9320dfe8ae6f45d37edd0ef52be37e7d3668d298
         # see https://github.com/easybuilders/easybuild-easyblocks/pull/3531
         include-easyblocks-from-commit: cfb6f93bfae8bef5d8996ae6696defcafbf0d4ad
-        max-parallel: 1
+        max-parallel: "1"
