@@ -161,9 +161,9 @@ local function eessi_cuda_and_libraries_enabled_load_hook(t)
     local checkGpu = mt:haveProperty(simpleName,"arch","gpu")
     local overrideGpuCheck = os.getenv("EESSI_OVERRIDE_GPU_CHECK")
     if checkGpu and (overrideGpuCheck == nil) then
-        local eessi_version = os.getenv('EESSI_VERSION')
-        local eessi_eprefix = os.getenv("EESSI_EPREFIX")
-        if eessi_eprefix == nil or eessi_version == nil then
+        local eessi_version = os.getenv('EESSI_VERSION') or ""
+        local eessi_eprefix = os.getenv("EESSI_EPREFIX") or ""
+        if eessi_eprefix == "" or eessi_version == "" then
             LmodError("EESSI_VERSION and EESSI_EPREFIX must be defined for GPU driver check to work\\n")
         end
         -- Having EESSICUDAVERSION set means we have an NVIDIA accelerator
