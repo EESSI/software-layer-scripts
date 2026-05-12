@@ -655,6 +655,29 @@ def parse_hook_qt5_check_qtwebengine_disable(ec, eprefix):
         raise EasyBuildError("Qt5-specific hook triggered for non-Qt5 easyconfig?!")
 
 
+def parse_hook_qt6_libinput(ec, eprefix):
+    """
+    Add dependency on libinput to Qt6.
+    This is not included in upstream EasyBuild as it brings a dependency on system-d
+    """
+    qt6_toolchain_version_to_libinput_version_map = {'14.3.0': '1.30.1'}
+    if ec.name == 'Qt6':
+        # Only enforcing from GCCcore 14.3.0 onwards for Qt6 6.9.3 onwards
+        if ec.toolchain.version >= LooseVersion('14.3.0'):
+            if ec.version >= LooseVersion('6.9.3'):
+                dep_names = [dep[0] for dep in ec['dependencies']]
+                if 'libinput' not in dep_names:
+                    if ec.toolchain.version in qt6_toolchain_version_to_libinput_version_map.keys():
+                        libinput = ('libinput', qt6_toolchain_version_to_libinput_version_map[ec.toolchain.version])
+                        ec['dependencies'].append(libinput)
+                        print_msg(f"Added {libinput} dependency for {ec.name} {ec.version}")
+                    else:
+                        raise EasyBuildError(
+                            f"No libinput dependency found for {ec.name} {ec.version}, please update relevant Qt6 hook"
+                        )
+    else:
+        raise EasyBuildError(f"Qt6-specific hook triggered for non-Qt6 easyconfig?!")
+
 def parse_hook_maturin(ec, eprefix):
     """
     Replace build dependency on Rust 1.88.0 by 1.91.1,
@@ -2010,6 +2033,7 @@ PARSE_HOOKS = {
     'OpenBLAS': parse_hook_openblas_relax_lapack_tests_num_errors,
     'pybind11': parse_hook_pybind11_replace_catch2,
     'Qt5': parse_hook_qt5_check_qtwebengine_disable,
+    'Qt6': parse_hook_qt6_libinput,
     'UCX': parse_hook_ucx_eprefix,
 }
 
@@ -2131,5 +2155,8 @@ PARALLELISM_LIMITS = {
         CPU_TARGET_AARCH64_GENERIC: (divide_by_factor, 2),
         CPU_TARGET_NEOVERSE_N1: (divide_by_factor, 2),
         CPU_TARGET_NEOVERSE_V1: (divide_by_factor, 2),
+    },
+    'ROCm-LLVM': {
+        '*': (set_maximum, 12),
     },
 }
