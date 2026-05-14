@@ -246,7 +246,7 @@ def get_rpath_override_dirs(software_name=None, stub_suffix=""):
         software_name,
         # We can't know the version, but this allows the use of a symlink
         # to facilitate version upgrades without removing files
-        f'system{'-' if stub_suffix else ''}{stub_suffix}',
+        f"system{'-' if stub_suffix else ''}{stub_suffix}",
     )
 
     # Allow for libraries in lib or lib64
