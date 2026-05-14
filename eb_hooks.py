@@ -234,6 +234,9 @@ def get_eessi_envvar(eessi_envvar):
 
 
 def get_rpath_override_dirs(software_name=None, stub_suffix=""):
+    if software_name is None:
+        raise EasyBuildError("This function should not be called without setting software_name")
+    
     # determine path to installations in software layer via $EESSI_SOFTWARE_PATH
     eessi_software_path = get_eessi_envvar('EESSI_SOFTWARE_PATH')
 
