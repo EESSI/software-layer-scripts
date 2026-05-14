@@ -56,9 +56,11 @@ jobs:
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild
           echo $EBROOTEESSIMINEXTEND | grep $MY_INSTALLATION_PATH || { echo "ERROR: Installed version of EESSI-extend not picked up (loaded $EBROOTEESSIMINEXTEND)" >&2; exit 1; }
           # Do a test rebuild (with default and local hooks)
+          echo "Testing a rebuild using the hooks shipped with EESSI"
           eb --rebuild ${{matrix.rebuild_software}}
+          echo "Testing a rebuild using the hooks in the current branch"
           eb --rebuild --hooks=./eb_hooks.py ${{matrix.rebuild_software}}
-          # Proceed with unload and checking that
+          # Proceed with unload and checking the environment variables
           module unload EESSI-extend
           # That should have unset all EasyBuild envvars (including EASYBUILD_PREFIX)
           check_disallowed_env_prefix EASYBUILD_
