@@ -429,10 +429,12 @@ def pre_prepare_hook(self, *args, **kwargs):
     if mpi_family:
         mpi_rpath_override_dirs = []
         # If the package relies on CUDA or ROCm, the MPI layer may require different overrides
-        # for different CUDA/ROCm versions
+        # for different CUDA/ROCm versions with specific compiler families
         if self.cfg.eessi_gpu_dependency:
-            gpu_stub = f"{self.cfg.eessi_gpu_dependency[0]}-{self.cfg.eessi_gpu_dependency[1]}"
+            gpu_stub = f"{self.toolchain.COMPILER_FAMILY}-{self.cfg.eessi_gpu_dependency[0]}-{self.cfg.eessi_gpu_dependency[1]}"
             mpi_rpath_override_dirs += get_rpath_override_dirs(software_name=mpi_family, stub_suffix=gpu_stub)
+        # We also may require OpenMP runtimes, which are compiler family dependent
+        mpi_rpath_override_dirs += get_rpath_override_dirs(software_name=mpi_family, stub_suffix=f"{self.toolchain.COMPILER_FAMILY}")
         # Get list of default override directories
         mpi_rpath_override_dirs += get_rpath_override_dirs(software_name=mpi_family)
 
