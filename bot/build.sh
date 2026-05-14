@@ -171,6 +171,22 @@ else
 fi
 echo "bot/build.sh: EESSI_ACCELERATOR_TARGET_OVERRIDE='${EESSI_ACCELERATOR_TARGET_OVERRIDE}'"
 
+# Log the full lscpu and os-release info:
+lscpu > _bot_job${SLURM_JOB_ID}.lscpu
+cat /etc/os-release > _bot_job${SLURM_JOB_ID}.os
+
+# Also: fetch CPU flags into an array, so that we can implement a hard check against a reference
+lscpu_flags_line=$(lscpu | grep "Flags:" || echo "")
+# strip leading "Flags:" and spaces, and put result in a bash array
+if [[ $lscpu_flags =~ Flags:\ (.*) ]]; then lscpu_flags=(${BASH_REMATCH[1]}); fi
+# for now, just print
+echo "bot/build.sh: CPU flags=${lscpu_flags[@]}"
+# TODO: an actual comparison with a reference bash array, e.g. through
+# diff_result=$(diff <(printf "%s\n" "${lscpu_flags[@]}" | sort) <(printf "%s\n" "${lscpu_flags_ref[@]}" | sort))
+# if [ ! -z "$diff_result" ]; then
+#    echo "bot/build.sh: ERROR: difference between reported lscpu flags and reference for this ($EESSI_SOFTWARE_SUBDIR_OVERRIDE) CPU architecture. This could mean an incorrect build host was used to build for this target.
+# fi
+
 # get EESSI_OS_TYPE from .architecture.os_type in ${JOB_CFG_FILE} (default: linux)
 EESSI_OS_TYPE=$(cfg_get_value "architecture" "os_type")
 export EESSI_OS_TYPE=${EESSI_OS_TYPE:-linux}
@@ -265,6 +281,14 @@ BUILD_TMPDIR=$(grep ' as tmp directory ' ${build_outerr} | cut -d ' ' -f 2)
 TARBALL_STEP_ARGS+=("--resume" "${BUILD_TMPDIR}")
 
 timestamp=$(date +%s)
+# determine compression/extension for tarball, check in order of preference
+if [[ -x "$(command -v zstd)" ]]; then
+    tarball_extension="tar.zst"
+elif [[ -x "$(command -v gzip)" ]]; then
+    tarball_extension="tar.gz"
+else
+    tarball_extension="tar"
+fi
 # to set EESSI_VERSION we need to source init/eessi_defaults now
 source $software_layer_dir/init/eessi_defaults
 # Note: if ${EESSI_DEV_PROJECT} is defined (building for dev.eessi.io), then we 
@@ -272,9 +296,9 @@ source $software_layer_dir/init/eessi_defaults
 # then used at the ingestion stage. If ${EESSI_DEV_PROJECT} is not defined, nothing is
 # appended
 if [[ -z ${EESSI_ACCELERATOR_TARGET_OVERRIDE} ]]; then
-    export TGZ=$(printf "eessi-%s-software-%s-%s-%b%d.tar.gz" ${EESSI_VERSION} ${EESSI_OS_TYPE} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE//\//-} ${EESSI_DEV_PROJECT:+$EESSI_DEV_PROJECT-} ${timestamp})
+    export TARBALL=$(printf "eessi-%s-software-%s-%s-%b%d.${tarball_extension}" ${EESSI_VERSION} ${EESSI_OS_TYPE} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE//\//-} ${EESSI_DEV_PROJECT:+$EESSI_DEV_PROJECT-} ${timestamp})
 else
-    export TGZ=$(printf "eessi-%s-software-%s-%s-%s-%b%d.tar.gz" ${EESSI_VERSION} ${EESSI_OS_TYPE} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE//\//-} ${EESSI_ACCELERATOR_TARGET_OVERRIDE//\//-} ${EESSI_DEV_PROJECT:+$EESSI_DEV_PROJECT-} ${timestamp})
+    export TARBALL=$(printf "eessi-%s-software-%s-%s-%s-%b%d.${tarball_extension}" ${EESSI_VERSION} ${EESSI_OS_TYPE} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE//\//-} ${EESSI_ACCELERATOR_TARGET_OVERRIDE//\//-} ${EESSI_DEV_PROJECT:+$EESSI_DEV_PROJECT-} ${timestamp})
 fi
 
 # Export EESSI_DEV_PROJECT to use it (if needed) when making tarball
@@ -288,8 +312,8 @@ export EESSI_DEV_PROJECT=${EESSI_DEV_PROJECT}
 TMP_IN_CONTAINER=/tmp
 echo "Executing command to create tarball:"
 echo "$software_layer_dir/eessi_container.sh ${COMMON_ARGS[@]} ${TARBALL_STEP_ARGS[@]}"
-echo "                     -- $software_layer_dir/create_tarball.sh ${TMP_IN_CONTAINER} ${EESSI_VERSION} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE} \"${EESSI_ACCELERATOR_TARGET_OVERRIDE}\" /eessi_bot_job/${TGZ} 2>&1 | tee -a ${tar_outerr}"
+echo "                     -- $software_layer_dir/create_tarball.sh ${TMP_IN_CONTAINER} ${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE} \"${EESSI_ACCELERATOR_TARGET_OVERRIDE}\" /eessi_bot_job/${TARBALL} 2>&1 | tee -a ${tar_outerr}"
 $software_layer_dir/eessi_container.sh "${COMMON_ARGS[@]}" "${TARBALL_STEP_ARGS[@]}" \
-                     -- $software_layer_dir/create_tarball.sh ${TMP_IN_CONTAINER} ${EESSI_VERSION} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE} "${EESSI_ACCELERATOR_TARGET_OVERRIDE}" /eessi_bot_job/${TGZ} 2>&1 | tee -a ${tar_outerr}
+                     -- $software_layer_dir/create_tarball.sh ${TMP_IN_CONTAINER} ${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE} "${EESSI_ACCELERATOR_TARGET_OVERRIDE}" /eessi_bot_job/${TARBALL} 2>&1 | tee -a ${tar_outerr}
 
 exit 0

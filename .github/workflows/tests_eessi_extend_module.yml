@@ -15,8 +15,9 @@ jobs:
         include:
           - eessi_version: '2023.06'
             rebuild_software: "BCFtools-1.18-GCC-12.3.0.eb"
-          # - eessi_version: '2025.06'
-          #   rebuild_software: "make-4.4.1-GCCcore-13.3.0.eb"
+          - eessi_version: '2025.06'
+            rebuild_software: "make-4.4.1-GCCcore-13.3.0.eb"
+
     steps:
       - name: Check out software-layer repository
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
@@ -35,8 +36,8 @@ jobs:
           source .github/workflows/scripts/test_utils.sh
 
           # Let's start from a clean slate (unload the EESSI module)
-          module purge
-          check_disallowed_env_prefix EESSI_
+          module --force purge
+          check_disallowed_env_prefix EESSI_ EESSI_MODULE_STICKY
           check_disallowed_env_prefix EASYBUILD_
 
           # Load the EESSI module
@@ -73,7 +74,7 @@ jobs:
           source .github/workflows/scripts/test_utils.sh
 
           # Let's start from a clean slate
-          module purge
+          module --force purge
           module load EESSI/${{matrix.eessi_version}}
           # Access the installed EESSI-extend
           module use "$MY_INSTALLATION_PATH"/modules/all
@@ -102,7 +103,7 @@ jobs:
           if [[ "${{ matrix.eessi_version }}" != "2023.06" ]]; then
             check_env_var "EASYBUILD_PREFER_PYTHON_SEARCH_PATH" "EBPYTHONPREFIXES"
             check_env_var "EASYBUILD_MODULE_SEARCH_PATH_HEADERS" "include_paths"
-            check_env_var "EASYBUILD_SEARCH_PATH_CPP_HEADERS" "include_paths"
+            check_env_var "EASYBUILD_SEARCH_PATH_CPP_HEADERS" "flags"
           fi
           # verify the configuration is actually valid
           eb --show-config
@@ -171,7 +172,7 @@ jobs:
           export STORED_CUDA_CC="8.0"
 
           # Let's start from a clean slate
-          module purge
+          module --force purge
           export EESSI_ACCELERATOR_TARGET_OVERRIDE=$STORED_EESSI_ACCELERATOR_TARGET_OVERRIDE
           module load EESSI/${{matrix.eessi_version}}
           # Access the installed EESSI-extend

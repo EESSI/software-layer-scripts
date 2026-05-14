@@ -15,14 +15,23 @@ local eessi_version = myModuleVersion()
 local eessi_repo = "/cvmfs/software.eessi.io"
 local eessi_prefix = pathJoin(eessi_repo, "versions", eessi_version)
 local eessi_compat_prefix = pathJoin(eessi_prefix, "compat")
-local eessi_archdetect_prefix = pathJoin(eessi_prefix, "init")
+local eessi_init_prefix = pathJoin(eessi_prefix, "init")
+local eessi_software_layer_version_suffix = ""
 local eessi_os_type = "linux"
 -- for RISC-V clients we need to do some overrides, as things are stored in different CVMFS repositories
-if (subprocess("uname -m"):gsub("\n$","") == "riscv64") then
+local eessi_software_subdir_override = os.getenv("EESSI_SOFTWARE_SUBDIR_OVERRIDE")
+if (
+    subprocess("uname -m"):gsub("\n$","") == "riscv64"
+    or (eessi_software_subdir_override and string.find(eessi_software_subdir_override, "riscv64"))
+    ) then
     if (eessi_version == "2023.06" or eessi_version == "20240402") then
-        eessi_version = os.getenv("EESSI_VERSION_OVERRIDE") or "20240402"
+        eessi_version_override = os.getenv("EESSI_VERSION_OVERRIDE") or ""
+        index_suffix = string.find(eessi_version_override, '-')
+        if index_suffix then
+            eessi_software_layer_version_suffix = string.sub(eessi_version_override, index_suffix)
+        end
         eessi_repo = "/cvmfs/riscv.eessi.io"
-        eessi_prefix = pathJoin(eessi_repo, "versions", eessi_version)
+        eessi_prefix = pathJoin(eessi_repo, "versions", eessi_version .. eessi_software_layer_version_suffix)
         eessi_compat_prefix = pathJoin(eessi_prefix, "compat")
         if mode() == "load" then
             LmodMessage("RISC-V architecture detected, but there is no RISC-V support yet in the production repository.\n" ..
@@ -30,9 +39,13 @@ if (subprocess("uname -m"):gsub("\n$","") == "riscv64") then
                         "For more details about this repository, see https://www.eessi.io/docs/repositories/riscv.eessi.io/.")
         end
     elseif (eessi_version == "2025.06") then
+        eessi_version_override = os.getenv("EESSI_VERSION_OVERRIDE") or ""
+        index_suffix = string.find(eessi_version_override, '-')
+        if index_suffix then
+            eessi_software_layer_version_suffix = string.sub(eessi_version_override, index_suffix)
+        end
         eessi_repo = "/cvmfs/dev.eessi.io/riscv"
-        eessi_version = os.getenv("EESSI_VERSION_OVERRIDE") or eessi_version
-        eessi_prefix = pathJoin(eessi_repo, "versions", eessi_version)
+        eessi_prefix = pathJoin(eessi_repo, "versions", eessi_version .. eessi_software_layer_version_suffix)
         if mode() == "load" then
             LmodMessage("This EESSI production version only provides a RISC-V compatibility layer,\n" ..
                         "software installations are provided by the EESSI development repository at " .. eessi_repo .. ".\n")
@@ -48,12 +61,13 @@ setenv("EESSI_VERSION", eessi_version)
 setenv("EESSI_CVMFS_REPO", eessi_repo)
 setenv("EESSI_OS_TYPE", eessi_os_type)
 function eessiDebug(text)
-    if (mode() == "load" and os.getenv("EESSI_DEBUG_INIT")) then
+    -- Allow the old environment or the new one (EESSI_MODULE_...) to enable the debug print statements
+    if (mode() == "load" and (os.getenv("EESSI_DEBUG_INIT") or os.getenv("EESSI_MODULE_DEBUG_INIT"))) then
         LmodMessage(text)
     end
 end
 function archdetect_cpu()
-    local script = pathJoin(eessi_archdetect_prefix, 'lmod_eessi_archdetect_wrapper.sh')
+    local script = pathJoin(eessi_init_prefix, 'lmod_eessi_archdetect_wrapper.sh')
     -- make sure that we grab the value for architecture before the module unsets the environment variable (in unload mode)
     local archdetect_options = os.getenv("EESSI_ARCHDETECT_OPTIONS") or (os.getenv("EESSI_ARCHDETECT_OPTIONS_OVERRIDE") or "")
     if not os.getenv("EESSI_ARCHDETECT_OPTIONS_OVERRIDE") then
@@ -83,7 +97,7 @@ function archdetect_cpu()
     end
 end
 function archdetect_accel()
-    local script = pathJoin(eessi_archdetect_prefix, 'lmod_eessi_archdetect_wrapper_accel.sh')
+    local script = pathJoin(eessi_init_prefix, 'lmod_eessi_archdetect_wrapper_accel.sh')
     -- for unload mode, we need to grab the value before it is unset
     local archdetect_accel = os.getenv("EESSI_ACCEL_SUBDIR") or (os.getenv("EESSI_ACCELERATOR_TARGET_OVERRIDE") or "")
     if not os.getenv("EESSI_ACCELERATOR_TARGET_OVERRIDE") then
@@ -104,7 +118,12 @@ local archdetect = archdetect_cpu()
 -- archdetect_accel() attempts to identify an accelerator, e.g., accel/nvidia/cc80
 local archdetect_accel = archdetect_accel()
 -- eessi_cpu_family is derived from  the archdetect match, e.g., x86_64
-local eessi_cpu_family = archdetect:match("([^/]+)")
+local eessi_cpu_family
+if os.getenv("EESSI_CPU_FAMILY_OVERRIDE") then
+    eessi_cpu_family = os.getenv("EESSI_CPU_FAMILY_OVERRIDE")
+else
+    eessi_cpu_family = archdetect:match("([^/]+)")
+end
 local eessi_software_subdir = archdetect
 -- eessi_eprefix is the base location of the compat layer, e.g., /cvmfs/software.eessi.io/versions/<EESSI_VERSION>/compat/linux/x86_64
 local eessi_eprefix = pathJoin(eessi_compat_prefix, eessi_os_type, eessi_cpu_family)
@@ -131,12 +150,16 @@ setenv("EESSI_SOFTWARE_SUBDIR", eessi_software_subdir)
 eessiDebug("Setting EESSI_SOFTWARE_SUBDIR to " .. eessi_software_subdir)
 setenv("EESSI_PREFIX", eessi_prefix)
 eessiDebug("Setting EESSI_PREFIX to " .. eessi_prefix)
+setenv("EESSI_INIT_PREFIX", eessi_init_prefix)
+eessiDebug("Setting EESSI_INIT_PREFIX to " .. eessi_init_prefix)
 setenv("EESSI_EPREFIX", eessi_eprefix)
 eessiDebug("Setting EPREFIX to " .. eessi_eprefix)
 prepend_path("PATH", pathJoin(eessi_eprefix, "bin"))
 eessiDebug("Adding " .. pathJoin(eessi_eprefix, "bin") .. " to PATH")
 prepend_path("PATH", pathJoin(eessi_eprefix, "usr", "bin"))
 eessiDebug("Adding " .. pathJoin(eessi_eprefix, "usr", "bin") .. " to PATH")
+setenv("EESSI_SOFTWARE_LAYER_VERSION_SUFFIX", eessi_software_layer_version_suffix)
+eessiDebug("Setting EESSI_SOFTWARE_LAYER_VERSION_SUFFIX to " .. eessi_software_layer_version_suffix)
 setenv("EESSI_SOFTWARE_PATH", eessi_software_path)
 eessiDebug("Setting EESSI_SOFTWARE_PATH to " .. eessi_software_path)
 setenv("EESSI_MODULEPATH", eessi_module_path)
@@ -201,13 +224,42 @@ if family_name then
     family(family_name)
 end
 
+-- Change the PS1 to indicate you have EESSI loaded. For this to work, it requires that
+-- PS1 exists _and_ is exported (i.e, an environment variable, *not* a shell variable)
+-- (doesn't help with a csh or fish prompt, but we just live with that)
+local quiet_load = false
+if os.getenv("EESSI_MODULE_UPDATE_PS1") then
+    local prompt = os.getenv("PS1")
+    if prompt then
+        local prefix = "{EESSI/" .. eessi_version .. "} "
+        if mode() == "load" then
+            -- Prepend prefix to PS1 without evaluating its contents
+            execute{cmd="PS1=\"" .. prefix .. "$PS1\"", modeA={"load"}}
+        elseif mode() == "unload" then
+            -- Strip the prefix from beginning of PS1
+            execute{cmd="PS1=\"${PS1#\"" .. prefix .. "\"}\"", modeA={"unload"}}
+        end
+    end
+end
+
 -- allow sites to make the EESSI module sticky by defining EESSI_MODULE_STICKY (to any value)
-load_message = "Module for EESSI/" .. eessi_version .. " loaded successfully"
+local load_message = "Module for EESSI/" .. eessi_version .. " loaded successfully"
 if os.getenv("EESSI_MODULE_STICKY") then
     add_property("lmod","sticky")
     load_message = load_message .. " (requires '--force' option to unload or purge)"
 end
 
+-- set CURL_CA_BUNDLE and friends on RHEL-based systems
+ca_bundle_file_rhel = "/etc/pki/tls/certs/ca-bundle.crt"
+if isFile(ca_bundle_file_rhel) then
+    pushenv("CURL_CA_BUNDLE", ca_bundle_file_rhel)
+    pushenv("REQUESTS_CA_BUNDLE", ca_bundle_file_rhel)
+    pushenv("SSL_CERT_FILE", ca_bundle_file_rhel)
+    eessiDebug("Setting CURL_CA_BUNDLE,REQUESTS_CA_BUNDLE,SSL_CERT_FILE to " .. ca_bundle_file_rhel)
+end
+
 if mode() == "load" then
-    LmodMessage(load_message)
+    if not os.getenv("EESSI_MODULE_QUIET_LOAD") then
+        LmodMessage(load_message)
+    end
 end
