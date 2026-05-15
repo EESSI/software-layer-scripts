@@ -1944,34 +1944,43 @@ def inject_gpu_property(ec):
     # - drop dependency to build dependency
     # - add 'gpu' Lmod property
     # - add envvar with package version
-    pkg_names = ( "CUDA", "cuDNN" )
+    pkg_names = ( "CUDA", "cuDNN", "ROCm-LLVM" )
+    # skip dropping step for ROCm-LLVM as it is redistributable
+    drop_to_builddep = ( "CUDA", "cuDNN" )
     pkg_versions = { }
     add_gpu_property = ''
 
+    # If none of the gpu packages are in the easyconfig, do not process further
+    dep_names = {dep[0] for dep in ec_dict['dependencies']}
+    if not any(pkg in dep_names for pkg in pkg_names):
+        return ec
+
+    # Check if pkg_name is in the dependencies, if so drop dependency to build
+    # dependency and set variable for later adding the 'gpu' Lmod property
+    # to '.remove' dependencies from ec_dict['dependencies'] we make a copy,
+    # iterate over the copy and can then savely use '.remove' on the original
     for pkg_name in pkg_names:
-        # Check if pkg_name is in the dependencies, if so drop dependency to build
-        # dependency and set variable for later adding the 'gpu' Lmod property
-        # to '.remove' dependencies from ec_dict['dependencies'] we make a copy,
-        # iterate over the copy and can then savely use '.remove' on the original
-        # ec_dict['dependencies'].
-        deps = ec_dict['dependencies'][:]
-        if (pkg_name in [dep[0] for dep in deps]):
+        for dep in ec_dict['dependencies'][:]:
+            if dep[0] != pkg_name:
+                continue
+
             add_gpu_property = 'add_property("arch","gpu")'
-            for dep in deps:
-                if pkg_name == dep[0]:
-                    # make pkg_name a build dependency only (rpathing saves us from link errors)
-                    ec.log.info("Dropping dependency on %s to build dependency" % pkg_name)
-                    ec_dict['dependencies'].remove(dep)
-                    if dep not in ec_dict['builddependencies']:
-                        ec_dict['builddependencies'].append(dep)
-                    # take note of version for creating the modluafooter
-                    pkg_versions[pkg_name] = dep[1]
+            pkg_versions[pkg_name] = dep[1]
+
+            if pkg_name in drop_to_builddep:
+                ec.log.info("Dropping dependency on %s to build dependency" % pkg_name)
+                ec_dict['dependencies'].remove(dep)
+                # Avoid adding a duplicate
+                if dep not in ec_dict['builddependencies']:
+                    ec_dict['builddependencies'].append(dep)
+
     if add_gpu_property:
         ec.log.info("Injecting gpu as Lmod arch property and envvars for dependencies with their version")
         modluafooter = 'modluafooter'
         extra_mod_footer_lines = [add_gpu_property]
         for pkg_name, version in pkg_versions.items():
-            envvar = "EESSI%sVERSION" % pkg_name.upper()
+            # follow the convention for replacing - with MIN
+            envvar = "EESSI%sVERSION" % pkg_name.upper().replace('-', 'MIN')
             extra_mod_footer_lines.append('setenv("%s","%s")' % (envvar, version))
         # take into account that modluafooter may already be set
         if modluafooter in ec_dict:
