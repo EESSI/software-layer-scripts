@@ -233,7 +233,10 @@ def get_eessi_envvar(eessi_envvar):
     return eessi_envvar_value
 
 
-def get_rpath_override_dirs(software_name):
+def get_rpath_override_dirs(software_name=None, stub_suffix=""):
+    if software_name is None:
+        raise EasyBuildError("This function should not be called without setting software_name")
+    
     # determine path to installations in software layer via $EESSI_SOFTWARE_PATH
     eessi_software_path = get_eessi_envvar('EESSI_SOFTWARE_PATH')
 
@@ -246,7 +249,7 @@ def get_rpath_override_dirs(software_name):
         software_name,
         # We can't know the version, but this allows the use of a symlink
         # to facilitate version upgrades without removing files
-        'system',
+        f"system{'-' if stub_suffix else ''}{stub_suffix}",
     )
 
     # Allow for libraries in lib or lib64
@@ -424,8 +427,16 @@ def pre_prepare_hook(self, *args, **kwargs):
 
     # Inject an RPATH override for MPI (if needed)
     if mpi_family:
-        # Get list of override directories
-        mpi_rpath_override_dirs = get_rpath_override_dirs(mpi_family)
+        mpi_rpath_override_dirs = []
+        # If the package relies on CUDA or ROCm, the MPI layer may require different overrides
+        # for different CUDA/ROCm versions with specific compiler families
+        if self.cfg.eessi_gpu_dependency:
+            gpu_stub = f"{self.toolchain.COMPILER_FAMILY}-{self.cfg.eessi_gpu_dependency[0]}-{self.cfg.eessi_gpu_dependency[1]}"
+            mpi_rpath_override_dirs += get_rpath_override_dirs(software_name=mpi_family, stub_suffix=gpu_stub)
+        # We also may require OpenMP runtimes, which are compiler family dependent
+        mpi_rpath_override_dirs += get_rpath_override_dirs(software_name=mpi_family, stub_suffix=f"{self.toolchain.COMPILER_FAMILY}")
+        # Get list of default override directories
+        mpi_rpath_override_dirs += get_rpath_override_dirs(software_name=mpi_family)
 
         # update the relevant option (but keep the original value so we can reset it later)
         if hasattr(self, EESSI_RPATH_OVERRIDE_ATTR):
@@ -1944,9 +1955,13 @@ def inject_gpu_property(ec):
     # - drop dependency to build dependency
     # - add 'gpu' Lmod property
     # - add envvar with package version
+    top_level_accelerator_packages = ( "CUDA" )
     pkg_names = ( "CUDA", "cuDNN" )
     pkg_versions = { }
     add_gpu_property = ''
+    # Create a dependency property in the easyconfig instance that provides
+    # quick access to the CUDA/ROCm version
+    ec.eessi_gpu_dependency = ()
 
     for pkg_name in pkg_names:
         # Check if pkg_name is in the dependencies, if so drop dependency to build
@@ -1966,6 +1981,11 @@ def inject_gpu_property(ec):
                         ec_dict['builddependencies'].append(dep)
                     # take note of version for creating the modluafooter
                     pkg_versions[pkg_name] = dep[1]
+                if dep[0] in top_level_accelerator_packages:
+                    # Store the dependency as a property for later potential use
+                    # (e.g., accelerator-specific MPI RPATH overrides)
+                    ec.eessi_gpu_dependency = dep
+
     if add_gpu_property:
         ec.log.info("Injecting gpu as Lmod arch property and envvars for dependencies with their version")
         modluafooter = 'modluafooter'
