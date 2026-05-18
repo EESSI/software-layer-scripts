@@ -202,9 +202,9 @@ COMMON_ARGS+=("--mode" "run")
 [[ ! -z ${HTTPS_PROXY} ]] && COMMON_ARGS+=("--https-proxy" "${HTTPS_PROXY}")
 [[ ! -z ${REPOSITORY_ID} ]] && COMMON_ARGS+=("--repository" "${REPOSITORY_ID}")
 
-# Also expose software.eessi.io when configured for dev.eessi.io
-# Need software.eessi.io for the compat layer
-if [[ "${REPOSITORY_NAME}" == "dev.eessi.io" ]]; then
+# Also expose software.eessi.io when building on top of EESSI (i.e. when EESSI_SITE_INSTALL_FORCE is set)
+# or on top of the EESSI compat layer (i.e. for dev.eessi.io)
+if [[ "${REPOSITORY_NAME}" == "dev.eessi.io" || -n "${EESSI_SITE_INSTALL_FORCE}" ]]; then
     COMMON_ARGS+=("--repository" "software.eessi.io,access=ro")
 fi
 
