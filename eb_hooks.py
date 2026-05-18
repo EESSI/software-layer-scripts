@@ -1510,8 +1510,7 @@ def pre_test_hook_gromacs(self, *args, **kwargs):
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
     if self.name == 'GROMACS':
         if self.version < '2026.3' and cpu_target == CPU_TARGET_NVIDIA_GRACE:
-            self.cfg['pretestopts'] = 'export HWLOC_KEEP_NVIDIA_GPU_NUMA_NODES=0 && hwloc-ls && '
-#            os.environ['HWLOC_KEEP_NVIDIA_GPU_NUMA_NODES'] = '0'
+            self.cfg['pretestopts'] = 'export HWLOC_KEEP_NVIDIA_GPU_NUMA_NODES=0 && '
     else:
         raise EasyBuildError("GROMACS-specific hook triggered for non-GROMACS easyconfig?!")
 
