@@ -1505,7 +1505,7 @@ def pre_test_hook_exclude_failing_test_Highway(self, *args, **kwargs):
 
 def pre_test_hook_gromacs(self, *args, **kwargs):
     """
-    Solve GROMACS build issue on NVIDIA Grace CPUs when hwloc support is enabled.
+    Solve GROMACS test failure on NVIDIA Grace CPUs when hwloc support is enabled.
     """
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
     if self.name == 'GROMACS':
