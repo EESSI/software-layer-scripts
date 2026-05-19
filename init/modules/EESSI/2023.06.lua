@@ -134,7 +134,16 @@ local eessi_modules_subdir = pathJoin("modules", "all")
 -- eessi_module_path is the location of the _CPU_ module files, e.g.,
 -- /cvmfs/software.eessi.io/versions/<EESSI_VERSION>/software/linux/x86_64/amd/zen3/modules/all
 local eessi_module_path = pathJoin(eessi_software_path, eessi_modules_subdir)
-local eessi_site_software_path = string.gsub(eessi_software_path, "versions", "host_injections")
+local eessi_site_software_path
+-- If EESSI_SITE_SOFTWARE_PREFIX is defined, replace /cvmfs/software.eessi.io (or more generally EESSI_CVMFS_REPO)
+-- by that prefix. This ensures that the directory still contains the os/vendor/arch/micro-arch/accelerator etc
+-- If it is not defined, default to a site installation prefix under host_injections
+site_prefix = os.getenv("EESSI_SITE_SOFTWARE_PREFIX")
+if site_prefix then
+    eessi_site_software_path = string.gsub(eessi_software_path, os.getenv("EESSI_CVMFS_REPO"), site_prefix)
+else
+    eessi_site_software_path = string.gsub(eessi_software_path, "versions", "host_injections")
+end
 -- Site module path is the same as the EESSI one, but with `versions` changed to `host_injections`, e.g.,
 --  /cvmfs/software.eessi.io/host_injections/<EESSI_VERSION>/software/linux/x86_64/amd/zen3/modules/all
 local eessi_site_module_path = pathJoin(eessi_site_software_path, eessi_modules_subdir)
@@ -169,8 +178,14 @@ if ( mode() ~= "spider" ) then
     prepend_path("MODULEPATH", eessi_module_path)
     eessiDebug("Adding " .. eessi_module_path .. " to MODULEPATH")
 end
+
+-- Make sure the EESSI cache is found, this is specified in the lmodrc.lua in the eessi_software_path
 prepend_path("LMOD_RC", pathJoin(eessi_software_path, ".lmod", "lmodrc.lua"))
 eessiDebug("Adding " .. pathJoin(eessi_software_path, ".lmod", "lmodrc.lua") .. " to LMOD_RC")
+-- Make sure that a cache for site installations can also be found
+prepend_path("LMOD_RC", pathJoin(eessi_site_software_path , ".lmod", "lmodrc.lua"))
+eessiDebug("Adding " .. pathJoin(eessi_site_software_path , ".lmod", "lmodrc.lua") .. " to LMOD_RC")
+
 -- Use pushenv for LMOD_PACKAGE_PATH as this may be set locally by the site
 pushenv("LMOD_PACKAGE_PATH", pathJoin(eessi_software_path, ".lmod"))
 eessiDebug("Setting LMOD_PACKAGE_PATH to " .. pathJoin(eessi_software_path, ".lmod"))
