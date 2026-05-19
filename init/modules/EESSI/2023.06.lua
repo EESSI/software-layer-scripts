@@ -19,7 +19,11 @@ local eessi_init_prefix = pathJoin(eessi_prefix, "init")
 local eessi_software_layer_version_suffix = ""
 local eessi_os_type = "linux"
 -- for RISC-V clients we need to do some overrides, as things are stored in different CVMFS repositories
-if (subprocess("uname -m"):gsub("\n$","") == "riscv64") then
+local eessi_software_subdir_override = os.getenv("EESSI_SOFTWARE_SUBDIR_OVERRIDE")
+if (
+    subprocess("uname -m"):gsub("\n$","") == "riscv64"
+    or (eessi_software_subdir_override and string.find(eessi_software_subdir_override, "riscv64"))
+    ) then
     if (eessi_version == "2023.06" or eessi_version == "20240402") then
         eessi_version_override = os.getenv("EESSI_VERSION_OVERRIDE") or ""
         index_suffix = string.find(eessi_version_override, '-')
@@ -114,7 +118,12 @@ local archdetect = archdetect_cpu()
 -- archdetect_accel() attempts to identify an accelerator, e.g., accel/nvidia/cc80
 local archdetect_accel = archdetect_accel()
 -- eessi_cpu_family is derived from  the archdetect match, e.g., x86_64
-local eessi_cpu_family = archdetect:match("([^/]+)")
+local eessi_cpu_family
+if os.getenv("EESSI_CPU_FAMILY_OVERRIDE") then
+    eessi_cpu_family = os.getenv("EESSI_CPU_FAMILY_OVERRIDE")
+else
+    eessi_cpu_family = archdetect:match("([^/]+)")
+end
 local eessi_software_subdir = archdetect
 -- eessi_eprefix is the base location of the compat layer, e.g., /cvmfs/software.eessi.io/versions/<EESSI_VERSION>/compat/linux/x86_64
 local eessi_eprefix = pathJoin(eessi_compat_prefix, eessi_os_type, eessi_cpu_family)
