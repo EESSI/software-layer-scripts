@@ -136,11 +136,6 @@ if [[ "$EASYBUILD_OPTARCH" == "GENERIC" ]]; then
     EB='eb --optarch=GENERIC'
 fi
 
-# We've found that creation of new files and directories by unionfs (or any overlay fs) can fail if it
-# runs on top of CVMFS because the lower-dir provided by CVMFS is not fully initialized. It seems
-# these issues can be avoided simply by running an ls, to at least trigger the mount
-echo ">> Make sure we can access the CVMFS repository '$EESSI_CVMFS_REPO'"
-ls -al $EESSI_CVMFS_REPO
 
 
 echo ">> Determining software subdirectory to use for current build host..."
@@ -153,6 +148,12 @@ else
   (
       # Make sure EESSI_PREFIX and EESSI_OS_TYPE are set
       source $TOPDIR/init/minimal_eessi_env
+
+      # We've found that creation of new files and directories by unionfs (or any overlay fs) can fail if it
+      # runs on top of CVMFS because the lower-dir provided by CVMFS is not fully initialized. It seems
+      # these issues can be avoided simply by running an ls, to at least trigger the mount
+      echo ">> Trigger automounting of the repo ($EESSI_CVMFS_REPO) before creating new files, to avoid overlay issues"
+      ls -al $EESSI_CVMFS_REPO
 
       # make sure the the software and modules directory exist
       # (since it's expected by init/eessi_environment_variables when using archdetect and by the EESSI module)
