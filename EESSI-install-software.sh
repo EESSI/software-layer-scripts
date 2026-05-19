@@ -136,8 +136,6 @@ if [[ "$EASYBUILD_OPTARCH" == "GENERIC" ]]; then
     EB='eb --optarch=GENERIC'
 fi
 
-
-
 echo ">> Determining software subdirectory to use for current build host..."
 if [ -z $EESSI_SOFTWARE_SUBDIR_OVERRIDE ]; then
   export EESSI_SOFTWARE_SUBDIR_OVERRIDE=$(python3 $TOPDIR/eessi_software_subdir.py $DETECTION_PARAMETERS)
@@ -218,8 +216,9 @@ fi
 pr_diff=$(ls [0-9]*.diff | head -n 1)
 export PR_DIFF="$PWD/$pr_diff"
 
-# Only run install_scripts.sh if not in dev.eessi.io for security
-if [[ -z ${EESSI_DEV_PROJECT} ]]; then
+# Only run install_scripts.sh if not in dev.eessi.io (for security)
+# Also skip installing scripts for site-installs
+if [[ -z ${EESSI_DEV_PROJECT} && -z "${EESSI_SITE_INSTALL_FORCE}" ]]; then
     ${TOPDIR}/install_scripts.sh --prefix ${EESSI_CVMFS_REPO}/versions/${EESSI_VERSION} --eessi-version ${EESSI_VERSION}
 fi
 
