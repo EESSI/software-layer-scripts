@@ -309,6 +309,7 @@ if [[ -n "$EESSI_SITE_INSTALL_PATH_PREFIX" ]]; then
 else
     export EASYBUILD_INSTALLPATH=${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}
 fi
+echo "EASYBUILD_INSTALLPATH set to $EASYBUILD_INSTALLPATH"
 
 # If in dev.eessi.io, allow building on top of software.eessi.io via EESSI-extend
 if [[ ! -z ${EESSI_DEV_PROJECT} ]]; then
