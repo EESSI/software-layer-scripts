@@ -136,6 +136,13 @@ if [[ "$EASYBUILD_OPTARCH" == "GENERIC" ]]; then
     EB='eb --optarch=GENERIC'
 fi
 
+# We've found that creation of new files and directories by unionfs (or any overlay fs) can fail if it
+# runs on top of CVMFS because the lower-dir provided by CVMFS is not fully initialized. It seems
+# these issues can be avoided simply by running an ls, to at least trigger the mount
+echo ">> Make sure we can access the CVMFS repository '$EESSI_CVMFS_REPO'"
+ls -al $EESSI_CVMFS_REPO
+
+
 echo ">> Determining software subdirectory to use for current build host..."
 if [ -z $EESSI_SOFTWARE_SUBDIR_OVERRIDE ]; then
   export EESSI_SOFTWARE_SUBDIR_OVERRIDE=$(python3 $TOPDIR/eessi_software_subdir.py $DETECTION_PARAMETERS)
