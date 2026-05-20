@@ -25,7 +25,7 @@
 # - The EESSI module also listens to environment variables so that it can be silently configured by a site
 #   - EESSI_MODULE_FAMILY_NAME: use the value of the environment variable to set an Lmod family for the EESSI module
 #   - EESSI_MODULE_STICKY: make the EESSI module sticky
-#   - EESSI_MODULE_UPDATE_PS1: have the EESSI module update PS1 to give a prompt that is prepended with "{EESSI/...} " (requires exporting PS1)
+#   - EESSI_MODULE_UPDATE_PS1: set to 1 (by default), the EESSI module prepends  "{EESSI/...} " to PS1 (the shell prompt). Set to 0, PS1 remains unmodified.
 #  (- EESSI_MODULE_DEBUG_INIT: enable debug print statements when loading the EESSI module)
 #
 # Effects:
@@ -43,13 +43,13 @@
 # - Lmod initialisation cannot be undone
 
 # Choose an EESSI CVMFS repository
-EESSI_CVMFS_REPO="${EESSI_CVMFS_REPO:-/cvmfs/software.eessi.io}"
+internal_cvmfs_repo="${EESSI_CVMFS_REPO:-/cvmfs/software.eessi.io}"
 
 # Choose an EESSI version (the default is only used if the EESSI_VERSION environment variable is not provided)
 # (Note: in the repository which is home to this file a template value __EESSI_VERSION_DEFAULT__ is present in
 #  the line below which is replaced within our deployment pipeline.)
 EESSI_VERSION_DEFAULT="${__EESSI_VERSION_USED_FOR_INIT:-__EESSI_VERSION_DEFAULT__}"
-if [ -z "$__Init_EESSI_Default_Modules" ]; then
+if [ "${__Init_EESSI_Default_Modules-}" != "1" ]; then
     EESSI_VERSION="${EESSI_VERSION:-${EESSI_VERSION_DEFAULT}}"
 else
     # If we have already initialised and this is being called again, then we must want the specific version
@@ -75,8 +75,10 @@ export __EESSI_VERSION_USED_FOR_INIT="${__EESSI_VERSION_USED_FOR_INIT:-${EESSI_V
 LMOD_SYSTEM_DEFAULT_MODULES="${EESSI_DEFAULT_MODULES_PREPEND:+$EESSI_DEFAULT_MODULES_PREPEND:}EESSI/$EESSI_VERSION${EESSI_DEFAULT_MODULES_APPEND:+:$EESSI_DEFAULT_MODULES_APPEND}"
 export LMOD_SYSTEM_DEFAULT_MODULES
 
-if [ -z "$__Init_EESSI_Default_Modules" ]; then
-    export __Init_EESSI_Default_Modules=1;
+if [ "${__Init_EESSI_Default_Modules-}" != "1" ]; then
+    # We do _not_ export this as we do not want it picked up by a new shell
+    # (since the system module tool may be restored in that scenario)
+    __Init_EESSI_Default_Modules=1
 
     # Lmod version in 2023.06 has a problem with newer Lmod caches, so let's stick to more recent Lmod
     # (has no effect except on Lmod itself, and compatible caches are still created/supported by EESSI)
@@ -97,8 +99,14 @@ if [ -z "$__Init_EESSI_Default_Modules" ]; then
     # For the shells that use PS1 for the prompt, let's add the trigger to enable updating that by default
     # (in an interactive shell PS1 is likely unset, so let's only do this if it is set)
     if [ -n "$PS1" ]; then
-        export PS1
-        export EESSI_MODULE_UPDATE_PS1=1
+        if [ "${EESSI_MODULE_UPDATE_PS1-}" = "0" ] ; then
+            # For certainty, we now unset it to guarantee it is not picked up by the EESSI module
+            # (this guarantees PS1 is not updated, even if it is exported externally to this script)
+            unset EESSI_MODULE_UPDATE_PS1
+        else
+            export EESSI_MODULE_UPDATE_PS1=1
+            export PS1
+        fi
     fi
 
     # Figure out which shell was used to source this script, which we then use to source the corresponding
@@ -116,8 +124,8 @@ if [ -z "$__Init_EESSI_Default_Modules" ]; then
     # Path to top-level module tree
     # - EESSI_EXTRA_MODULEPATH environment variable allows a site to append to MODULEPATH
     #   (lower priority than EESSI MODULEPATH)
-    export MODULEPATH="${EESSI_CVMFS_REPO}/init/modules${EESSI_EXTRA_MODULEPATH:+:$EESSI_EXTRA_MODULEPATH}"
-    . "${EESSI_CVMFS_REPO}/versions/${LMOD_EESSI_VERSION}/compat/linux/$(uname -m)/usr/share/Lmod/init/${shell}"
+    export MODULEPATH="${internal_cvmfs_repo}/init/modules${EESSI_EXTRA_MODULEPATH:+:$EESSI_EXTRA_MODULEPATH}"
+    . "${internal_cvmfs_repo}/versions/${LMOD_EESSI_VERSION}/compat/linux/$(uname -m)/usr/share/Lmod/init/${shell}"
     module --initial_load --no_redirect restore
 
     # After initialising, we now know the architecture(s) that was/were selected so let's report them

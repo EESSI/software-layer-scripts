@@ -10,7 +10,7 @@
 # Please refer to the reference bash implementation for full documentation, only minimal comments are included here
 
 # Choose an EESSI CVMFS repository
-set EESSI_CVMFS_REPO (set -q EESSI_CVMFS_REPO; and echo "$EESSI_CVMFS_REPO"; or echo "/cvmfs/software.eessi.io")
+set internal_cvmfs_repo (set -q EESSI_CVMFS_REPO; and echo "$EESSI_CVMFS_REPO"; or echo "/cvmfs/software.eessi.io")
 
 # Choose an EESSI version
 if not set -q __EESSI_VERSION_USED_FOR_INIT
@@ -46,7 +46,7 @@ end
 set -x LMOD_SYSTEM_DEFAULT_MODULES $LMOD_SYSTEM_DEFAULT_MODULES
 
 if test -z "$__Init_EESSI_Default_Modules"
-    set -x __Init_EESSI_Default_Modules 1
+    set __Init_EESSI_Default_Modules 1
 
     # Lmod version in 2023.06 has a problem with newer Lmod caches, so let's stick to more recent Lmod
     # (has no effect except on Lmod itself, and compatible caches are still created/supported by EESSI)
@@ -64,12 +64,12 @@ if test -z "$__Init_EESSI_Default_Modules"
     # and clear out any memory Lmod might have
     set -e _ModuleTable001_
     # Path to top-level module tree
-    set modulepath "$EESSI_CVMFS_REPO/init/modules"
+    set modulepath "$internal_cvmfs_repo/init/modules"
     if set -q EESSI_EXTRA_MODULEPATH; and test -n "$EESSI_EXTRA_MODULEPATH"
         set modulepath "$modulepath:$EESSI_EXTRA_MODULEPATH"
     end
     set -x MODULEPATH $modulepath
-    . "$EESSI_CVMFS_REPO"/versions/"$LMOD_EESSI_VERSION"/compat/linux/(uname -m)/usr/share/Lmod/init/fish
+    . "$internal_cvmfs_repo"/versions/"$LMOD_EESSI_VERSION"/compat/linux/(uname -m)/usr/share/Lmod/init/fish
 
     module --initial_load --no_redirect restore
 

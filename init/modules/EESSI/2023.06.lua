@@ -19,7 +19,11 @@ local eessi_init_prefix = pathJoin(eessi_prefix, "init")
 local eessi_software_layer_version_suffix = ""
 local eessi_os_type = "linux"
 -- for RISC-V clients we need to do some overrides, as things are stored in different CVMFS repositories
-if (subprocess("uname -m"):gsub("\n$","") == "riscv64") then
+local eessi_software_subdir_override = os.getenv("EESSI_SOFTWARE_SUBDIR_OVERRIDE")
+if (
+    subprocess("uname -m"):gsub("\n$","") == "riscv64"
+    or (eessi_software_subdir_override and string.find(eessi_software_subdir_override, "riscv64"))
+    ) then
     if (eessi_version == "2023.06" or eessi_version == "20240402") then
         eessi_version_override = os.getenv("EESSI_VERSION_OVERRIDE") or ""
         index_suffix = string.find(eessi_version_override, '-')
@@ -114,7 +118,12 @@ local archdetect = archdetect_cpu()
 -- archdetect_accel() attempts to identify an accelerator, e.g., accel/nvidia/cc80
 local archdetect_accel = archdetect_accel()
 -- eessi_cpu_family is derived from  the archdetect match, e.g., x86_64
-local eessi_cpu_family = archdetect:match("([^/]+)")
+local eessi_cpu_family
+if os.getenv("EESSI_CPU_FAMILY_OVERRIDE") then
+    eessi_cpu_family = os.getenv("EESSI_CPU_FAMILY_OVERRIDE")
+else
+    eessi_cpu_family = archdetect:match("([^/]+)")
+end
 local eessi_software_subdir = archdetect
 -- eessi_eprefix is the base location of the compat layer, e.g., /cvmfs/software.eessi.io/versions/<EESSI_VERSION>/compat/linux/x86_64
 local eessi_eprefix = pathJoin(eessi_compat_prefix, eessi_os_type, eessi_cpu_family)
@@ -222,7 +231,14 @@ local quiet_load = false
 if os.getenv("EESSI_MODULE_UPDATE_PS1") then
     local prompt = os.getenv("PS1")
     if prompt then
-        pushenv("PS1", "{EESSI/" .. eessi_version .. "} " .. prompt)
+        local prefix = "{EESSI/" .. eessi_version .. "} "
+        if mode() == "load" then
+            -- Prepend prefix to PS1 without evaluating its contents
+            execute{cmd="PS1=\"" .. prefix .. "$PS1\"", modeA={"load"}}
+        elseif mode() == "unload" then
+            -- Strip the prefix from beginning of PS1
+            execute{cmd="PS1=\"${PS1#\"" .. prefix .. "\"}\"", modeA={"unload"}}
+        end
     end
 end
 
@@ -231,6 +247,15 @@ local load_message = "Module for EESSI/" .. eessi_version .. " loaded successful
 if os.getenv("EESSI_MODULE_STICKY") then
     add_property("lmod","sticky")
     load_message = load_message .. " (requires '--force' option to unload or purge)"
+end
+
+-- set CURL_CA_BUNDLE and friends on RHEL-based systems
+ca_bundle_file_rhel = "/etc/pki/tls/certs/ca-bundle.crt"
+if isFile(ca_bundle_file_rhel) then
+    pushenv("CURL_CA_BUNDLE", ca_bundle_file_rhel)
+    pushenv("REQUESTS_CA_BUNDLE", ca_bundle_file_rhel)
+    pushenv("SSL_CERT_FILE", ca_bundle_file_rhel)
+    eessiDebug("Setting CURL_CA_BUNDLE,REQUESTS_CA_BUNDLE,SSL_CERT_FILE to " .. ca_bundle_file_rhel)
 end
 
 if mode() == "load" then
