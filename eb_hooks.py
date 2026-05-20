@@ -1946,23 +1946,25 @@ def find_rocm_llvm_dependency(ec):
     toolchain is rompi/rfbf/rfoss.
     """
     for dep in ec.asdict()['dependencies']:
-        if dep['name'] == 'ROCm-LLVM':
+        if dep[0] == 'ROCm-LLVM':
             return dep
 
-    if is_system_toolchain(ec.toolchain.name):
+    # Only inspect the toolchain for ROCm toolchains.
+    if ec['toolchain']['name'] not in ('rocm-compilers', 'rompi', 'rfbf', 'rfoss'):
         return None
 
     tcdeps = ec.toolchain.tcdeps or []
     for dep in tcdeps:
-        if dep['name'] == 'ROCm-LLVM':
+        if dep[0] == 'ROCm-LLVM':
             return dep
     for dep in tcdeps:
-        if dep['name'] == 'rocm-compilers':
-            rocm_compilers_ec = robot_find_easyconfig(dep['name'], dep['version'] + dep['versionsuffix'])
+        if dep[0] == 'rocm-compilers':
+            versionsuffix = dep[2] if len(dep) > 2 else ''
+            rocm_compilers_ec = robot_find_easyconfig(dep[0], dep[1] + versionsuffix)
             if rocm_compilers_ec:
                 rocm_compilers_deps = process_easyconfig(rocm_compilers_ec)[0]['ec'].dependencies(runtime_only=True)
                 for subdep in rocm_compilers_deps:
-                    if subdep['name'] == 'ROCm-LLVM':
+                    if subdep[0] == 'ROCm-LLVM':
                         return subdep
 
     return None
@@ -2000,7 +2002,8 @@ def inject_gpu_property(ec):
     rocm_llvm_dep = find_rocm_llvm_dependency(ec)
     if rocm_llvm_dep is not None:
         add_gpu_property = 'add_property("arch","gpu")'
-        pkg_versions['ROCm-LLVM'] = rocm_llvm_dep['version'] + (rocm_llvm_dep['versionsuffix'] or '')
+        versionsuffix = rocm_llvm_dep[2] if len(rocm_llvm_dep) > 2 else ''
+        pkg_versions['ROCm-LLVM'] = rocm_llvm_dep[1] + versionsuffix
 
     if add_gpu_property:
         ec.log.info("Injecting gpu as Lmod arch property and envvars for dependencies with their version")
