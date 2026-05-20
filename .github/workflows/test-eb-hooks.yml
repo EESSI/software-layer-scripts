@@ -116,3 +116,48 @@ jobs:
               eb --hooks=$PWD/eb_hooks.py "$INCOMPATIBLE_EASYCONFIG" --stop fetch 2>&1 1>/dev/null | grep -q "does not contain a valid list of dictionaries"
               echo "Incorrect format for EESSI_SITE_TOP_LEVEL_TOOLCHAINS caught"
 
+  check_inject_gpu_property:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        # ROCm-LLVM / rocm-compilers / rompi only exist in the 2025.06 stack
+        EESSI_VERSION:
+          - '2025.06'
+
+    steps:
+        - name: Check out software-layer repository
+          uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+
+        - name: Mount EESSI CernVM-FS repository
+          uses: eessi/github-action-eessi@v3
+          with:
+            eessi_stack_version: ${{matrix.EESSI_VERSION}}
+            use_eessi_module: true
+
+        - name: Test that inject_gpu_property tags GPU software correctly
+          if: ${{ github.event_name == 'pull_request' }}
+          run: |
+              module load EESSI-extend/${{matrix.EESSI_VERSION}}-easybuild
+
+              # Control: a non-GPU easyconfig must not receive the gpu property
+              eb --hooks=$PWD/eb_hooks.py --extended-dry-run M4-1.4.19-GCCcore-14.2.0.eb 2>&1 | grep -qF 'add_property("arch","gpu")' && exit 1
+              echo "Non-GPU easyconfig untouched"
+
+              # ROCm-LLVM as a direct dependency (rocm-compilers bundle)
+              OUT=$(eb --hooks=$PWD/eb_hooks.py --extended-dry-run rocm-compilers-19.0.0-ROCm-6.4.1.eb 2>&1)
+              echo "$OUT" | grep -qF 'add_property("arch","gpu")'
+              echo "$OUT" | grep -qF 'setenv("EESSIROCMMINLLVMVERSION","19.0.0-ROCm-6.4.1")'
+              echo "Direct ROCm-LLVM dependency detected"
+
+              # rocm-compilers as the toolchain
+              OUT=$(eb --hooks=$PWD/eb_hooks.py --extended-dry-run hwloc-ROCm-2.11.2-rocm-compilers-19.0.0-ROCm-6.4.1.eb 2>&1)
+              echo "$OUT" | grep -qF 'add_property("arch","gpu")'
+              echo "$OUT" | grep -qF 'setenv("EESSIROCMMINLLVMVERSION","19.0.0-ROCm-6.4.1")'
+              echo "rocm-compilers toolchain handled"
+
+              # rompi as the toolchain (ROCm-LLVM nested inside rocm-compilers bundle)
+              OUT=$(eb --hooks=$PWD/eb_hooks.py --extended-dry-run OSU-Micro-Benchmarks-7.5-rompi-2025a.eb 2>&1)
+              echo "$OUT" | grep -qF 'add_property("arch","gpu")'
+              echo "$OUT" | grep -qF 'setenv("EESSIROCMMINLLVMVERSION","19.0.0-ROCm-6.4.1")'
+              echo "rompi toolchain handled"
+
