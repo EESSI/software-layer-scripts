@@ -307,8 +307,8 @@ if [[ -z ${EESSI_ACCELERATOR_TARGET_OVERRIDE} ]]; then
     export TARBALL=$(printf "eessi-%s-software-%s-%s-%b%d.${tarball_extension}" ${EESSI_VERSION} ${EESSI_OS_TYPE} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE//\//-} ${EESSI_DEV_PROJECT:+$EESSI_DEV_PROJECT-} ${timestamp})
 else
     # replace slashes in accelerator names by a hyphen, and concatenate them into a hypen-separated string
-    filename_accelerators=$(printf '%s-' "${EESSI_ACCELERATOR_TARGET_OVERRIDES[@]//\//-}")
-    export TARBALL=$(printf "eessi-%s-software-%s-%s-%s%b%d.${tarball_extension}" ${EESSI_VERSION} ${EESSI_OS_TYPE} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE//\//-} ${filename_accelerators} ${EESSI_DEV_PROJECT:+$EESSI_DEV_PROJECT-} ${timestamp})
+    filename_accelerators=$(IFS=-; echo "$EESSI_ACCELERATOR_TARGET_OVERRIDES[*]//\//-}")
+    export TARBALL=$(printf "eessi-%s-software-%s-%s-%s-%b%d.${tarball_extension}" ${EESSI_VERSION} ${EESSI_OS_TYPE} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE//\//-} ${filename_accelerators} ${EESSI_DEV_PROJECT:+$EESSI_DEV_PROJECT-} ${timestamp})
 fi
 
 # Export EESSI_DEV_PROJECT to use it (if needed) when making tarball
@@ -324,6 +324,6 @@ echo "Executing command to create tarball:"
 echo "$software_layer_dir/eessi_container.sh ${COMMON_ARGS[@]} ${TARBALL_STEP_ARGS[@]}"
 echo "                     -- $software_layer_dir/create_tarball.sh ${TMP_IN_CONTAINER} ${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE} \"${EESSI_ACCELERATOR_TARGET_OVERRIDES[@]}\" /eessi_bot_job/${TARBALL} 2>&1 | tee -a ${tar_outerr}"
 $software_layer_dir/eessi_container.sh "${COMMON_ARGS[@]}" "${TARBALL_STEP_ARGS[@]}" \
-                     -- $software_layer_dir/create_tarball.sh ${TMP_IN_CONTAINER} ${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE} $(printf '%s+' "${EESSI_ACCELERATOR_TARGET_OVERRIDES[@]}") /eessi_bot_job/${TARBALL} 2>&1 | tee -a ${tar_outerr}
+                     -- $software_layer_dir/create_tarball.sh ${TMP_IN_CONTAINER} ${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE} $(IFS=+; echo "${EESSI_ACCELERATOR_TARGET_OVERRIDES[*]}") /eessi_bot_job/${TARBALL} 2>&1 | tee -a ${tar_outerr}
 
 exit 0
