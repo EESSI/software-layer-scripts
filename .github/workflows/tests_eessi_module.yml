@@ -227,8 +227,9 @@ jobs:
           eessi_modules_subdir=${EESSI_SITE_MODULEPATH/$EESSI_SITE_SOFTWARE_PATH\//}
           # Then, we make sure the target of /cvmfs/software.eessi.io/host_injections exists (or the 2nd mkdir fails)
           mkdir -p /opt/eessi
-          # Then, we actually create the dir
-          mkdir -p -v "$EESSI_SITE_SOFTWARE_PATH/$EESSI_ACCEL_SUBDIR/$eessi_modules_subdir"
+          # Then, we actually create the dir. Note that we use EESSI_ACCEL_TARGET, as this represents the target
+          # _after_ any fallbacks
+          mkdir -p -v "$EESSI_SITE_SOFTWARE_PATH/$EESSI_ACCEL_TARGET/$eessi_modules_subdir"
           module unload EESSI/${{matrix.EESSI_VERSION}}
           env | grep -v _ModuleTable | sort > "${module_cycled_file}"
 
