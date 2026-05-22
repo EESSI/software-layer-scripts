@@ -125,6 +125,7 @@ if [ -d "$EESSI_PREFIX" ]; then
             site_software_path="${EESSI_SOFTWARE_PATH/$EESSI_SITE_SOFTWARE_PREFIX/$EESSI_CVMFS_REPO}"
           fi
           export EESSI_SITE_SOFTWARE_PATH="${site_software_path}"
+          show_msg "Set the site software path to $EESSI_SITE_SOFTWARE_PATH"
           # Prepend site's lmodrc.lua path to $LMOD_RC
           show_msg "Adding Lmod site configuration file path ($site_lmod_rc_file) to $LMOD_RC"
           site_lmod_rc_file="$EESSI_SITE_SOFTWARE_PATH/.lmod/lmodrc.lua"
