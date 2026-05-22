@@ -502,14 +502,13 @@ if [[ $USE_CHECK_BUILD_ARTEFACTS_SCRIPT -eq 0 ]]; then
         software_subdir=$(cfg_get_value "architecture" "software_subdir")
         accelerators=$(cfg_get_value "architecture" "accelerator")
         cpu_prefix="${repo_version}/software/${os_type}/${software_subdir}"
-        prefixes=( "${cpu_prefix}" )
+        prefixes=("${cpu_prefix}")
 
         # if we build for an accelerator, the prefix is different
         if [[ ! -z ${accelerators} ]]; then
             IFS='+' read -ra accelerators <<< "$accelerators"
             # prepend the cpu prefix and "accel" to the accelerator names
-            prefixes=( "${accelerators[@]/#/${cpu_prefix}/accel/}" )
-            #prefixes=( "${prefixes[@]}" "${accelerator_prefixes[@]}" )
+            prefixes=("${accelerators[@]/#/${cpu_prefix}/accel/}")
         fi
 
         artefact_summary="<summary>$(print_code_item '__ITEM__' ${TARBALL})</summary>"
