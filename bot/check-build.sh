@@ -500,68 +500,76 @@ if [[ $USE_CHECK_BUILD_ARTEFACTS_SCRIPT -eq 0 ]]; then
         repo_version=$(cfg_get_value "repository" "repo_version")
         os_type=$(cfg_get_value "architecture" "os_type")
         software_subdir=$(cfg_get_value "architecture" "software_subdir")
-        accelerator=$(cfg_get_value "architecture" "accelerator")
-        prefix="${repo_version}/software/${os_type}/${software_subdir}"
+        accelerators=$(cfg_get_value "architecture" "accelerator")
+        cpu_prefix="${repo_version}/software/${os_type}/${software_subdir}"
+        prefixes=( "${cpu_prefix" )
 
         # if we build for an accelerator, the prefix is different
-        if [[ ! -z ${accelerator} ]]; then
-          prefix="${prefix}/accel/${accelerator}"
+        if [[ ! -z ${accelerators} ]]; then
+            IFS='+' read -ra accelerators <<< "$accelerators"
+            # prepend the cpu prefix and "accel" to the accelerator names
+            prefixes="${accelerators[@]/#/${cpu_prefix}/accel/}"
+            #prefixes=( "${prefixes[@]}" "${accelerator_prefixes[@]}" )
         fi
-
-        # extract directories/entries from tarball content
-        modules_entries=$(grep "${prefix}/modules" ${tmpfile})
-        software_entries=$(grep "${prefix}/software" ${tmpfile})
-        reprod_entries=$(grep "${prefix}/reprod" ${tmpfile})
-        reprod_shortened=$(echo "${reprod_entries}" | sed -e "s@${prefix}/reprod/@@" | awk -F/ '{if (NF >= 4) {print $1 "/" $2 "/" $3}}' | sort -u)
-        other_entries=$(cat ${tmpfile} | grep -v "${prefix}/modules" | grep -v "${prefix}/software" | grep -v "${prefix}/reprod")
-        other_shortened=$(echo "${other_entries}" | sed -e "s@^.*${prefix}/@@" | sort -u)
-        modules=$(echo "${modules_entries}" | grep "/all/.*/.*lua$" | sed -e 's@^.*/\([^/]*/[^/]*.lua\)$@\1@' | sort -u)
-        software_pkgs=$(echo "${software_entries}" | sed -e "s@${prefix}/software/@@" | awk -F/ '{if (NR >= 2) {print $1 "/" $2}}' | sort -u)
 
         artefact_summary="<summary>$(print_code_item '__ITEM__' ${TARBALL})</summary>"
         comment_artifacts_list=""
         comment_artifacts_list="${comment_artifacts_list}$(print_br_item2 'size: __ITEM__ MiB (__ITEM2__ bytes)' ${size_mib} ${size})"
         comment_artifacts_list="${comment_artifacts_list}$(print_br_item 'entries: __ITEM__' ${entries})"
-        comment_artifacts_list="${comment_artifacts_list}$(print_br_item 'modules under ___ITEM___' ${prefix}/modules/all)"
-        comment_artifacts_list="${comment_artifacts_list}<pre>"
-        if [[ ! -z ${modules} ]]; then
-            while IFS= read -r mod ; do
-                comment_artifacts_list="${comment_artifacts_list}$(print_br_item '<code>__ITEM__</code>' ${mod})"
-            done <<< "${modules}"
-        else
-            comment_artifacts_list="${comment_artifacts_list}$(print_br_item '__ITEM__' 'no module files in tarball')"
-        fi
-        comment_artifacts_list="${comment_artifacts_list}</pre>"
-        comment_artifacts_list="${comment_artifacts_list}$(print_br_item 'software under ___ITEM___' ${prefix}/software)"
-        comment_artifacts_list="${comment_artifacts_list}<pre>"
-        if [[ ! -z ${software_pkgs} ]]; then
-            while IFS= read -r sw_pkg ; do
-                comment_artifacts_list="${comment_artifacts_list}$(print_br_item '<code>__ITEM__</code>' ${sw_pkg})"
-            done <<< "${software_pkgs}"
-        else
-            comment_artifacts_list="${comment_artifacts_list}$(print_br_item '__ITEM__' 'no software packages in tarball')"
-        fi
-        comment_artifacts_list="${comment_artifacts_list}</pre>"
-        comment_artifacts_list="${comment_artifacts_list}$(print_br_item 'reprod directories under ___ITEM___' ${prefix}/reprod)"
-        comment_artifacts_list="${comment_artifacts_list}<pre>"
-        if [[ ! -z ${reprod_shortened} ]]; then
-            while IFS= read -r reprod ; do
-                comment_artifacts_list="${comment_artifacts_list}$(print_br_item '<code>__ITEM__</code>' ${reprod})"
-            done <<< "${reprod_shortened}"
-        else
-            comment_artifacts_list="${comment_artifacts_list}$(print_br_item '__ITEM__' 'no reprod directories in tarball')"
-        fi
-        comment_artifacts_list="${comment_artifacts_list}</pre>"
-        comment_artifacts_list="${comment_artifacts_list}$(print_br_item 'other under ___ITEM___' ${prefix})"
-        comment_artifacts_list="${comment_artifacts_list}<pre>"
-        if [[ ! -z ${other_shortened} ]]; then
-            while IFS= read -r other ; do
-                comment_artifacts_list="${comment_artifacts_list}$(print_br_item '<code>__ITEM__</code>' ${other})"
-            done <<< "${other_shortened}"
-        else
-            comment_artifacts_list="${comment_artifacts_list}$(print_br_item '__ITEM__' 'no other files in tarball')"
-        fi
-        comment_artifacts_list="${comment_artifacts_list}</pre>"
+
+        for prefix in "${prefixes[@]}"; do
+
+            # extract directories/entries from tarball content
+            modules_entries=$(grep "${prefix}/modules" ${tmpfile})
+            software_entries=$(grep "${prefix}/software" ${tmpfile})
+            reprod_entries=$(grep "${prefix}/reprod" ${tmpfile})
+            reprod_shortened=$(echo "${reprod_entries}" | sed -e "s@${prefix}/reprod/@@" | awk -F/ '{if (NF >= 4) {print $1 "/" $2 "/" $3}}' | sort -u)
+            other_entries=$(cat ${tmpfile} | grep -v "${prefix}/modules" | grep -v "${prefix}/software" | grep -v "${prefix}/reprod")
+            other_shortened=$(echo "${other_entries}" | sed -e "s@^.*${prefix}/@@" | sort -u)
+            modules=$(echo "${modules_entries}" | grep "/all/.*/.*lua$" | sed -e 's@^.*/\([^/]*/[^/]*.lua\)$@\1@' | sort -u)
+            software_pkgs=$(echo "${software_entries}" | sed -e "s@${prefix}/software/@@" | awk -F/ '{if (NR >= 2) {print $1 "/" $2}}' | sort -u)
+
+            comment_artifacts_list="${comment_artifacts_list}$(print_br_item 'modules under ___ITEM___' ${prefix}/modules/all)"
+            comment_artifacts_list="${comment_artifacts_list}<pre>"
+            if [[ ! -z ${modules} ]]; then
+                while IFS= read -r mod ; do
+                    comment_artifacts_list="${comment_artifacts_list}$(print_br_item '<code>__ITEM__</code>' ${mod})"
+                done <<< "${modules}"
+            else
+                comment_artifacts_list="${comment_artifacts_list}$(print_br_item '__ITEM__' 'no module files in tarball')"
+            fi
+            comment_artifacts_list="${comment_artifacts_list}</pre>"
+            comment_artifacts_list="${comment_artifacts_list}$(print_br_item 'software under ___ITEM___' ${prefix}/software)"
+            comment_artifacts_list="${comment_artifacts_list}<pre>"
+            if [[ ! -z ${software_pkgs} ]]; then
+                while IFS= read -r sw_pkg ; do
+                    comment_artifacts_list="${comment_artifacts_list}$(print_br_item '<code>__ITEM__</code>' ${sw_pkg})"
+                done <<< "${software_pkgs}"
+            else
+                comment_artifacts_list="${comment_artifacts_list}$(print_br_item '__ITEM__' 'no software packages in tarball')"
+            fi
+            comment_artifacts_list="${comment_artifacts_list}</pre>"
+            comment_artifacts_list="${comment_artifacts_list}$(print_br_item 'reprod directories under ___ITEM___' ${prefix}/reprod)"
+            comment_artifacts_list="${comment_artifacts_list}<pre>"
+            if [[ ! -z ${reprod_shortened} ]]; then
+                while IFS= read -r reprod ; do
+                    comment_artifacts_list="${comment_artifacts_list}$(print_br_item '<code>__ITEM__</code>' ${reprod})"
+                done <<< "${reprod_shortened}"
+            else
+                comment_artifacts_list="${comment_artifacts_list}$(print_br_item '__ITEM__' 'no reprod directories in tarball')"
+            fi
+            comment_artifacts_list="${comment_artifacts_list}</pre>"
+            comment_artifacts_list="${comment_artifacts_list}$(print_br_item 'other under ___ITEM___' ${prefix})"
+            comment_artifacts_list="${comment_artifacts_list}<pre>"
+            if [[ ! -z ${other_shortened} ]]; then
+                while IFS= read -r other ; do
+                    comment_artifacts_list="${comment_artifacts_list}$(print_br_item '<code>__ITEM__</code>' ${other})"
+                done <<< "${other_shortened}"
+            else
+                comment_artifacts_list="${comment_artifacts_list}$(print_br_item '__ITEM__' 'no other files in tarball')"
+            fi
+            comment_artifacts_list="${comment_artifacts_list}</pre>"
+        done
     else
         comment_artifacts_list="${comment_artifacts_list}$(print_dd_item 'No artefacts were created or found.' '')"
     fi
