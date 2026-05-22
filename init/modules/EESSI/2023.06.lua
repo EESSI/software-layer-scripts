@@ -225,8 +225,17 @@ end
 -- prepend the site module path last so it has priority
 prepend_path("MODULEPATH", eessi_site_module_path)
 eessiDebug("Adding " .. eessi_site_module_path .. " to MODULEPATH")
-if isDir(eessi_module_path_accel) then
+
+-- If EESSI_SITE_SOFTWARE_PREFIX is defined, replace /cvmfs/software.eessi.io (or more generally EESSI_CVMFS_REPO)
+-- by that prefix to get the site accelerator path. This ensures that the directory still contains the 
+-- os/vendor/arch/micro-arch/accelerator etc. If it is not defined, default to a site installation prefix under
+-- host_injections
+if site_prefix then
+    eessi_module_path_site_accel = string.gsub(eessi_module_path_accel, eessi_repo, site_prefix)
+else
     eessi_module_path_site_accel = string.gsub(eessi_module_path_accel, "versions", "host_injections")
+end
+if isDir(eessi_module_path_site_accel) then
     setenv("EESSI_SITE_MODULEPATH_ACCEL", eessi_module_path_site_accel)
     prepend_path("MODULEPATH", eessi_module_path_site_accel)
     eessiDebug("Using site accelerator modules at: " .. eessi_module_path_site_accel)
