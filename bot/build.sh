@@ -306,8 +306,9 @@ source $software_layer_dir/init/eessi_defaults
 if [[ -z ${EESSI_ACCELERATOR_TARGET_OVERRIDE} ]]; then
     export TARBALL=$(printf "eessi-%s-software-%s-%s-%b%d.${tarball_extension}" ${EESSI_VERSION} ${EESSI_OS_TYPE} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE//\//-} ${EESSI_DEV_PROJECT:+$EESSI_DEV_PROJECT-} ${timestamp})
 else
-    accels=$(printf '%s-' "${EESSI_ACCELERATOR_TARGET_OVERRIDES[@]//\//-}")
-    export TARBALL=$(printf "eessi-%s-software-%s-%s-%s%b%d.${tarball_extension}" ${EESSI_VERSION} ${EESSI_OS_TYPE} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE//\//-} ${accels} ${EESSI_DEV_PROJECT:+$EESSI_DEV_PROJECT-} ${timestamp})
+    # replace slashes in accelerator names by a hyphen, and concatenate them into a hypen-separated string
+    filename_accelerators=$(printf '%s-' "${EESSI_ACCELERATOR_TARGET_OVERRIDES[@]//\//-}")
+    export TARBALL=$(printf "eessi-%s-software-%s-%s-%s%b%d.${tarball_extension}" ${EESSI_VERSION} ${EESSI_OS_TYPE} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE//\//-} ${filename_accelerators} ${EESSI_DEV_PROJECT:+$EESSI_DEV_PROJECT-} ${timestamp})
 fi
 
 # Export EESSI_DEV_PROJECT to use it (if needed) when making tarball
