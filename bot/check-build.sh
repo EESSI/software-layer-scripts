@@ -508,7 +508,7 @@ if [[ $USE_CHECK_BUILD_ARTEFACTS_SCRIPT -eq 0 ]]; then
         if [[ ! -z ${accelerators} ]]; then
             IFS='+' read -ra accelerators <<< "$accelerators"
             # prepend the cpu prefix and "accel" to the accelerator names
-            prefixes="${accelerators[@]/#/${cpu_prefix}/accel/}"
+            prefixes=( "${accelerators[@]/#/${cpu_prefix}/accel/}" )
             #prefixes=( "${prefixes[@]}" "${accelerator_prefixes[@]}" )
         fi
         echo "${prefixes[@]}"
