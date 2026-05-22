@@ -221,7 +221,11 @@ jobs:
           # We create this dir the the verify_eessi_environment.py later on, since the EESSI_SITE_MODULEPATH_ACCEL
           # will only be set if this dir exists - and we can most easily create it here, where we have
           # EESSI_SITE_SOFTWARE_PATH and EESSI_ACCEL_SOFTWARE_SUBDIR available
-          mkdir -p $EESSI_SITE_SOFTWARE_PATH/$EESSI_ACCEL_SUBDIR
+          # DEBUG OUTPUT:
+          ls -al /cvmfs/software.eessi.io/host_injections
+          mkdir -p /opt/eessi
+          ls -al /cvmfs/software.eessi.io/host_injections
+          mkdir -p "$EESSI_SITE_SOFTWARE_PATH/$EESSI_ACCEL_SUBDIR"
           module unload EESSI/${{matrix.EESSI_VERSION}}
           env | grep -v _ModuleTable | sort > "${module_cycled_file}"
 
