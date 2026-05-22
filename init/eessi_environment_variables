@@ -119,7 +119,20 @@ if [ -d $EESSI_PREFIX ]; then
         if [ ! -z $EESSI_BASIC_ENV ]; then
           show_msg "Only setting up basic environment, so we're done"
         elif [ -d $EESSI_SOFTWARE_PATH ]; then
-          export EESSI_SITE_SOFTWARE_PATH=${EESSI_SOFTWARE_PATH/versions/host_injections}
+          if [ -z ${EESSI_SITE_SOFTWARE_PREFIX} ]; then
+            site_software_path=${EESSI_SOFTWARE_PATH/versions/host_injections}
+          else
+            site_software_path=${EESSI_SOFTWARE_PATH/$EESSI_SITE_SOFTWARE_PREFIX/$EESSI_CVMFS_REPO}
+          fi
+          export EESSI_SITE_SOFTWARE_PATH=${site_software_path}
+          # Prepend site's lmodrc.lua path to $LMOD_RC
+          show_msg "Adding Lmod site configuration file path ($site_lmod_rc_file) to $LMOD_RC"
+          site_lmod_rc_file="$EESSI_SITE_SOFTWARE_PATH/.lmod/lmodrc.lua"
+          if [ -z ${LMOD_RC} ]; then
+            export LMOD_RC=$site_lmod_rc_file
+          else
+            export LMOD_RC=$site_lmod_rc_file:$LMOD_RC
+          fi
           show_msg "Using ${EESSI_SITE_SOFTWARE_PATH} as the site extension directory for installations."
           EESSI_SITE_ACCEL_SOFTWARE_PATH=${EESSI_ACCEL_SOFTWARE_PATH/versions/host_injections}
           show_msg "Using ${EESSI_SITE_ACCEL_SOFTWARE_PATH} as the site extension directory for accelerated installations."
