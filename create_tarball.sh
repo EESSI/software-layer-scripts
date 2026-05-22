@@ -65,11 +65,14 @@ fi
 # consider both CPU-only and accelerator subdirectories (if an accelerator was configured)
 sw_subdirs=${cpu_arch_subdir}
 if [ -n "${accel_subdirs}" ]; then
+    echo "accel subdirs: ${accel_subdirs}"
     # convert accel_subdirs into an array...
     IFS='+' read -ra accel_subdirs <<< "${accel_subdirs}"
     # and prepend the cpu_arch_subdir to all elements
     accel_subdirs="${accel_subdirs[@]/#/${cpu_arch_subdir}/}"
+    echo "accel subdirs: ${accel_subdirs}"
     sw_subdirs="${sw_subdirs} ${accel_subdirs[@]}"
+    echo "sw subdirs: ${sw_subdirs}"
 fi
 for subdir in ${sw_subdirs}; do
     if [ -d ${eessi_version}/software/${os}/${subdir}/modules ]; then
