@@ -140,7 +140,7 @@ local eessi_site_software_path
 -- If it is not defined, default to a site installation prefix under host_injections
 site_prefix = os.getenv("EESSI_SITE_SOFTWARE_PREFIX")
 if site_prefix then
-    eessi_site_software_path = string.gsub(eessi_software_path, os.getenv("EESSI_CVMFS_REPO"), site_prefix)
+    eessi_site_software_path = string.gsub(eessi_software_path, eessi_repo, site_prefix)
 else
     eessi_site_software_path = string.gsub(eessi_software_path, "versions", "host_injections")
 end
