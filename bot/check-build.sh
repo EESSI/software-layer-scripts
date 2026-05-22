@@ -511,7 +511,6 @@ if [[ $USE_CHECK_BUILD_ARTEFACTS_SCRIPT -eq 0 ]]; then
             prefixes=( "${accelerators[@]/#/${cpu_prefix}/accel/}" )
             #prefixes=( "${prefixes[@]}" "${accelerator_prefixes[@]}" )
         fi
-        echo "${prefixes[@]}"
 
         artefact_summary="<summary>$(print_code_item '__ITEM__' ${TARBALL})</summary>"
         comment_artifacts_list=""
@@ -519,8 +518,6 @@ if [[ $USE_CHECK_BUILD_ARTEFACTS_SCRIPT -eq 0 ]]; then
         comment_artifacts_list="${comment_artifacts_list}$(print_br_item 'entries: __ITEM__' ${entries})"
 
         for prefix in "${prefixes[@]}"; do
-            echo "check-build prefix: ${prefix}"
-
             # extract directories/entries from tarball content
             modules_entries=$(grep "${prefix}/modules" ${tmpfile})
             software_entries=$(grep "${prefix}/software" ${tmpfile})
