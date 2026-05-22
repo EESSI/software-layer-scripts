@@ -230,7 +230,7 @@ eessiDebug("Adding " .. eessi_site_module_path .. " to MODULEPATH")
 -- by that prefix to get the site accelerator path. This ensures that the directory still contains the 
 -- os/vendor/arch/micro-arch/accelerator etc. If it is not defined, default to a site installation prefix under
 -- host_injections
-if site_prefix then
+if site_prefix and eessi_module_path_accel then
     eessi_module_path_site_accel = string.gsub(eessi_module_path_accel, eessi_repo, site_prefix)
 else
     eessi_module_path_site_accel = string.gsub(eessi_module_path_accel, "versions", "host_injections")
