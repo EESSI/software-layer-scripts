@@ -251,33 +251,27 @@ build_outerr=$(mktemp build.outerr.XXXX)
 
 # determine accelerator target (if any) from .architecture in ${JOB_CFG_FILE}
 ACCEL_OVERRIDES=$(cfg_get_value "architecture" "accelerator")
-IFS='+' read -ra ACCEL_OVERRIDES_ARRAY <<< "$ACCEL_OVERRIDES"
-# prepend accel/ to all array elements
-EESSI_ACCELERATOR_TARGET_OVERRIDES=("${ACCEL_OVERRIDES_ARRAY[@]/#/accel/}")
-if [[ -n "$ACCEL_OVERRIDES" ]]; then
-    for ACCEL_OVERRIDE in "${EESSI_ACCELERATOR_TARGET_OVERRIDES[@]}"; do
-        export EESSI_ACCELERATOR_TARGET_OVERRIDE="${ACCEL_OVERRIDE}"
-        echo "bot/build.sh: EESSI_ACCELERATOR_TARGET_OVERRIDE='${ACCEL_OVERRIDE}'"
-        echo "Executing command to build software:"
-        echo "$software_layer_dir/eessi_container.sh ${COMMON_ARGS[@]} ${BUILD_STEP_ARGS[@]}"
-        echo "                     -- $software_layer_dir/install_software_layer.sh \"${INSTALL_SCRIPT_ARGS[@]}\" \"$@\" 2>&1 | tee -a ${build_outerr}"
-        $software_layer_dir/eessi_container.sh "${COMMON_ARGS[@]}" "${BUILD_STEP_ARGS[@]}" \
-                             -- $software_layer_dir/install_software_layer.sh "${INSTALL_SCRIPT_ARGS[@]}" "$@" 2>&1 | tee -a ${build_outerr}
-
-        # determine temporary directory to resume from for the next accelerator,
-        # as we want to combine all accelerator builds into a single tarball in the end
-        BUILD_TMPDIR=$(grep ' as tmp directory ' ${build_outerr} | cut -d ' ' -f 2)
-        BUILD_STEP_ARGS+=("--resume" "${BUILD_TMPDIR}")
-    done
+if [[ -z ${ACCEL_OVERRIDES} ]]; then
+    EESSI_ACCELERATOR_TARGET_OVERRIDES=("")
 else
-    export EESSI_ACCELERATOR_TARGET_OVERRIDE=""
+    IFS='+' read -ra ACCEL_OVERRIDES_ARRAY <<< "$ACCEL_OVERRIDES"
+    # prepend accel/ to all array elements
+    EESSI_ACCELERATOR_TARGET_OVERRIDES=("${ACCEL_OVERRIDES_ARRAY[@]/#/accel/}")
+fi
+for ACCEL_OVERRIDE in "${EESSI_ACCELERATOR_TARGET_OVERRIDES[@]}"; do
+    export EESSI_ACCELERATOR_TARGET_OVERRIDE="${ACCEL_OVERRIDE}"
+    echo "bot/build.sh: EESSI_ACCELERATOR_TARGET_OVERRIDE='${ACCEL_OVERRIDE}'"
     echo "Executing command to build software:"
     echo "$software_layer_dir/eessi_container.sh ${COMMON_ARGS[@]} ${BUILD_STEP_ARGS[@]}"
     echo "                     -- $software_layer_dir/install_software_layer.sh \"${INSTALL_SCRIPT_ARGS[@]}\" \"$@\" 2>&1 | tee -a ${build_outerr}"
     $software_layer_dir/eessi_container.sh "${COMMON_ARGS[@]}" "${BUILD_STEP_ARGS[@]}" \
                          -- $software_layer_dir/install_software_layer.sh "${INSTALL_SCRIPT_ARGS[@]}" "$@" 2>&1 | tee -a ${build_outerr}
-fi
-echo "bot/build.sh: EESSI_ACCELERATOR_TARGET_OVERRIDE='${EESSI_ACCELERATOR_TARGET_OVERRIDE}'"
+
+    # determine temporary directory to resume from for the next accelerator,
+    # as we want to combine all accelerator builds into a single tarball in the end
+    BUILD_TMPDIR=$(grep ' as tmp directory ' ${build_outerr} | cut -d ' ' -f 2)
+    BUILD_STEP_ARGS+=("--resume" "${BUILD_TMPDIR}")
+done
 
 # prepare directory to store tarball of tmp for tarball step
 TARBALL_TMP_TARBALL_STEP_DIR=${PREVIOUS_TMP_DIR}/tarball_step
