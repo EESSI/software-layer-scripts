@@ -256,9 +256,6 @@ IFS='+' read -ra ACCEL_OVERRIDES_ARRAY <<< "$ACCEL_OVERRIDES"
 EESSI_ACCELERATOR_TARGET_OVERRIDES=("${ACCEL_OVERRIDES_ARRAY[@]/#/accel/}")
 if [[ -n "$ACCEL_OVERRIDES" ]]; then
     for ACCEL_OVERRIDE in "${EESSI_ACCELERATOR_TARGET_OVERRIDES[@]}"; do
-        # bot job config does not include accel subdirectory
-        #export EESSI_ACCELERATOR_TARGET_OVERRIDE="accel/${ACCEL_OVERRIDE}"
-        #echo "bot/build.sh: EESSI_ACCELERATOR_TARGET_OVERRIDE='accel/${ACCEL_OVERRIDE}'"
         export EESSI_ACCELERATOR_TARGET_OVERRIDE="${ACCEL_OVERRIDE}"
         echo "bot/build.sh: EESSI_ACCELERATOR_TARGET_OVERRIDE='${ACCEL_OVERRIDE}'"
         echo "Executing command to build software:"
