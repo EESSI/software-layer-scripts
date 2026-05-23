@@ -171,6 +171,9 @@ jobs:
           FINAL_ACCELERATOR_TARGET_EXPECTED: accel/nvidia/cc80
         - EESSI_ACCELERATOR_TARGET_OVERRIDE: accel/nvidia/cc77  # deliberately chose a non-existent CUDA capability
           FINAL_ACCELERATOR_TARGET_EXPECTED: accel/nvidia/cc70  # this reverts to the fallback case (which does exist)
+          # Test if setting an EESSI_SITE_SOFTWARE_PREFIX works by setting that for the zen4 target
+        - EESSI_SOFTWARE_SUBDIR_OVERRIDE: x86_64/amd/zen4
+          EESSI_SITE_SOFTWARE_PREFIX: /tmp/site_prefix
 
     steps:
       - name: Check out software-layer repository

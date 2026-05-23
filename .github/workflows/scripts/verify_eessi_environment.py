@@ -32,6 +32,11 @@ def check_env_endswith(var1, var2):
     if not val1.endswith(val2):
         raise EnvVarError(f"'{var1}' must end with '{var2}':\n{var1}='{val1}'\n{var2}='{val2}'")
 
+def check_env_startswith(var1, var2):
+    val1, val2 = get_env_vars(var1, var2)
+    if not val1.startswith(val2):
+        raise EnvVarError(f"'{var1}' must start with '{var2}':\n{var1}='{val1}'\n{var2}='{val2}'")
+
 if __name__ == "__main__":
     try:
         # accelerator stuff is not guaranteed to exist
@@ -58,6 +63,10 @@ if __name__ == "__main__":
             check_env_contains("EESSI_SITE_MODULEPATH_ACCEL", "EESSI_SOFTWARE_SUBDIR")
             check_env_contains("EESSI_MODULEPATH_ACCEL", "EESSI_ACCELERATOR_TARGET")
             check_env_contains("EESSI_SITE_MODULEPATH_ACCEL", "EESSI_ACCELERATOR_TARGET")
+        # Verify that configuring an EESSI_SITE_SOFTWARE_PREFIX results in this prefix being
+        # the first part of EESSI_SITE_SOFTWARE_PATH
+        if os.getenv("EESSI_SITE_SOFTWARE_PREFIX"):
+            check_env_startswith("EESSI_SITE_SOFTWARE_PATH", "EESSI_SITE_SOFTWARE_PREFIX")
         # Finally, verify that all the expected module path are included
         check_env_contains("MODULEPATH", "EESSI_MODULEPATH")
         check_env_contains("MODULEPATH", "EESSI_SITE_MODULEPATH")
