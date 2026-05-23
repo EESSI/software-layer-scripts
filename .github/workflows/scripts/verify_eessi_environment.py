@@ -67,6 +67,9 @@ if __name__ == "__main__":
         # the first part of EESSI_SITE_SOFTWARE_PATH
         if os.getenv("EESSI_SITE_SOFTWARE_PREFIX"):
             check_env_startswith("EESSI_SITE_SOFTWARE_PATH", "EESSI_SITE_SOFTWARE_PREFIX")
+            check_env_startswith("EESSI_SITE_MODULEPATH", "EESSI_SITE_SOFTWARE_PREFIX")
+            if expected_eessi_accel_arch:
+                check_env_startswith("EESSI_SITE_MODULEPATH_ACCEL", "EESSI_SITE_SOFTWARE_PREFIX")
         # Finally, verify that all the expected module path are included
         check_env_contains("MODULEPATH", "EESSI_MODULEPATH")
         check_env_contains("MODULEPATH", "EESSI_SITE_MODULEPATH")
