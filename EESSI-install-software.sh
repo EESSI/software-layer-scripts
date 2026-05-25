@@ -309,8 +309,8 @@ fi
 #   EESSI-extend module itself needs to be installed.
 
 # Should we introduce an if-clause here for site installs? Do we want site installs to be able to install their own EESSI-extend modules?
-if [[ -n "$EESSI_SITE_INSTALL" && -n "$EESSI_SITE_INSTALL_PREFIX" ]]; then
-    export EASYBUILD_INSTALLPATH=${EESSI_SITE_INSTALL_PREFIX}/versions/${EESSI_VERSION}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}
+if [[ -n "$EESSI_SITE_INSTALL" && -n "$EESSI_SITE_SOFTWARE_PREFIX" ]]; then
+    export EASYBUILD_INSTALLPATH=${EESSI_SITE_SOFTWARE_PREFIX}/versions/${EESSI_VERSION}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}
 else
     export EASYBUILD_INSTALLPATH=${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}
 fi
