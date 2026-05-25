@@ -287,6 +287,9 @@ module unload EESSI-extend
 unset EESSI_USER_INSTALL
 unset EESSI_PROJECT_INSTALL
 if [[ -n "$EESSI_SITE_INSTALL_FORCE" ]]; then
+    msg="Forcing a site installation (EESSI_SITE_INSTALL_FORCE=${EESSI_SITE_INSTALL_FORCE})"
+    msg="$msg by setting EESSI_SITE_INSTALL=1 and unsetting EESSI_CVMFS_INSTALL"
+    echo $msg
     export EESSI_SITE_INSTALL=1
     unset EESSI_CVMFS_INSTALL
 else
@@ -304,8 +307,10 @@ fi
 #   e.g., to point to the installation directory for accelerators.
 # NOTE 3, we have to set a default for EASYBUILD_INSTALLPATH here in cases the
 #   EESSI-extend module itself needs to be installed.
-if [[ -n "$EESSI_SITE_INSTALL_PATH_PREFIX" ]]; then
-    export EASYBUILD_INSTALLPATH=${EESSI_SITE_INSTALL_PATH_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}
+
+# Should we introduce an if-clause here for site installs? Do we want site installs to be able to install their own EESSI-extend modules?
+if [[ -n "$EESSI_SITE_INSTALL" && -n "$EESSI_SITE_INSTALL_PREFIX" ]]; then
+    export EASYBUILD_INSTALLPATH=${EESSI_SITE_INSTALL_PREFIX}/versions/${EESSI_VERSION}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}
 else
     export EASYBUILD_INSTALLPATH=${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}
 fi
@@ -411,6 +416,9 @@ else
             eb_version=$(echo ${easystack_file} | sed 's/.*eb-\([0-9.]*\).*.yml/\1/g')
 
             # load EasyBuild module (will be installed if it's not available yet)
+            echo "RIGHT BEFORE LOADING EASYBUILD MODULE"  # DEBUG OUTPUT, REMOVE
+            echo "EESSI_SITE_INSTALL=${EESSI_SITE_INSTALL}"  # DEBUG OUTPUT, REMOVE
+            echo "EESSI_SITE_INSTALL_PREFIX=${EESSI_SITE_INSTALL_PREFIX}"  # DEBUG OUTPUT, REMOVE
             source ${TOPDIR}/load_easybuild_module.sh ${eb_version}
 
             ${EB} --show-config
