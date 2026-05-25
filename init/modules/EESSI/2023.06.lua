@@ -134,7 +134,16 @@ local eessi_modules_subdir = pathJoin("modules", "all")
 -- eessi_module_path is the location of the _CPU_ module files, e.g.,
 -- /cvmfs/software.eessi.io/versions/<EESSI_VERSION>/software/linux/x86_64/amd/zen3/modules/all
 local eessi_module_path = pathJoin(eessi_software_path, eessi_modules_subdir)
-local eessi_site_software_path = string.gsub(eessi_software_path, "versions", "host_injections")
+local eessi_site_software_path
+-- If EESSI_SITE_SOFTWARE_PREFIX is defined, replace /cvmfs/software.eessi.io (or more generally EESSI_CVMFS_REPO)
+-- by that prefix. This ensures that the directory still contains the os/vendor/arch/micro-arch/accelerator etc
+-- If it is not defined, default to a site installation prefix under host_injections
+site_prefix = os.getenv("EESSI_SITE_SOFTWARE_PREFIX")
+if site_prefix then
+    eessi_site_software_path = string.gsub(eessi_software_path, eessi_repo, site_prefix)
+else
+    eessi_site_software_path = string.gsub(eessi_software_path, "versions", "host_injections")
+end
 -- Site module path is the same as the EESSI one, but with `versions` changed to `host_injections`, e.g.,
 --  /cvmfs/software.eessi.io/host_injections/<EESSI_VERSION>/software/linux/x86_64/amd/zen3/modules/all
 local eessi_site_module_path = pathJoin(eessi_site_software_path, eessi_modules_subdir)
@@ -169,8 +178,14 @@ if ( mode() ~= "spider" ) then
     prepend_path("MODULEPATH", eessi_module_path)
     eessiDebug("Adding " .. eessi_module_path .. " to MODULEPATH")
 end
+
+-- Make sure the EESSI cache is found, this is specified in the lmodrc.lua in the eessi_software_path
 prepend_path("LMOD_RC", pathJoin(eessi_software_path, ".lmod", "lmodrc.lua"))
 eessiDebug("Adding " .. pathJoin(eessi_software_path, ".lmod", "lmodrc.lua") .. " to LMOD_RC")
+-- Make sure that a cache for site installations can also be found
+prepend_path("LMOD_RC", pathJoin(eessi_site_software_path , ".lmod", "lmodrc.lua"))
+eessiDebug("Adding " .. pathJoin(eessi_site_software_path , ".lmod", "lmodrc.lua") .. " to LMOD_RC")
+
 -- Use pushenv for LMOD_PACKAGE_PATH as this may be set locally by the site
 pushenv("LMOD_PACKAGE_PATH", pathJoin(eessi_software_path, ".lmod"))
 eessiDebug("Setting LMOD_PACKAGE_PATH to " .. pathJoin(eessi_software_path, ".lmod"))
@@ -210,11 +225,23 @@ end
 -- prepend the site module path last so it has priority
 prepend_path("MODULEPATH", eessi_site_module_path)
 eessiDebug("Adding " .. eessi_site_module_path .. " to MODULEPATH")
-if isDir(eessi_module_path_accel) then
-    eessi_module_path_site_accel = string.gsub(eessi_module_path_accel, "versions", "host_injections")
-    setenv("EESSI_SITE_MODULEPATH_ACCEL", eessi_module_path_site_accel)
-    prepend_path("MODULEPATH", eessi_module_path_site_accel)
-    eessiDebug("Using site accelerator modules at: " .. eessi_module_path_site_accel)
+
+-- If EESSI_SITE_SOFTWARE_PREFIX is defined, replace /cvmfs/software.eessi.io (or more generally EESSI_CVMFS_REPO)
+-- by that prefix to get the site accelerator path. This ensures that the directory still contains the 
+-- os/vendor/arch/micro-arch/accelerator etc. If it is not defined, default to a site installation prefix under
+-- host_injections
+-- Note that we need the eessi_module_path_accel to construct either of these site installation accelerator paths
+if eessi_module_path_accel then
+    if site_prefix then
+        eessi_module_path_site_accel = string.gsub(eessi_module_path_accel, eessi_repo, site_prefix)
+    else
+        eessi_module_path_site_accel = string.gsub(eessi_module_path_accel, "versions", "host_injections")
+    end
+    if isDir(eessi_module_path_site_accel) then
+        setenv("EESSI_SITE_MODULEPATH_ACCEL", eessi_module_path_site_accel)
+        prepend_path("MODULEPATH", eessi_module_path_site_accel)
+        eessiDebug("Using site accelerator modules at: " .. eessi_module_path_site_accel)
+    end
 end
 
 -- allow sites to add a family directive to the EESSI module,
