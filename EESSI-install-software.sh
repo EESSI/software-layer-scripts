@@ -418,7 +418,7 @@ else
             # load EasyBuild module (will be installed if it's not available yet)
             echo "RIGHT BEFORE LOADING EASYBUILD MODULE"  # DEBUG OUTPUT, REMOVE
             echo "EESSI_SITE_INSTALL=${EESSI_SITE_INSTALL}"  # DEBUG OUTPUT, REMOVE
-            echo "EESSI_SITE_INSTALL_PREFIX=${EESSI_SITE_INSTALL_PREFIX}"  # DEBUG OUTPUT, REMOVE
+            echo "EESSI_SITE_SOFTWARE_PREFIX=${EESSI_SITE_SOFTWARE_PREFIX}"  # DEBUG OUTPUT, REMOVE
             source ${TOPDIR}/load_easybuild_module.sh ${eb_version}
 
             ${EB} --show-config
