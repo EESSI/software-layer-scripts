@@ -228,8 +228,10 @@ module --force purge
 module unuse $MODULEPATH
 
 # Initialize the EESSI environment
+echo "DEBUG: BEFORE LOADING EESSI MODULE, EESSI_SITE_SOFTWARE_PREFIX: ${EESSI_SITE_SOFTWARE_PREFIX}, EESSI_SITE_INSTALL: ${EESSI_SITE_INSTALL}"  # DEBUG, remove!
 module use $TOPDIR/init/modules
 module load EESSI/$EESSI_VERSION
+echo "DEBUG: BEFORE LOADING EESSI MODULE, EESSI_SITE_SOFTWARE_PREFIX: ${EESSI_SITE_SOFTWARE_PREFIX}, EESSI_SITE_INSTALL: ${EESSI_SITE_INSTALL}, EESSI_SITE_SOFTWARE_PATH: ${EESSI_SITE_SOFTWARE_PATH}"  # DEBUG, remove!
 
 # make sure we're in Prefix environment by checking $SHELL
 # We can only do this after loading the EESSI module, as we need ${EPREFIX}
