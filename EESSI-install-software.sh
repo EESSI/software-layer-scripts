@@ -369,13 +369,13 @@ fi
 # Now that we are done with all installs that should go the /cvmfs/software.eessi.io
 # Reload the EESSI and EESSI-extend modules if we're doing a site install for which EESSI_SITE_SOFTWARE_PREFIX is set
 export EESSI_SITE_SOFTWARE_PREFIX=${EESSI_SITE_SOFTWARE_PREFIX_BACKUP}
-if [[ -z "${EESSI_SITE_INSTALL}" && -z "${EESSI_SITE_SOFTWARE_PREFIX}" ]]; then
+if [[ ! -z "${EESSI_SITE_INSTALL}" && ! -z "${EESSI_SITE_SOFTWARE_PREFIX}" ]]; then
     echo "Doing a site install with EESSI_SITE_SOFTWARE_PREFIX '${EESSI_SITE_SOFTWARE_PREFIX}', so reloading EESSI and EESSI-extend"
     module purge
     module load EESSI/${EESSI_VERSION}
     # Use --ignore_cache in case the current build was the one that installed this EESSI-extend module
     module load --ignore_cache EESSI-extend/${EESSI_VERSION}-easybuild
-    echo "EASYBUILD_INSTALLPATH=${EASYBUILD_INSTALLPAT}"
+    echo "EASYBUILD_INSTALLPATH=${EASYBUILD_INSTALLPATH}"
 fi
 
 if [ ! -z "${shared_fs_path}" ]; then
