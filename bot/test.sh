@@ -165,6 +165,26 @@ echo "bot/build.sh: EESSI_VERSION_OVERRIDE='${EESSI_VERSION_OVERRIDE}'"
 export EESSI_CVMFS_REPO_OVERRIDE=/cvmfs/$(cfg_get_value "repository" "repo_name")
 echo "bot/test.sh: EESSI_CVMFS_REPO_OVERRIDE='${EESSI_CVMFS_REPO_OVERRIDE}'"
 
+# If we're not building for software.eessi.io, then consider this a site install
+if [[ "${EESSI_CVMFS_REPO_OVERRIDE}" != "/cvmfs/software.eessi.io" && "${REPOSITORY_NAME}" != "/cvmfs/dev.eessi.io" ]]; then
+    # To build on top of EESSI, we need the software.eessi.io repository to be mounted next to the target repository
+    # The bot/test.sh script does this when the EESSI_SITE_INSTALL_FORCE environment variable is set
+    # Other build scripts will also respect this variable where needed in order to make sure that 'building on top'
+    # of EESSI is possible
+    export EESSI_SITE_INSTALL_FORCE=1
+    echo "EESSI_SITE_INSTALL_FORCE=$EESSI_SITE_INSTALL_FORCE"
+
+    # We also need to set a prefix that our installations should end up in
+    # The build scripts should take this prefix, and construct the final EESSI_SITE_SOFTWARE_PATH out of it
+    # that the EESSI-extend module expects
+    export EESSI_SITE_SOFTWARE_PREFIX=$EESSI_CVMFS_REPO_OVERRIDE
+    echo "EESSI_SITE_SOFTWARE_PREFIX=$EESSI_SITE_SOFTWARE_PREFIX"
+
+    # Make sure that the compatibility layer is still used from software.eessi.io
+    export EESSI_CVMFS_COMPAT_REPO=/cvmfs/software.eessi.io
+    echo "EESSI_CVMFS_COMPAT_REPO=${EESSI_CVMFS_COMPAT_REPO}"
+fi
+
 # determine architecture to be used from entry .architecture in ${JOB_CFG_FILE}
 # fallbacks:
 #  - ${CPU_TARGET} handed over from bot
@@ -202,6 +222,25 @@ COMMON_ARGS+=("--mode" "run")
 [[ ! -z ${HTTP_PROXY} ]] && COMMON_ARGS+=("--http-proxy" "${HTTP_PROXY}")
 [[ ! -z ${HTTPS_PROXY} ]] && COMMON_ARGS+=("--https-proxy" "${HTTPS_PROXY}")
 [[ ! -z ${REPOSITORY} ]] && COMMON_ARGS+=("--repository" "${REPOSITORY}")
+
+# Also expose software.eessi.io when building on top of EESSI (i.e. when EESSI_SITE_INSTALL_FORCE is set)
+# or on top of the EESSI compat layer (i.e. for dev.eessi.io)
+if [[ "${REPOSITORY_NAME}" == "dev.eessi.io" || -n "${EESSI_SITE_INSTALL_FORCE}" ]]; then
+    COMMON_ARGS+=("--repository" "software.eessi.io,access=ro")
+fi
+
+# Override the compat layer if EESSI_CVMFS_COMPAT_REPO is defined. This allows using a different repo for the
+# compatibility layer compared to the EESSI_CVMFS_REPO (in which things will be installed)
+# (this is already done for dev.eessi.io through a customized SLURM script but that could probably be removed then)
+if [[ -n "${EESSI_CVMFS_COMPAT_REPO}" && -n "${EESSI_VERSION_OVERRIDE}" ]]; then
+    export EESSI_COMPAT_LAYER_DIR_OVERRIDE="${EESSI_CVMFS_COMPAT_REPO}/versions/${EESSI_VERSION_OVERRIDE}/compat/linux/$(uname -m)"
+    msg="bot/test.sh: Set EESSI_COMPAT_LAYER_DIR_OVERRIDE to $EESSI_COMPAT_LAYER_DIR_OVERRIDE since both EESSI_CVMFS_COMPAT_REPO"
+    msg="$msg (${EESSI_CVMFS_COMPAT_REPO}) and EESSI_VERSION_OVERRIDE (${EESSI_VERSION_OVERRIDE}) are defined"
+    echo "$msg"
+else
+    echo "bot/test.sh: EESSI_CVMFS_COMPAT_REPO: ${EESSI_CVMFS_COMPAT_REPO}"
+    echo "bot/test.sh: EESSI_VERSION_OVERRIDE: ${EESSI_VERSION_OVERRIDE}"
+fi
 
 # pass through '--contain' to avoid leaking in scripts into the container session
 # note, --pass-through can be used multiple times if needed
