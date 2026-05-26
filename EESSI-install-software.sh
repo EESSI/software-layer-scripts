@@ -371,9 +371,12 @@ fi
 export EESSI_SITE_SOFTWARE_PREFIX=${EESSI_SITE_SOFTWARE_PREFIX_BACKUP}
 if [[ ! -z "${EESSI_SITE_INSTALL}" && ! -z "${EESSI_SITE_SOFTWARE_PREFIX}" ]]; then
     echo "Doing a site install with EESSI_SITE_SOFTWARE_PREFIX '${EESSI_SITE_SOFTWARE_PREFIX}', so reloading EESSI and EESSI-extend"
+    EESSI_VERSION_BACKUP=${EESSI_VERSION}
     module purge
-    module load EESSI/${EESSI_VERSION}
+    echo "Loading EESSI/${EESSI_VERSION_BACKUP}"
+    module load EESSI/${EESSI_VERSION_BACKUP}
     # Use --ignore_cache in case the current build was the one that installed this EESSI-extend module
+    echo "Loading EESSI-extend/${EESSI_VERSION}
     module load --ignore_cache EESSI-extend/${EESSI_VERSION}-easybuild
     echo "EASYBUILD_INSTALLPATH=${EASYBUILD_INSTALLPATH}"
 fi
