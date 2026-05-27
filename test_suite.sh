@@ -78,6 +78,21 @@ fi
 
 TMPDIR=$(mktemp -d)
 
+# Override EESSI_COMPAT_LAYER_DIR if EESSI_COMPAT_LAYER_DIR_OVERRIDE is set
+# (we may need to compat layer to provide a module command)
+echo "EESSI_COMPAT_LAYER_DIR_OVERRIDE: ${EESSI_COMPAT_LAYER_DIR_OVERRIDE}"
+
+if [ ! -z ${EESSI_COMPAT_LAYER_DIR_OVERRIDE} ]; then
+    echo "EESSI_COMPAT_LAYER_DIR_OVERRIDE found. Setting EESSI_COMPAT_LAYER_DIR to ${EESSI_COMPAT_LAYER_DIR_OVERRIDE}"
+    EESSI_COMPAT_LAYER_DIR=${EESSI_COMPAT_LAYER_DIR_OVERRIDE}
+else
+    EESSI_COMPAT_LAYER_DIR="${EESSI_CVMFS_REPO}/versions/${EESSI_VERSION}/compat/linux/$(uname -m)"
+fi
+if [ ! -d ${EESSI_COMPAT_LAYER_DIR} ]; then
+    echo "ERROR: ${EESSI_COMPAT_LAYER_DIR} does not exist!" >&2
+    exit 1
+fi
+
 echo ">> Determining software subdirectory to use for current build host..."
 if [ -z $EESSI_SOFTWARE_SUBDIR_OVERRIDE ]; then
   export EESSI_SOFTWARE_SUBDIR_OVERRIDE=$(python3 $TOPDIR/eessi_software_subdir.py $DETECTION_PARAMETERS)
