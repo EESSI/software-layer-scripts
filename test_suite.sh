@@ -92,7 +92,7 @@ echo ">> Setting up environment..."
 # If module command does not exist, use the one from the compat layer
 command -v module
 module_cmd_exists=$?
-if [[ "$module_cmd_exists" -ne 0 && -f "$LMOD_CMD" ]]; then
+if [[ "$module_cmd_exists" -ne 0 || ! -f "$LMOD_CMD" ]]; then
     echo_green "No module command found, initializing lmod from the compatibility layer"
     # Minimal initalization of the lmod from the compat layer
     source $TOPDIR/init/lmod/bash
