@@ -84,7 +84,11 @@ echo ">> Setting up environment..."
 export EESSI_SOFTWARE_SUBDIR_OVERRIDE=$(source $TOPDIR/init/bash > /dev/null 2>&1; python3 $TOPDIR/eessi_software_subdir.py $DETECTION_PARAMETERS)
 echo "EESSI_SOFTWARE_SUBDIR_OVERRIDE: $EESSI_SOFTWARE_SUBDIR_OVERRIDE"
 
-source $TOPDIR/init/bash
+# Use the module to initialize EESSI
+module use $TOPDIR/init/modules
+echo "Loading module EESSI/$EESSI_VERSION"
+module load EESSI/$EESSI_VERSION
+# source $TOPDIR/init/bash
 
 # We have to ignore the LMOD cache, otherwise the software that is built in the build step cannot be found/loaded
 # Reason is that the LMOD cache is normally only updated on the Stratum 0, once everything is ingested
