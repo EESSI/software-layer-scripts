@@ -102,6 +102,21 @@ else
     fatal_error "Failed to initialize Lmod?! (see output in ${ml_version_out}"
 fi
 
+# DEBUGGING
+echo "checking 'ls dirname \$LMOD_CMD'"
+ls -al $(dirname $LMOD_CMD)
+echo "checking 'module --version'"
+module --version
+echo "checking 'ml --version'"
+ml --version
+echo "checking 'module list'"
+module list
+echo "Checking 'module --force purge'"
+module --force purge
+echo "Checking 'ml --force purge'"
+ml --force purge
+
+
 # Make sure we start with no modules and clean $MODULEPATH
 echo ">> Setting up \$MODULEPATH..."
 module --force purge
