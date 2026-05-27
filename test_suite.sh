@@ -78,16 +78,21 @@ fi
 
 TMPDIR=$(mktemp -d)
 
+echo ">> Determining software subdirectory to use for current build host..."
+if [ -z $EESSI_SOFTWARE_SUBDIR_OVERRIDE ]; then
+  export EESSI_SOFTWARE_SUBDIR_OVERRIDE=$(python3 $TOPDIR/eessi_software_subdir.py $DETECTION_PARAMETERS)
+  echo ">> Determined \$EESSI_SOFTWARE_SUBDIR_OVERRIDE via 'eessi_software_subdir.py $DETECTION_PARAMETERS' script"
+else
+  echo ">> Picking up pre-defined \$EESSI_SOFTWARE_SUBDIR_OVERRIDE: ${EESSI_SOFTWARE_SUBDIR_OVERRIDE}"
+fi
+
+
 echo ">> Setting up environment..."
-# For this call to be succesful, it needs to be able to import archspec (which is part of EESSI)
-# Thus, we execute it in a subshell where EESSI is already initialized (a bit like a bootstrap)
-export EESSI_SOFTWARE_SUBDIR_OVERRIDE=$(source $TOPDIR/init/bash > /dev/null 2>&1; python3 $TOPDIR/eessi_software_subdir.py $DETECTION_PARAMETERS)
-echo "EESSI_SOFTWARE_SUBDIR_OVERRIDE: $EESSI_SOFTWARE_SUBDIR_OVERRIDE"
 
 # If module command does not exist, use the one from the compat layer
 command -v module
 module_cmd_exists=$?
-if [[ "$module_cmd_exists" -ne 0 ]]; then
+if [[ "$module_cmd_exists" -ne 0 && -f "$LMOD_CMD" ]]; then
     echo_green "No module command found, initializing lmod from the compatibility layer"
     # Minimal initalization of the lmod from the compat layer
     source $TOPDIR/init/lmod/bash
