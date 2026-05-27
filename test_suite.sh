@@ -84,6 +84,29 @@ echo ">> Setting up environment..."
 export EESSI_SOFTWARE_SUBDIR_OVERRIDE=$(source $TOPDIR/init/bash > /dev/null 2>&1; python3 $TOPDIR/eessi_software_subdir.py $DETECTION_PARAMETERS)
 echo "EESSI_SOFTWARE_SUBDIR_OVERRIDE: $EESSI_SOFTWARE_SUBDIR_OVERRIDE"
 
+# If module command does not exist, use the one from the compat layer
+command -v module
+module_cmd_exists=$?
+if [[ "$module_cmd_exists" -ne 0 ]]; then
+    echo_green "No module command found, initializing lmod from the compatibility layer"
+    # Minimal initalization of the lmod from the compat layer
+    source $TOPDIR/init/lmod/bash
+else
+    echo_green "Module command found"
+fi
+ml_version_out=$TMPDIR/ml.out
+ml --version &> $ml_version_out
+if [[ $? -eq 0 ]]; then
+    echo_green ">> Found Lmod ${LMOD_VERSION}"
+else
+    fatal_error "Failed to initialize Lmod?! (see output in ${ml_version_out}"
+fi
+
+# Make sure we start with no modules and clean $MODULEPATH
+echo ">> Setting up \$MODULEPATH..."
+module --force purge
+module unuse $MODULEPATH
+
 # Use the module to initialize EESSI
 module use $TOPDIR/init/modules
 echo "Loading module EESSI/$EESSI_VERSION"
