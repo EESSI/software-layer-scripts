@@ -232,8 +232,8 @@ fi
 # Override the compat layer if EESSI_CVMFS_COMPAT_REPO is defined. This allows using a different repo for the
 # compatibility layer compared to the EESSI_CVMFS_REPO (in which things will be installed)
 # (this is already done for dev.eessi.io through a customized SLURM script but that could probably be removed then)
-if [[ -n "${EESSI_CVMFS_COMPAT_REPO}" && -n "${EESSI_VERSION_OVERRIDE}" ]]; then
-    export EESSI_COMPAT_LAYER_DIR_OVERRIDE="${EESSI_CVMFS_COMPAT_REPO}/versions/${EESSI_VERSION_OVERRIDE}/compat/linux/$(uname -m)"
+if [[ -n "${EESSI_CVMFS_COMPAT_REPO}" && -n "${EESSI_VERSION_OVERRIDE:-$EESSI_VERSION}" ]]; then
+    export EESSI_COMPAT_LAYER_DIR_OVERRIDE="${EESSI_CVMFS_COMPAT_REPO}/versions/${EESSI_VERSION_OVERRIDE:-$EESSI_VERSION}/compat/linux/$(uname -m)"
     msg="bot:build.sh: Set EESSI_COMPAT_LAYER_DIR_OVERRIDE to $EESSI_COMPAT_LAYER_DIR_OVERRIDE since both EESSI_CVMFS_COMPAT_REPO"
     msg="$msg (${EESSI_CVMFS_COMPAT_REPO}) and EESSI_VERSION_OVERRIDE (${EESSI_VERSION_OVERRIDE}) are defined"
     echo "$msg"
