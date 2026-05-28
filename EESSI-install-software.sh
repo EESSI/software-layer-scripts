@@ -421,6 +421,12 @@ else
     rebuild_easystacks=$(echo "${changed_easystacks}" | (grep "/rebuilds/" || true))
     new_easystacks=$(echo "${changed_easystacks}" | (grep -v "/rebuilds/" || true))
     for easystack_file in ${rebuild_easystacks} ${new_easystacks}; do
+        echo "DEBUG: when processing easystack file ${easystack_file}"
+        echo "DEBUG: EESSI_CVMFS_REPO=${EESSI_CVMFS_REPO}"
+        echo "DEBUG: EESSI_CVMFS_REPO_OVERRIDE=${EESSI_CVMFS_REPO_OVERRIDE}"
+        echo "DEBUG: EESSI_VERSION=${EESSI_VERSION}"
+        echo "DEBUG: EESSI_VERSION_OVERRIDE=${EESSI_VERSION_OVERRIDE}"
+        echo "DEBUG: EESSI_SOFTWARE_LAYER_VERSION_SUFFIX=${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX}"
 
         # make sure that easystack file being picked up is for EESSI version that we're building for...
         echo "${easystack_file}" | grep -q "^easystacks/$(basename ${EESSI_CVMFS_REPO})/${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX}/"
