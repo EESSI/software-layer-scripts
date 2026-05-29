@@ -438,7 +438,7 @@ else
             # Check if this was even an easystack file for the right repository
             echo "${easystack_file}" | grep -q "^easystacks/$(basename ${EESSI_CVMFS_REPO_OVERRIDE:-${EESSI_CVMFS_REPO}})"
             if [ $? -ne 0 ]; then
-                echo_yellow "Easystack file {easystack_file} is not intended for the repository ${EESSI_CVMFS_REPO_OVERRIDE:-${EESSI_CVMFS_REPO}}, skipping it..."
+                echo_yellow "Easystack file ${easystack_file} is not intended for the repository ${EESSI_CVMFS_REPO_OVERRIDE:-${EESSI_CVMFS_REPO}}, skipping it..."
             else
                 echo_yellow "Easystack file ${easystack_file} is not intended for EESSI version ${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX}, skipping it..."
             fi
