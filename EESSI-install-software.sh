@@ -250,6 +250,8 @@ if [ -d $EESSI_CVMFS_REPO ]; then
 else
     fatal_error "$EESSI_CVMFS_REPO is not available!"
 fi
+# TODO: should probably also check if EESSI_CVMFS_REPO_OVERRIDE is available in case that is non-empty AND different
+
 
 # Check that EESSI_SOFTWARE_SUBDIR now matches EESSI_SOFTWARE_SUBDIR_OVERRIDE
 if [[ -z ${EESSI_SOFTWARE_SUBDIR} ]]; then
@@ -433,7 +435,13 @@ else
         echo "${easystack_file}" | grep -q "^easystacks/$(basename ${EESSI_CVMFS_REPO_OVERRIDE:-${EESSI_CVMFS_REPO}})/${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX}/"
         if [ $? -ne 0 ]; then
             # TODO: We should probably make the error clearer, and indicate when this is not intended for the current _repository_ either (i.e. check for a match with ${EESSI_CVMFS_REPO_OVERRIDE:-${EESSI_CVMFS_REPO}})
-            echo_yellow "Easystack file ${easystack_file} is not intended for EESSI version ${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX}, skipping it..."
+            # Check if this was even an easystack file for the right repository
+            echo "${easystack_file}" | grep -q "^easystacks/$(basename ${EESSI_CVMFS_REPO_OVERRIDE:-${EESSI_CVMFS_REPO}})"
+            if [ $? -ne 0 ]; then
+                echo_yellow "Easystack file {easystack_file} is not intended for the repository ${EESSI_CVMFS_REPO_OVERRIDE:-${EESSI_CVMFS_REPO}}, skipping it..."
+            else
+                echo_yellow "Easystack file ${easystack_file} is not intended for EESSI version ${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX}, skipping it..."
+            fi
         else
             echo -e "Processing easystack file ${easystack_file}...\n\n"
 
