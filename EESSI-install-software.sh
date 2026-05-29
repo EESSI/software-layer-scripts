@@ -429,7 +429,8 @@ else
         echo "DEBUG: EESSI_SOFTWARE_LAYER_VERSION_SUFFIX=${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX}"
 
         # make sure that easystack file being picked up is for EESSI version that we're building for...
-        echo "${easystack_file}" | grep -q "^easystacks/$(basename ${EESSI_CVMFS_REPO})/${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX}/"
+        # Preferentially check EESSI_CVMFS_REPO_OVERRIDE (since that is set for site builds), otherwise default to EESSI_CVMFS_REPO
+        echo "${easystack_file}" | grep -q "^easystacks/$(basename ${EESSI_CVMFS_REPO_OVERRIDE:-${EESSI_CVMFS_REPO}})/${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX}/"
         if [ $? -ne 0 ]; then
             echo_yellow "Easystack file ${easystack_file} is not intended for EESSI version ${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX}, skipping it..."
         else
