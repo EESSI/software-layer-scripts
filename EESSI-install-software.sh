@@ -432,6 +432,7 @@ else
         # Preferentially check EESSI_CVMFS_REPO_OVERRIDE (since that is set for site builds), otherwise default to EESSI_CVMFS_REPO
         echo "${easystack_file}" | grep -q "^easystacks/$(basename ${EESSI_CVMFS_REPO_OVERRIDE:-${EESSI_CVMFS_REPO}})/${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX}/"
         if [ $? -ne 0 ]; then
+            # TODO: We should probably make the error clearer, and indicate when this is not intended for the current _repository_ either (i.e. check for a match with ${EESSI_CVMFS_REPO_OVERRIDE:-${EESSI_CVMFS_REPO}})
             echo_yellow "Easystack file ${easystack_file} is not intended for EESSI version ${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX}, skipping it..."
         else
             echo -e "Processing easystack file ${easystack_file}...\n\n"
