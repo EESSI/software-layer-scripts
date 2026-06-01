@@ -250,9 +250,10 @@ else
 fi
 if [[ -n "$EESSI_CVMFS_REPO_OVERRIDE" && "$EESSI_CVMFS_REPO" != "$EESSI_CVMFS_REPO_OVERRIDE" ]]; then
     if [ -d "$EESSI_CVMFS_REPO_OVERRIDE" ]; then
-    echo_green "$EESSI_CVMFS_REPO_OVERRIDE available, OK!"
-else
-    fatal_error "$EESSI_CVMFS_REPO_OVERRIDE is not available!"
+        echo_green "$EESSI_CVMFS_REPO_OVERRIDE available, OK!"
+    else
+        fatal_error "$EESSI_CVMFS_REPO_OVERRIDE is not available!"
+    fi
 fi
 
 # Check that EESSI_SOFTWARE_SUBDIR now matches EESSI_SOFTWARE_SUBDIR_OVERRIDE
