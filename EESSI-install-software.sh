@@ -232,10 +232,8 @@ module unuse $MODULEPATH
 # drivers and libraries are installed in /cvmfs/software.eessi.io, and not in the EESSI_SITE_SOFTWARE_PREFIX
 EESSI_SITE_SOFTWARE_PREFIX_BACKUP=${EESSI_SITE_SOFTWARE_PREFIX}
 unset EESSI_SITE_SOFTWARE_PREFIX
-echo "DEBUG: BEFORE LOADING EESSI MODULE, EESSI_SITE_SOFTWARE_PREFIX: ${EESSI_SITE_SOFTWARE_PREFIX}, EESSI_SITE_INSTALL: ${EESSI_SITE_INSTALL}"  # DEBUG, remove!
 module use $TOPDIR/init/modules
 module load EESSI/$EESSI_VERSION
-echo "DEBUG: BEFORE LOADING EESSI MODULE, EESSI_SITE_SOFTWARE_PREFIX: ${EESSI_SITE_SOFTWARE_PREFIX}, EESSI_SITE_INSTALL: ${EESSI_SITE_INSTALL}, EESSI_SITE_SOFTWARE_PATH: ${EESSI_SITE_SOFTWARE_PATH}"  # DEBUG, remove!
 
 # make sure we're in Prefix environment by checking $SHELL
 # We can only do this after loading the EESSI module, as we need ${EPREFIX}
@@ -315,8 +313,6 @@ fi
 #   e.g., to point to the installation directory for accelerators.
 # NOTE 3, we have to set a default for EASYBUILD_INSTALLPATH here in cases the
 #   EESSI-extend module itself needs to be installed.
-
-# Should we introduce an if-clause here for site installs? Do we want site installs to be able to install their own EESSI-extend modules?
 export EASYBUILD_INSTALLPATH=${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}
 echo "EASYBUILD_INSTALLPATH set to $EASYBUILD_INSTALLPATH"
 
@@ -421,20 +417,20 @@ else
     # first process rebuilds, if any, then easystack files for new installations
     # "|| true" is used to make sure that the grep command always returns success
     rebuild_easystacks=$(echo "${changed_easystacks}" | (grep "/rebuilds/" || true))
-    new_easystacks=$(echo "${changed_easystacks}" | (grep -v "/rebuilds/" || true))
-    for easystack_file in ${rebuild_easystacks} ${new_easystacks}; do
-        echo "DEBUG: when processing easystack file ${easystack_file}"
-        echo "DEBUG: EESSI_CVMFS_REPO=${EESSI_CVMFS_REPO}"
-        echo "DEBUG: EESSI_CVMFS_REPO_OVERRIDE=${EESSI_CVMFS_REPO_OVERRIDE}"
-        echo "DEBUG: EESSI_VERSION=${EESSI_VERSION}"
-        echo "DEBUG: EESSI_VERSION_OVERRIDE=${EESSI_VERSION_OVERRIDE}"
-        echo "DEBUG: EESSI_SOFTWARE_LAYER_VERSION_SUFFIX=${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX}"
+new_easystacks=$(echo "${changed_easystacks}" | (grep -v "/rebuilds/" || true))
+echo "When processing easystack files:"
+echo "EESSI_CVMFS_REPO=${EESSI_CVMFS_REPO}"
+echo "EESSI_CVMFS_REPO_OVERRIDE=${EESSI_CVMFS_REPO_OVERRIDE}"
+echo "EESSI_VERSION=${EESSI_VERSION}"
+echo "EESSI_VERSION_OVERRIDE=${EESSI_VERSION_OVERRIDE}"
+echo "EESSI_SOFTWARE_LAYER_VERSION_SUFFIX=${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX}"
+for easystack_file in ${rebuild_easystacks} ${new_easystacks}; do
+        echo "Checking if easystack file ${easystack_file} is for the current EESSI_CVMFS_REPO and EESSI_VERSION"
 
         # make sure that easystack file being picked up is for EESSI version that we're building for...
         # Preferentially check EESSI_CVMFS_REPO_OVERRIDE (since that is set for site builds), otherwise default to EESSI_CVMFS_REPO
         echo "${easystack_file}" | grep -q "^easystacks/$(basename ${EESSI_CVMFS_REPO_OVERRIDE:-${EESSI_CVMFS_REPO}})/${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX}/"
         if [ $? -ne 0 ]; then
-            # TODO: We should probably make the error clearer, and indicate when this is not intended for the current _repository_ either (i.e. check for a match with ${EESSI_CVMFS_REPO_OVERRIDE:-${EESSI_CVMFS_REPO}})
             # Check if this was even an easystack file for the right repository
             echo "${easystack_file}" | grep -q "^easystacks/$(basename ${EESSI_CVMFS_REPO_OVERRIDE:-${EESSI_CVMFS_REPO}})"
             if [ $? -ne 0 ]; then
@@ -449,9 +445,6 @@ else
             eb_version=$(echo ${easystack_file} | sed 's/.*eb-\([0-9.]*\).*.yml/\1/g')
 
             # load EasyBuild module (will be installed if it's not available yet)
-            echo "RIGHT BEFORE LOADING EASYBUILD MODULE"  # DEBUG OUTPUT, REMOVE
-            echo "EESSI_SITE_INSTALL=${EESSI_SITE_INSTALL}"  # DEBUG OUTPUT, REMOVE
-            echo "EESSI_SITE_SOFTWARE_PREFIX=${EESSI_SITE_SOFTWARE_PREFIX}"  # DEBUG OUTPUT, REMOVE
             source ${TOPDIR}/load_easybuild_module.sh ${eb_version}
 
             ${EB} --show-config

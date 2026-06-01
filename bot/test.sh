@@ -177,7 +177,9 @@ if [[ "${EESSI_CVMFS_REPO_OVERRIDE}" != "/cvmfs/software.eessi.io" && "${REPOSIT
     # We also need to set a prefix that our installations should end up in
     # The build scripts should take this prefix, and construct the final EESSI_SITE_SOFTWARE_PATH out of it
     # that the EESSI-extend module expects
+if [[ -z "${EESSI_SITE_SOFTWARE_PREFIX}" ]]; then
     export EESSI_SITE_SOFTWARE_PREFIX=$EESSI_CVMFS_REPO_OVERRIDE
+fi
     echo "EESSI_SITE_SOFTWARE_PREFIX=$EESSI_SITE_SOFTWARE_PREFIX"
 
     # Make sure that the compatibility layer is still used from software.eessi.io
