@@ -153,7 +153,7 @@ export EESSI_CVMFS_REPO_OVERRIDE=/cvmfs/${REPOSITORY_NAME}${EESSI_DEV_PROJECT:+/
 echo "bot/build.sh: EESSI_CVMFS_REPO_OVERRIDE='${EESSI_CVMFS_REPO_OVERRIDE}'"
 
 # If we're not building for software.eessi.io, then consider this a site install
-if [[ "${EESSI_CVMFS_REPO_OVERRIDE}" != "/cvmfs/software.eessi.io" && "${REPOSITORY_NAME}" != "/cvmfs/dev.eessi.io" ]]; then
+if [[ "${EESSI_CVMFS_REPO_OVERRIDE}" != "/cvmfs/software.eessi.io" && "${REPOSITORY_NAME}" != "dev.eessi.io" ]]; then
     # To build on top of EESSI, we need the software.eessi.io repository to be mounted next to the target repository
     # The bot/build.sh script does this when the EESSI_SITE_INSTALL_FORCE environment variable is set
     # Other build scripts will also respect this variable where needed in order to make sure that 'building on top'
@@ -164,9 +164,9 @@ if [[ "${EESSI_CVMFS_REPO_OVERRIDE}" != "/cvmfs/software.eessi.io" && "${REPOSIT
     # We also need to set a prefix that our installations should end up in
     # The build scripts should take this prefix, and construct the final EESSI_SITE_SOFTWARE_PATH out of it
     # that the EESSI-extend module expects
-if [[ -z "${EESSI_SITE_SOFTWARE_PREFIX}" ]]; then
-    export EESSI_SITE_SOFTWARE_PREFIX=$EESSI_CVMFS_REPO_OVERRIDE
-fi
+    if [[ -z "${EESSI_SITE_SOFTWARE_PREFIX}" ]]; then
+        export EESSI_SITE_SOFTWARE_PREFIX=$EESSI_CVMFS_REPO_OVERRIDE
+    fi
     echo "EESSI_SITE_SOFTWARE_PREFIX=$EESSI_SITE_SOFTWARE_PREFIX"
 
     # Make sure that the compatibility layer is still used from software.eessi.io
@@ -228,7 +228,6 @@ COMMON_ARGS+=("--mode" "run")
 # or on top of the EESSI compat layer (i.e. for dev.eessi.io)
 if [[ "${REPOSITORY_NAME}" == "dev.eessi.io" || -n "${EESSI_SITE_INSTALL_FORCE}" ]]; then
     COMMON_ARGS+=("--repository" "software.eessi.io,access=ro")
-
 fi
 
 # Override the compat layer if EESSI_CVMFS_COMPAT_REPO is defined. This allows using a different repo for the

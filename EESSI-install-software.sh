@@ -417,14 +417,14 @@ else
     # first process rebuilds, if any, then easystack files for new installations
     # "|| true" is used to make sure that the grep command always returns success
     rebuild_easystacks=$(echo "${changed_easystacks}" | (grep "/rebuilds/" || true))
-new_easystacks=$(echo "${changed_easystacks}" | (grep -v "/rebuilds/" || true))
-echo "When processing easystack files:"
-echo "EESSI_CVMFS_REPO=${EESSI_CVMFS_REPO}"
-echo "EESSI_CVMFS_REPO_OVERRIDE=${EESSI_CVMFS_REPO_OVERRIDE}"
-echo "EESSI_VERSION=${EESSI_VERSION}"
-echo "EESSI_VERSION_OVERRIDE=${EESSI_VERSION_OVERRIDE}"
-echo "EESSI_SOFTWARE_LAYER_VERSION_SUFFIX=${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX}"
-for easystack_file in ${rebuild_easystacks} ${new_easystacks}; do
+    new_easystacks=$(echo "${changed_easystacks}" | (grep -v "/rebuilds/" || true))
+    echo "When processing easystack files:"
+    echo "EESSI_CVMFS_REPO=${EESSI_CVMFS_REPO}"
+    echo "EESSI_CVMFS_REPO_OVERRIDE=${EESSI_CVMFS_REPO_OVERRIDE}"
+    echo "EESSI_VERSION=${EESSI_VERSION}"
+    echo "EESSI_VERSION_OVERRIDE=${EESSI_VERSION_OVERRIDE}"
+    echo "EESSI_SOFTWARE_LAYER_VERSION_SUFFIX=${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX}"
+    for easystack_file in ${rebuild_easystacks} ${new_easystacks}; do
         echo "Checking if easystack file ${easystack_file} is for the current EESSI_CVMFS_REPO and EESSI_VERSION"
 
         # make sure that easystack file being picked up is for EESSI version that we're building for...
