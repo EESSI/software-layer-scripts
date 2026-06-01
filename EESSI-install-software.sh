@@ -248,8 +248,12 @@ if [ -d $EESSI_CVMFS_REPO ]; then
 else
     fatal_error "$EESSI_CVMFS_REPO is not available!"
 fi
-# TODO: should probably also check if EESSI_CVMFS_REPO_OVERRIDE is available in case that is non-empty AND different
-
+if [[ -n "$EESSI_CVMFS_REPO_OVERRIDE" && "$EESSI_CVMFS_REPO" != "$EESSI_CVMFS_REPO_OVERRIDE" ]]; then
+    if [ -d $EESSI_CVMFS_REPO_OVERRIDE ]; then
+    echo_green "$EESSI_CVMFS_REPO_OVERRIDE available, OK!"
+else
+    fatal_error "$EESSI_CVMFS_REPO_OVERRIDE is not available!"
+fi
 
 # Check that EESSI_SOFTWARE_SUBDIR now matches EESSI_SOFTWARE_SUBDIR_OVERRIDE
 if [[ -z ${EESSI_SOFTWARE_SUBDIR} ]]; then
@@ -270,7 +274,11 @@ export PYTHONUNBUFFERED=1
 #   ${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}
 # - .lmod/lmodrc.lua
 # - .lmod/SitePackage.lua
-_eessi_software_path=${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}
+if [[ -n "${EESSI_SITE_INSTALL_FORCE}" ]]; then
+    eessi_software_path=${EESSI_CVMFS_REPO_OVERRIDE}/versions/${EESSI_VERSION_OVERRIDE:-${EESSI_VERSION}}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}
+else
+    _eessi_software_path=${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}
+fi
 _lmod_cfg_dir=${_eessi_software_path}/.lmod
 _lmod_rc_file=${_lmod_cfg_dir}/lmodrc.lua
 if [ ! -f ${_lmod_rc_file} ]; then
