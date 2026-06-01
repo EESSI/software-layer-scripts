@@ -249,7 +249,7 @@ else
     fatal_error "$EESSI_CVMFS_REPO is not available!"
 fi
 if [[ -n "$EESSI_CVMFS_REPO_OVERRIDE" && "$EESSI_CVMFS_REPO" != "$EESSI_CVMFS_REPO_OVERRIDE" ]]; then
-    if [ -d $EESSI_CVMFS_REPO_OVERRIDE ]; then
+    if [ -d "$EESSI_CVMFS_REPO_OVERRIDE" ]; then
     echo_green "$EESSI_CVMFS_REPO_OVERRIDE available, OK!"
 else
     fatal_error "$EESSI_CVMFS_REPO_OVERRIDE is not available!"
@@ -275,7 +275,7 @@ export PYTHONUNBUFFERED=1
 # - .lmod/lmodrc.lua
 # - .lmod/SitePackage.lua
 if [[ -n "${EESSI_SITE_INSTALL_FORCE}" ]]; then
-    eessi_software_path=${EESSI_CVMFS_REPO_OVERRIDE}/versions/${EESSI_VERSION_OVERRIDE:-${EESSI_VERSION}}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}
+    _eessi_software_path=${EESSI_CVMFS_REPO_OVERRIDE}/versions/${EESSI_VERSION_OVERRIDE:-${EESSI_VERSION}}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}
 else
     _eessi_software_path=${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}
 fi
