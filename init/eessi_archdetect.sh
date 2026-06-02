@@ -148,7 +148,7 @@ cpupath(){
         cpu_flag_tag='cpu'
     # on 64-bit RISC-V, we need to look at 'isa' field
     elif [ "${machine_type}" == "riscv64" ]; then
-        cpu_flag_tag='isa' 
+        cpu_flag_tag='isa'
     else
         cpu_flag_tag='flags'
     fi
