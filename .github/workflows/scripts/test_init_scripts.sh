@@ -49,7 +49,17 @@ for shell in ${SHELLS[@]}; do
       assert_raises "$shell -c '. init/lmod/$shell' 2>&1 | grep -E \"${expected_pattern}\""
     fi
 
-    # TEST 2: Check if module overviews first section is the loaded EESSI module
+    # TEST 2: Source Script again in an subshell and check Module Output
+    expected_pattern=".*EESSI has selected $EESSI_SOFTWARE_SUBDIR_OVERRIDE as the compatible CPU target for EESSI/$EESSI_VERSION.*"
+    if [ "$shell" = "csh" ]; then
+      # Cannot figure out how to chain shells with silenced output to test this in csh but it does work
+      # assert_raises "$shell -c 'setenv LMOD_QUIET 1 ; source init/lmod/$shell ; ($shell -c \"unsetenv LMOD_QUIET ; source init/lmod/$shell\")' 2>&1 | grep -E \"${expected_pattern}\""
+      echo "Skipping chained shell check for csh as can't figure out how to silence output in first call"
+    else
+      assert_raises "$shell -c '. init/lmod/$shell > /dev/null 2>&1; $shell -c \". init/lmod/$shell\"' 2>&1 | grep -E \"${expected_pattern}\""
+    fi
+
+    # TEST 3: Check if module overviews first section is the loaded EESSI module
     if [ "$shell" = "csh" ]; then
       # module is defined as alias, but aliases are only retained in interactive
       # shells we work around this by creating a .cshrc file (which sources the
@@ -63,10 +73,10 @@ for shell in ${SHELLS[@]}; do
     assert_raises 'echo "${MODULE_SECTIONS[1]}" | grep -E "$PATTERN"'
     # echo "${MODULE_SECTIONS[1]}" "$PATTERN"
 
-    # TEST 3: Check if module overviews second section is the EESSI init module
+    # TEST 4: Check if module overviews second section is the EESSI init module
     assert "echo ${MODULE_SECTIONS[4]}" "/cvmfs/software.eessi.io/init/modules"
 
-    # TEST 4: Load EasyBuild module and check version
+    # TEST 5: Load EasyBuild module and check version
     # eb --version outputs: "This is EasyBuild 5.1.1 (framework: 5.1.1, easyblocks: 5.1.1) on host ..."
     if [ "$shell" = "csh" ]; then
       echo "source init/lmod/$shell" > ~/.cshrc
@@ -76,7 +86,7 @@ for shell in ${SHELLS[@]}; do
     fi
     assert "$command" "$EXPECTED_EASYBUILD_VERSION"
 
-    # TEST 5: Load EasyBuild module and check path
+    # TEST 6: Load EasyBuild module and check path
     if [ "$shell" = "csh" ]; then
       echo "source init/lmod/$shell" > ~/.cshrc
       EASYBUILD_PATH=$($shell -c "module load EasyBuild/${EXPECTED_EASYBUILD_VERSION}; which eb")
@@ -89,7 +99,7 @@ for shell in ${SHELLS[@]}; do
     assert_raises 'echo "$EASYBUILD_PATH" | grep -E "$PATTERN"'
     # echo "$EASYBUILD_PATH" "$PATTERN"
 
-    # TEST 6 and 7: Check the various options (EESSI_DEFAULT_MODULES_APPEND, EESSI_DEFAULT_MODULES_APPEND, EESSI_EXTRA_MODULEPATH) all work
+    # TEST 7 and 8: Check the various options (EESSI_DEFAULT_MODULES_APPEND, EESSI_DEFAULT_MODULES_APPEND, EESSI_EXTRA_MODULEPATH) all work
     if [ "$shell" = "csh" ]; then
       echo "setenv EESSI_DEFAULT_MODULES_APPEND append_module" > ~/.cshrc
       echo "setenv EESSI_DEFAULT_MODULES_PREPEND prepend_module" >> ~/.cshrc
@@ -115,7 +125,7 @@ for shell in ${SHELLS[@]}; do
     # echo "$TEST_MODULEPATH" AND "$MODULEPATH_PATTERN"
     assert_raises 'echo "$TEST_MODULEPATH" | grep -E "$MODULEPATH_PATTERN"'
 
-    # TEST 8 and 9: Add a conditional test depending on whether we have the Lmod command is available locally or not (Ubuntu-based location for CI)
+    # TEST 9 and 10: Add a conditional test depending on whether we have the Lmod command is available locally or not (Ubuntu-based location for CI)
     if [ -d "$LMOD_PKG/init" ]; then
         echo "Running check for locally available Lmod with purge"
         if [ "$shell" = "csh" ]; then
@@ -142,14 +152,32 @@ for shell in ${SHELLS[@]}; do
         assert_raises 'echo "$TEST_EESSI_WITHOUT_PURGE" | grep "$pattern"' 1
     fi
 
-    # Optional test 10, check if the prompt has been updated
+    # Optional test 11, check if the prompt has been updated
     if [ "$shell" = "bash" ] || [ "$shell" = "ksh" ] || [ "$shell" = "zsh" ] || [ "$shell" = "sh" ]; then
+        # Let's configure things to use the EESSI module within the PR
+        sed 's|export MODULEPATH=.*|export MODULEPATH=init/modules|' init/lmod/sh >init/lmod/sh.test
+        ln -srf init/lmod/sh.test init/lmod/bash.test
+        ln -srf init/lmod/sh.test init/lmod/ksh.test
+        ln -srf init/lmod/sh.test init/lmod/zsh.test
         # Typically this is a non-interactive shell, so manually unset PS1 and reset to a non-exported variable when testing
-        TEST_EESSI_PS1_UPDATE=$($shell -c "unset PS1 ; PS1='$ ' ; . init/lmod/$shell 2>/dev/null ; echo \"\$PS1\"")
-        TEST_EESSI_NO_PS1_UPDATE=$($shell -c "unset PS1 ; . init/lmod/$shell 2>/dev/null ; echo \"\$PS1\"")
+        TEST_EESSI_PS1_UPDATE=$($shell -c "unset PS1 ; PS1='$ ' ; . init/lmod/$shell.test 2>/dev/null ; echo \"\$PS1\"")
+        TEST_EESSI_NO_PS1_UPDATE=$($shell -c "unset PS1 ; . init/lmod/$shell.test 2>/dev/null ; echo \"\$PS1\"")
         pattern="{EESSI/${EESSI_VERSION}} "
         assert_raises 'echo "$TEST_EESSI_PS1_UPDATE" | grep "$pattern"'
         assert_raises 'echo "$TEST_EESSI_NO_PS1_UPDATE" | grep "$pattern"' 1
+        # Also check when we explicitly ask for it not to be updated
+        TEST_EESSI_EXPLICIT_NO_PS1_UPDATE=$($shell -c "unset PS1 ; PS1='test> ' ; export EESSI_MODULE_UPDATE_PS1=0 ; . init/lmod/$shell.test 2>/dev/null ; echo \"\$PS1\"")
+        TEST_EESSI_EXPLICIT_NO_PS1_UPDATE_CALLED_TWICE=$($shell -c "unset PS1 ; PS1='$ ' ; export EESSI_MODULE_UPDATE_PS1=0 ; . init/lmod/$shell.test 2>/dev/null ; . init/lmod/$shell.test 2>/dev/null ; echo \"\$PS1\"")
+        assert_raises 'echo "$TEST_EESSI_EXPLICIT_NO_PS1_UPDATE" | grep "$pattern"' 1
+        assert_raises 'echo "$TEST_EESSI_EXPLICIT_NO_PS1_UPDATE_CALLED_TWICE" | grep "$pattern"' 1
+        # Also check complex prompts, and unloading/purging the EESSI module
+        prompt="\$(echo '\['✘) $ "
+        promptstr="\[✘ $ "
+        updated_promptstr="{EESSI/${EESSI_VERSION}} \[✘ $ "
+        TEST_EESSI_PS1_UPDATE=$($shell -c "unset PS1 ; PS1=\"$prompt\" ; . init/lmod/$shell.test >/dev/null ; echo \"\$PS1\"")
+        TEST_EESSI_PS1_REVERT=$($shell -c "unset PS1 ; PS1=\"$prompt\" ; . init/lmod/$shell.test >/dev/null ; module purge; echo \"\$PS1\"")
+        assert 'echo "$TEST_EESSI_PS1_UPDATE"' "$updated_promptstr"
+        assert 'echo "$TEST_EESSI_PS1_REVERT"' "$promptstr"
     fi
 
     # End Test Suite

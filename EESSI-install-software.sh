@@ -147,6 +147,12 @@ else
       # Make sure EESSI_PREFIX and EESSI_OS_TYPE are set
       source $TOPDIR/init/minimal_eessi_env
 
+      # We've found that creation of new files and directories by unionfs (or any overlay fs) can fail if it
+      # runs on top of CVMFS because the lower-dir provided by CVMFS is not fully initialized. It seems
+      # these issues can be avoided simply by running an ls, to at least trigger the mount
+      echo ">> Trigger automounting of the repo ($EESSI_CVMFS_REPO) before creating new files, to avoid overlay issues"
+      ls -al $EESSI_CVMFS_REPO
+
       # make sure the the software and modules directory exist
       # (since it's expected by init/eessi_environment_variables when using archdetect and by the EESSI module)
       mkdir -p -v ${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/{modules,software}
@@ -210,8 +216,9 @@ fi
 pr_diff=$(ls [0-9]*.diff | head -n 1)
 export PR_DIFF="$PWD/$pr_diff"
 
-# Only run install_scripts.sh if not in dev.eessi.io for security
-if [[ -z ${EESSI_DEV_PROJECT} ]]; then
+# Only run install_scripts.sh if not in dev.eessi.io (for security)
+# Also skip installing scripts for site-installs
+if [[ -z ${EESSI_DEV_PROJECT} && -z "${EESSI_SITE_INSTALL_FORCE}" ]]; then
     ${TOPDIR}/install_scripts.sh --prefix ${EESSI_CVMFS_REPO}/versions/${EESSI_VERSION} --eessi-version ${EESSI_VERSION}
 fi
 
@@ -221,6 +228,10 @@ module --force purge
 module unuse $MODULEPATH
 
 # Initialize the EESSI environment
+# Unset EESSI_SITE_SOFTWARE_PREFIX initially (& back it up for later restore), so that things like the CUDA
+# drivers and libraries are installed in /cvmfs/software.eessi.io, and not in the EESSI_SITE_SOFTWARE_PREFIX
+EESSI_SITE_SOFTWARE_PREFIX_BACKUP=${EESSI_SITE_SOFTWARE_PREFIX}
+unset EESSI_SITE_SOFTWARE_PREFIX
 module use $TOPDIR/init/modules
 module load EESSI/$EESSI_VERSION
 
@@ -236,6 +247,13 @@ if [ -d $EESSI_CVMFS_REPO ]; then
     echo_green "$EESSI_CVMFS_REPO available, OK!"
 else
     fatal_error "$EESSI_CVMFS_REPO is not available!"
+fi
+if [[ -n "$EESSI_CVMFS_REPO_OVERRIDE" && "$EESSI_CVMFS_REPO" != "$EESSI_CVMFS_REPO_OVERRIDE" ]]; then
+    if [ -d "$EESSI_CVMFS_REPO_OVERRIDE" ]; then
+        echo_green "$EESSI_CVMFS_REPO_OVERRIDE available, OK!"
+    else
+        fatal_error "$EESSI_CVMFS_REPO_OVERRIDE is not available!"
+    fi
 fi
 
 # Check that EESSI_SOFTWARE_SUBDIR now matches EESSI_SOFTWARE_SUBDIR_OVERRIDE
@@ -257,7 +275,11 @@ export PYTHONUNBUFFERED=1
 #   ${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}
 # - .lmod/lmodrc.lua
 # - .lmod/SitePackage.lua
-_eessi_software_path=${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}
+if [[ -n "${EESSI_SITE_INSTALL_FORCE}" ]]; then
+    _eessi_software_path=${EESSI_CVMFS_REPO_OVERRIDE}/versions/${EESSI_VERSION_OVERRIDE:-${EESSI_VERSION}}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}
+else
+    _eessi_software_path=${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}
+fi
 _lmod_cfg_dir=${_eessi_software_path}/.lmod
 _lmod_rc_file=${_lmod_cfg_dir}/lmodrc.lua
 if [ ! -f ${_lmod_rc_file} ]; then
@@ -266,7 +288,7 @@ if [ ! -f ${_lmod_rc_file} ]; then
     python3 ${TOPDIR}/create_lmodrc.py ${_eessi_software_path}
 fi
 _lmod_sitepackage_file=${_lmod_cfg_dir}/SitePackage.lua
-if [ ! -f ${_lmod_sitepackage_file} ]; then
+if [[ ! -f ${_lmod_sitepackage_file} && -z "${EESSI_SITE_INSTALL_FORCE}" ]]; then
     echo "Lmod file '${_lmod_sitepackage_file}' does not exist yet; creating it..."
     command -V python3
     python3 ${TOPDIR}/create_lmodsitepackage.py ${_eessi_software_path}
@@ -279,8 +301,16 @@ echo ">> Configuring EasyBuild..."
 module unload EESSI-extend
 unset EESSI_USER_INSTALL
 unset EESSI_PROJECT_INSTALL
-unset EESSI_SITE_INSTALL
-export EESSI_CVMFS_INSTALL=1
+if [[ -n "$EESSI_SITE_INSTALL_FORCE" ]]; then
+    msg="Forcing a site installation (EESSI_SITE_INSTALL_FORCE=${EESSI_SITE_INSTALL_FORCE})"
+    msg="$msg by setting EESSI_SITE_INSTALL=1 and unsetting EESSI_CVMFS_INSTALL"
+    echo $msg
+    export EESSI_SITE_INSTALL=1
+    unset EESSI_CVMFS_INSTALL
+else
+    unset EESSI_SITE_INSTALL
+    export EESSI_CVMFS_INSTALL=1
+fi
 
 # We now run 'source load_eessi_extend_module.sh' to load or install and load the
 #   EESSI-extend module which sets up all build environment settings.
@@ -293,6 +323,7 @@ export EESSI_CVMFS_INSTALL=1
 # NOTE 3, we have to set a default for EASYBUILD_INSTALLPATH here in cases the
 #   EESSI-extend module itself needs to be installed.
 export EASYBUILD_INSTALLPATH=${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}
+echo "EASYBUILD_INSTALLPATH set to $EASYBUILD_INSTALLPATH"
 
 # If in dev.eessi.io, allow building on top of software.eessi.io via EESSI-extend
 if [[ ! -z ${EESSI_DEV_PROJECT} ]]; then
@@ -338,9 +369,24 @@ fi
 # Install NVIDIA drivers in host_injections (if they exist)
 if nvidia_gpu_available; then
     echo "Installing NVIDIA drivers for use in prefix shell..."
-    ${EESSI_PREFIX}/scripts/gpu_support/nvidia/link_nvidia_host_libraries.sh
+    # Site installs override EESSI_CVMFS_REPO, but link_nvidia_host_libraries should always use the usptream EESSI CVMFS repo
+    EESSI_CVMFS_REPO=/cvmfs/software.eessi.io ${EESSI_PREFIX}/scripts/gpu_support/nvidia/link_nvidia_host_libraries.sh
 fi
 
+# Now that we are done with all installs that should go the /cvmfs/software.eessi.io
+# Reload the EESSI and EESSI-extend modules if we're doing a site install for which EESSI_SITE_SOFTWARE_PREFIX is set
+export EESSI_SITE_SOFTWARE_PREFIX=${EESSI_SITE_SOFTWARE_PREFIX_BACKUP}
+if [[ ! -z "${EESSI_SITE_INSTALL}" && ! -z "${EESSI_SITE_SOFTWARE_PREFIX}" ]]; then
+    echo "Doing a site install with EESSI_SITE_SOFTWARE_PREFIX '${EESSI_SITE_SOFTWARE_PREFIX}', so reloading EESSI and EESSI-extend"
+    EESSI_VERSION_BACKUP=${EESSI_VERSION}
+    module purge
+    echo "Loading EESSI/${EESSI_VERSION_BACKUP}"
+    module load EESSI/${EESSI_VERSION_BACKUP}
+    # Use --ignore_cache in case the current build was the one that installed this EESSI-extend module
+    echo "Loading EESSI-extend/${EESSI_VERSION}"
+    module load --ignore_cache EESSI-extend/${EESSI_VERSION}-easybuild
+    echo "EASYBUILD_INSTALLPATH=${EASYBUILD_INSTALLPATH}"
+fi
 
 if [ ! -z "${shared_fs_path}" ]; then
     shared_eb_sourcepath=${shared_fs_path}/easybuild/sources
@@ -381,12 +427,26 @@ else
     # "|| true" is used to make sure that the grep command always returns success
     rebuild_easystacks=$(echo "${changed_easystacks}" | (grep "/rebuilds/" || true))
     new_easystacks=$(echo "${changed_easystacks}" | (grep -v "/rebuilds/" || true))
+    echo "When processing easystack files:"
+    echo "EESSI_CVMFS_REPO=${EESSI_CVMFS_REPO}"
+    echo "EESSI_CVMFS_REPO_OVERRIDE=${EESSI_CVMFS_REPO_OVERRIDE}"
+    echo "EESSI_VERSION=${EESSI_VERSION}"
+    echo "EESSI_VERSION_OVERRIDE=${EESSI_VERSION_OVERRIDE}"
+    echo "EESSI_SOFTWARE_LAYER_VERSION_SUFFIX=${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX}"
     for easystack_file in ${rebuild_easystacks} ${new_easystacks}; do
+        echo "Checking if easystack file ${easystack_file} is for the current EESSI_CVMFS_REPO and EESSI_VERSION"
 
         # make sure that easystack file being picked up is for EESSI version that we're building for...
-        echo "${easystack_file}" | grep -q "^easystacks/$(basename ${EESSI_CVMFS_REPO})/${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX}/"
+        # Preferentially check EESSI_CVMFS_REPO_OVERRIDE (since that is set for site builds), otherwise default to EESSI_CVMFS_REPO
+        echo "${easystack_file}" | grep -q "^easystacks/$(basename ${EESSI_CVMFS_REPO_OVERRIDE:-${EESSI_CVMFS_REPO}})/${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX}/"
         if [ $? -ne 0 ]; then
-            echo_yellow "Easystack file ${easystack_file} is not intended for EESSI version ${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX}, skipping it..."
+            # Check if this was even an easystack file for the right repository
+            echo "${easystack_file}" | grep -q "^easystacks/$(basename ${EESSI_CVMFS_REPO_OVERRIDE:-${EESSI_CVMFS_REPO}})"
+            if [ $? -ne 0 ]; then
+                echo_yellow "Easystack file ${easystack_file} is not intended for the repository ${EESSI_CVMFS_REPO_OVERRIDE:-${EESSI_CVMFS_REPO}}, skipping it..."
+            else
+                echo_yellow "Easystack file ${easystack_file} is not intended for EESSI version ${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX}, skipping it..."
+            fi
         else
             echo -e "Processing easystack file ${easystack_file}...\n\n"
 
@@ -412,12 +472,16 @@ else
 
                 # copy EasyBuild log file if EasyBuild exited with an error
                 if [ ${ec} -ne 0 ]; then
-                    eb_last_log=$(unset EB_VERBOSE; eb --last-log)
-                    # copy to current working directory
-                    cp -a ${eb_last_log} .
-                    echo "Last EasyBuild log file copied from ${eb_last_log} to ${PWD}"
-                    # copy to build logs dir (with context added)
-                    copy_build_log "${eb_last_log}" "${build_logs_dir}"
+                    eb_last_log=$(eb --last-log | grep ^/.*\.log)
+                    # copy to current working directory if file exhists
+                    if [ -f ${eb_last_log} ]; then
+                        cp -a ${eb_last_log} .
+                        echo "Last EasyBuild log file copied from ${eb_last_log} to ${PWD}"
+                        # copy to build logs dir (with context added)
+                        copy_build_log "${eb_last_log}" "${build_logs_dir}"
+                    else
+                        fatal_error "Could not copy EasyBuild log file because ${eb_last_log} does not exist"
+                    fi
                 fi
 
                 $TOPDIR/check_missing_installations.sh ${easystack_file} ${pr_diff}
@@ -439,31 +503,49 @@ else
     export LMOD_PACKAGE_PATH="${EASYBUILD_INSTALLPATH}/.lmod"
 fi
 
-lmod_rc_file="$LMOD_CONFIG_DIR/lmodrc.lua"
-echo "DEBUG: lmod_rc_file='${lmod_rc_file}'"
-if [[ ! -z ${EESSI_ACCELERATOR_TARGET} ]]; then
-    # EESSI_ACCELERATOR_TARGET is set, so let's remove the accelerator path from $lmod_rc_file
-    lmod_rc_file=$(echo ${lmod_rc_file} | sed "s@/${EESSI_ACCELERATOR_TARGET}@@")
-    echo "Path to lmodrc.lua changed to '${lmod_rc_file}'"
-fi
-lmodrc_changed=$(cat ${pr_diff} | grep '^+++' | cut -f2 -d' ' | sed 's@^[a-z]/@@g' | grep '^create_lmodrc.py$' > /dev/null; echo $?)
-if [ ! -f $lmod_rc_file ] || [ ${lmodrc_changed} == '0' ]; then
-    echo ">> Creating/updating Lmod RC file (${lmod_rc_file})..."
-    python3 $TOPDIR/create_lmodrc.py ${EASYBUILD_INSTALLPATH}
-    check_exit_code $? "$lmod_rc_file created" "Failed to create $lmod_rc_file"
+# If this is a site install, the old method of checking if lmodrc.lua was updated doesn't work
+# We simply skip that step for now - it's hardly ever changed anyway
+if [[ -z "${EESSI_SITE_INSTALL}" ]]; then
+    lmod_rc_file="$LMOD_CONFIG_DIR/lmodrc.lua"
+    echo "DEBUG: lmod_rc_file='${lmod_rc_file}'"
+    if [[ ! -z ${EESSI_ACCELERATOR_TARGET} ]]; then
+        # EESSI_ACCELERATOR_TARGET is set, so let's remove the accelerator path from $lmod_rc_file
+        lmod_rc_file=$(echo ${lmod_rc_file} | sed "s@/${EESSI_ACCELERATOR_TARGET}@@")
+        echo "Path to lmodrc.lua changed to '${lmod_rc_file}'"
+    fi
+    lmodrc_changed=$(cat ${pr_diff} | grep '^+++' | cut -f2 -d' ' | sed 's@^[a-z]/@@g' | grep '^create_lmodrc.py$' > /dev/null; echo $?)
+    if [ ! -f $lmod_rc_file ] || [ ${lmodrc_changed} == '0' ]; then
+        echo ">> Creating/updating Lmod RC file (${lmod_rc_file})..."
+        python3 $TOPDIR/create_lmodrc.py ${EASYBUILD_INSTALLPATH}
+        check_exit_code $? "$lmod_rc_file created" "Failed to create $lmod_rc_file"
+    fi
+else
+    # For site builds, create_lmodrc.py will _never_ be in the pr_diff, but it _might_ have changed upstream
+    # The only way to then trigger a redeploy is if we do something like
+    # python3 $TOPDIR/create_lmodrc.py $TMDPIR
+    # foo=$(diff $lmod_rc_file $TMPDIR/.lmod/lmodrc.lua)
+    # if [ -z $foo ]; then
+    #     python3 $TOPDIR/create_lmodrc.py ${EASYBUILD_INSTALLPATH}
+    # fi
+    # in order to detect if our deployed lmodrc.lua is different from the one that _would_ be newly generated
+    # However, we very rarely change these scripts anyway, so we don't implement this right now
+    echo "WARNING: there is currently no mechanism to detect if the lmodrc.lua should be updated."
 fi
 
-lmod_sitepackage_file="$LMOD_PACKAGE_PATH/SitePackage.lua"
-if [[ ! -z ${EESSI_ACCELERATOR_TARGET} ]]; then
-    # EESSI_ACCELERATOR_TARGET is set, so let's remove the accelerator path from $lmod_sitepackage_file
-    lmod_sitepackage_file=$(echo ${lmod_sitepackage_file} | sed "s@/${EESSI_ACCELERATOR_TARGET}@@")
-    echo "Path to SitePackage.lua changed to '${lmod_sitepackage_file}'"
-fi
-sitepackage_changed=$(cat ${pr_diff} | grep '^+++' | cut -f2 -d' ' | sed 's@^[a-z]/@@g' | grep '^create_lmodsitepackage.py$' > /dev/null; echo $?)
-if [ ! -f "$lmod_sitepackage_file" ] || [ "${sitepackage_changed}" == '0' ]; then
-    echo ">> Creating/updating Lmod SitePackage.lua (${lmod_sitepackage_file})..."
-    python3 $TOPDIR/create_lmodsitepackage.py ${EASYBUILD_INSTALLPATH}
-    check_exit_code $? "$lmod_sitepackage_file created" "Failed to create $lmod_sitepackage_file"
+# If this is a site install, don't install SitePackage.lua
+if [[ -z "${EESSI_SITE_INSTALL}" ]]; then
+    lmod_sitepackage_file="$LMOD_PACKAGE_PATH/SitePackage.lua"
+    if [[ ! -z ${EESSI_ACCELERATOR_TARGET} ]]; then
+        # EESSI_ACCELERATOR_TARGET is set, so let's remove the accelerator path from $lmod_sitepackage_file
+        lmod_sitepackage_file=$(echo ${lmod_sitepackage_file} | sed "s@/${EESSI_ACCELERATOR_TARGET}@@")
+        echo "Path to SitePackage.lua changed to '${lmod_sitepackage_file}'"
+    fi
+    sitepackage_changed=$(cat ${pr_diff} | grep '^+++' | cut -f2 -d' ' | sed 's@^[a-z]/@@g' | grep '^create_lmodsitepackage.py$' > /dev/null; echo $?)
+    if [ ! -f "$lmod_sitepackage_file" ] || [ "${sitepackage_changed}" == '0' ]; then
+        echo ">> Creating/updating Lmod SitePackage.lua (${lmod_sitepackage_file})..."
+        python3 $TOPDIR/create_lmodsitepackage.py ${EASYBUILD_INSTALLPATH}
+        check_exit_code $? "$lmod_sitepackage_file created" "Failed to create $lmod_sitepackage_file"
+    fi
 fi
 
 echo ">> Cleaning up ${TMPDIR}..."
