@@ -16,12 +16,12 @@ from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option, install_path, update_build_option
 from easybuild.tools.filetools import apply_regex_substitutions, copy_dir, copy_file, remove_file, symlink, which
+from easybuild.tools.modules import get_software_root, get_software_root_env_var_name
 from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import AARCH64, POWER, X86_64, det_parallelism, get_cpu_architecture, get_cpu_features
 from easybuild.tools.toolchain.compiler import OPTARCH_GENERIC
 from easybuild.tools.toolchain.toolchain import is_system_toolchain
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
-from easybuild.tools.modules import get_software_root_env_var_name
 
 # prefer importing LooseVersion from easybuild.tools, but fall back to distuils in case EasyBuild <= 4.7.0 is used
 try:
@@ -1480,6 +1480,23 @@ def pre_configure_hook_cmake_system(self, *args, **kwargs):
         raise EasyBuildError("CMake-specific hook triggered for non-CMake easyconfig?!")
 
 
+def pre_configure_hook_Zoltan(self, *args, **kwargs):
+    """
+    Pre-configure hook for Zoltan to filter out ParMETIS configure options,
+    since we filter out ParMETIS as a dependency
+    """
+    if self.name == 'Zoltan':
+        if get_software_root('ParMETIS') is None:
+            configopts = self.cfg['configopts']
+            # get rid of all --with-parmetis configure options, and inject --without-parmetis
+            configopts = re.sub('--with-parmetis[^ ]*', '', configopts)
+            configopts += " --without-parmetis"
+            self.cfg['configopts'] = configopts
+            self.log.info("Removed --with-parmetis* configure options for {self.name}, ParMETIS is not a dependency")
+    else:
+        raise EasyBuildError("Zoltan-specific hook triggered for non-Zoltan easyconfig?!")
+
+
 def pre_test_hook(self, *args, **kwargs):
     """Main pre-test hook: trigger custom functions based on software name."""
     if self.name in PRE_TEST_HOOKS:
@@ -2068,24 +2085,25 @@ POST_PREPARE_HOOKS = {
 
 PRE_CONFIGURE_HOOKS = {
     'BLIS': pre_configure_hook_BLIS,
+    'CMake': pre_configure_hook_cmake_system,
     'CUDA-Samples': pre_configure_hook_CUDA_Samples_test_remove,
-    'GObject-Introspection': pre_configure_hook_gobject_introspection,
+    'Dyninst': pre_configure_hook_dyninst,
     'Extrae': pre_configure_hook_extrae,
+    'GObject-Introspection': pre_configure_hook_gobject_introspection,
     'Graphviz': pre_configure_hook_graphviz,
     'GRASS': pre_configure_hook_grass,
+    'LAMMPS': pre_configure_hook_LAMMPS_zen4_and_aarch64_cuda,
     'libfabric': pre_configure_hook_libfabric_disable_psm3_x86_64_generic,
     'LLVM': pre_configure_hook_llvm,
-    'ROCm-LLVM': pre_configure_hook_llvm,
     'MetaBAT': pre_configure_hook_metabat_filtered_zlib_dep,
     'OpenBLAS': pre_configure_hook_openblas_optarch_generic,
     'OpenMPI': pre_configure_hook_openmpi_ipv6,
     'PMIx': pre_configure_hook_pmix_ipv6,
     'PRRTE': pre_configure_hook_prrte_ipv6,
-    'WRF': pre_configure_hook_wrf_aarch64,
-    'LAMMPS': pre_configure_hook_LAMMPS_zen4_and_aarch64_cuda,
+    'ROCm-LLVM': pre_configure_hook_llvm,
     'Score-P': pre_configure_hook_score_p,
-    'Dyninst': pre_configure_hook_dyninst,
-    'CMake': pre_configure_hook_cmake_system,
+    'WRF': pre_configure_hook_wrf_aarch64,
+    'Zoltan': pre_configure_hook_Zoltan,
 }
 
 PRE_TEST_HOOKS = {
