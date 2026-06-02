@@ -17,7 +17,7 @@ else
     exit 1
 fi
 
-VERSION="1.2.0"
+VERSION="1.3.0"
 
 # default log level: only emit warnings or errors
 LOG_LEVEL="WARN"
@@ -148,12 +148,17 @@ cpupath(){
         cpu_flag_tag='cpu'
     # on 64-bit RISC-V, we need to look at 'isa' field
     elif [ "${machine_type}" == "riscv64" ]; then
-        cpu_flag_tag='isa'
+	# replace _ with spaces to align with flags notion and partial matching
+        cpu_flag_tag='isa' 
     else
         cpu_flag_tag='flags'
     fi
 
     local cpu_flags=$(get_cpuinfo "$cpu_flag_tag")
+    if [ "${machine_type}" == "riscv64" ]; then
+        # replace _ with spaces to align with flags notion and partial matching
+        cpu_flags=${cpu_flags//_/ }    
+    fi
     log "DEBUG" "cpupath: CPU flags of host system: '$cpu_flags'"
 
     # Default to generic CPU
