@@ -52,7 +52,7 @@ SYSTEM = EASYCONFIG_CONSTANTS['SYSTEM'][0]
 
 EESSI_INSTALLATION_REGEX = r"^/cvmfs/[^/]*.eessi.io/versions/"
 HOST_INJECTIONS_LOCATION = "/cvmfs/software.eessi.io/host_injections/"
-SITE_INSTALLATIONS_LOCATION = os.getenv("EESSI_SITE_SOFTWARE_PREFIX", HOST_INJECTIONS_LOCATION)
+SITE_INSTALLATION_LOCATION = os.getenv("EESSI_SITE_SOFTWARE_PREFIX", HOST_INJECTIONS_LOCATION)
 
 # Make sure a single environment variable name is used for this throughout the hooks
 EESSI_IGNORE_ZEN4_GCC1220_ENVVAR="EESSI_IGNORE_LMOD_ERROR_ZEN4_GCC1220"
@@ -745,7 +745,7 @@ def pre_fetch_hook_check_installation_path(self, *args, **kwargs):
     accelerator_toolchains = ['rocm-compilers', 'rompi', 'rfbf', 'rfoss']
     strict_eessi_installation = (
         bool(re.search(EESSI_INSTALLATION_REGEX, self.installdir)) or
-        self.installdir.startswith(SITE_INSTALLATIONS_LOCATION))
+        self.installdir.startswith(SITE_INSTALLATION_LOCATION))
     if strict_eessi_installation and not os.getenv("EESSI_OVERRIDE_STRICT_INSTALLPATH_CHECK"):
         dependency_names = self.cfg.dependency_names()
         if (
