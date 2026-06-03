@@ -155,7 +155,9 @@ cpupath(){
 
     local cpu_flags=$(get_cpuinfo "$cpu_flag_tag")
     if [ "${machine_type}" == "riscv64" ]; then
-        # replace _ with spaces to align with flags notion and partial matching
+	# RISC-V ISA strings use '_' as extension separators.
+	# Convert them to space-separated feature tokens so they
+	# can be matched like x86 CPU flags.
         cpu_flags=${cpu_flags//_/ }    
     fi
     log "DEBUG" "cpupath: CPU flags of host system: '$cpu_flags'"
