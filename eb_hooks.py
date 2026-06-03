@@ -1526,7 +1526,7 @@ def pre_test_hook_gromacs(self, *args, **kwargs):
     """
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
     if self.name == 'GROMACS':
-        self.cfg['pretestopts'] = 'env && ulimit -a && '
+        self.cfg['pretestopts'] = 'env && ulimit -a && numactl --show && '
         if self.version < '2026.3' and cpu_target == CPU_TARGET_NVIDIA_GRACE:
             self.cfg['pretestopts'] = 'export HWLOC_KEEP_NVIDIA_GPU_NUMA_NODES=0 && '
     else:
