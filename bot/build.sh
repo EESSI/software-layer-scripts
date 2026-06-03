@@ -21,6 +21,9 @@
 # stop as soon as something fails
 set -e
 
+echo "ULIMITS:"
+ulimit -a
+
 # Make sure we are referring to software-layer as working directory
 software_layer_dir=$(dirname $(dirname $(realpath $0)))
 # source utils.sh and cfg_files.sh
