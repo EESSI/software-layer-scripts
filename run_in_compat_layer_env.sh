@@ -59,6 +59,13 @@ fi
 if [ ! -z ${EESSI_INIT_PREFIX} ]; then
     INPUT="export EESSI_INIT_PREFIX=${EESSI_INIT_PREFIX}; ${INPUT}"
 fi
+if [ ! -z ${EESSI_SITE_INSTALL_FORCE} ]; then
+    INPUT="export EESSI_SITE_INSTALL_FORCE=${EESSI_SITE_INSTALL_FORCE}; ${INPUT}"
+    if [ ! -z ${EESSI_SITE_SOFTWARE_PREFIX} ]; then
+        INPUT="export EESSI_SITE_SOFTWARE_PREFIX=${EESSI_SITE_SOFTWARE_PREFIX}; ${INPUT}"
+    fi
+fi
+
 
 echo "Running '${INPUT}' in EESSI (${EESSI_CVMFS_REPO}) ${EESSI_VERSION} compatibility layer environment..."
 ${EESSI_COMPAT_LAYER_DIR}/startprefix <<< "${INPUT}"
