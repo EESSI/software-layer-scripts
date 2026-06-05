@@ -232,7 +232,8 @@ end
 
 -- Make sure EasyBuild itself is loaded
 -- need to also handle the unload behaviour where the version is defined only before we unload
-easybuild_version = os.getenv("EBVERSIONEASYBUILD")
+-- (also provide a sensible default for cases like 'module show' where the modules are never loaded at all)
+easybuild_version = os.getenv("EBVERSIONEASYBUILD") or "5.1.1"
 if not ( isloaded("EasyBuild") ) then
     load(latest("EasyBuild"))
 end
