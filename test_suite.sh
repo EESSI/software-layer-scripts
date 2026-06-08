@@ -187,6 +187,7 @@ fi
 # Redirect to /dev/null because we don't want to print an ERROR, we want to try a fallback
 reframe --show-config | grep -v "could not find a configuration entry for the requested system/partition combination" > /dev/null
 if [[ $? -eq 1 ]]; then
+    cat /dev/null
     # There was a match by grep, so we failed to find the system/partition combination
     # Try the previous approach for backwards compatibility
     # This fallback can be scrapped once all bots have adopted the new naming convention
