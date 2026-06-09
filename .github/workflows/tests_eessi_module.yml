@@ -171,6 +171,9 @@ jobs:
           FINAL_ACCELERATOR_TARGET_EXPECTED: accel/nvidia/cc80
         - EESSI_ACCELERATOR_TARGET_OVERRIDE: accel/nvidia/cc77  # deliberately chose a non-existent CUDA capability
           FINAL_ACCELERATOR_TARGET_EXPECTED: accel/nvidia/cc70  # this reverts to the fallback case (which does exist)
+          # Test if setting an EESSI_SITE_SOFTWARE_PREFIX works by setting that for the zen4 target
+        - EESSI_SOFTWARE_SUBDIR_OVERRIDE: x86_64/amd/zen4
+          EESSI_SITE_SOFTWARE_PREFIX: /tmp/site_prefix
 
     steps:
       - name: Check out software-layer repository
@@ -218,6 +221,18 @@ jobs:
           # Do (and undo) loading the EESSI module
           CPU_ARCH=$(./init/eessi_archdetect.sh -a cpupath)
           module load EESSI/${{matrix.EESSI_VERSION}}
+          # EESSI_SITE_MODULEPATH_ACCEL will only be set if this dir exists. We can most easily create it here
+          # where we have EESSI_SITE_SOFTWARE_PATH and EESSI_ACCEL_SOFTWARE_SUBDIR available
+          # Creating it here means the verify_eessi_environment.py can later on check that EESSI_SITE_MODULEPATH_ACCEL
+          # is set correctly
+          # First, we need to get the modules subdir. For this we strip EESSI_SITE_SOFTWARE_PATH from the start of
+          # EESSI_SITE_MODULEPATH
+          eessi_modules_subdir=${EESSI_SITE_MODULEPATH/$EESSI_SITE_SOFTWARE_PATH\//}
+          # Then, we make sure the target of /cvmfs/software.eessi.io/host_injections exists (or the 2nd mkdir fails)
+          mkdir -p /opt/eessi
+          # Then, we actually create the dir. Note that we use EESSI_ACCELERATOR_TARGET, as this represents the target
+          # _after_ any fallbacks
+          mkdir -p -v "$EESSI_SITE_SOFTWARE_PATH/$EESSI_ACCELERATOR_TARGET/$eessi_modules_subdir"
           module unload EESSI/${{matrix.EESSI_VERSION}}
           env | grep -v _ModuleTable | sort > "${module_cycled_file}"
 
