@@ -152,6 +152,28 @@ echo "bot/build.sh: EESSI_VERSION_OVERRIDE='${EESSI_VERSION_OVERRIDE}'"
 export EESSI_CVMFS_REPO_OVERRIDE=/cvmfs/${REPOSITORY_NAME}${EESSI_DEV_PROJECT:+/$EESSI_DEV_PROJECT}
 echo "bot/build.sh: EESSI_CVMFS_REPO_OVERRIDE='${EESSI_CVMFS_REPO_OVERRIDE}'"
 
+# If we're not building for software.eessi.io, then consider this a site install
+if [[ "${EESSI_CVMFS_REPO_OVERRIDE}" != "/cvmfs/software.eessi.io" && "${REPOSITORY_NAME}" != "dev.eessi.io" ]]; then
+    # To build on top of EESSI, we need the software.eessi.io repository to be mounted next to the target repository
+    # The bot/build.sh script does this when the EESSI_SITE_INSTALL_FORCE environment variable is set
+    # Other build scripts will also respect this variable where needed in order to make sure that 'building on top'
+    # of EESSI is possible
+    export EESSI_SITE_INSTALL_FORCE=1
+    echo "EESSI_SITE_INSTALL_FORCE=$EESSI_SITE_INSTALL_FORCE"
+
+    # We also need to set a prefix that our installations should end up in
+    # The build scripts should take this prefix, and construct the final EESSI_SITE_SOFTWARE_PATH out of it
+    # that the EESSI-extend module expects
+    if [[ -z "${EESSI_SITE_SOFTWARE_PREFIX}" ]]; then
+        export EESSI_SITE_SOFTWARE_PREFIX=$EESSI_CVMFS_REPO_OVERRIDE
+    fi
+    echo "EESSI_SITE_SOFTWARE_PREFIX=$EESSI_SITE_SOFTWARE_PREFIX"
+
+    # Make sure that the compatibility layer is still used from software.eessi.io
+    export EESSI_CVMFS_COMPAT_REPO=/cvmfs/software.eessi.io
+    echo "EESSI_CVMFS_COMPAT_REPO=${EESSI_CVMFS_COMPAT_REPO}"
+fi
+
 # determine CPU architecture to be used from entry .architecture in ${JOB_CFG_FILE}
 # fallbacks:
 #  - ${CPU_TARGET} handed over from bot
@@ -162,8 +184,31 @@ export EESSI_SOFTWARE_SUBDIR_OVERRIDE
 echo "bot/build.sh: EESSI_SOFTWARE_SUBDIR_OVERRIDE='${EESSI_SOFTWARE_SUBDIR_OVERRIDE}'"
 
 # determine accelerator target (if any) from .architecture in ${JOB_CFG_FILE}
-export EESSI_ACCELERATOR_TARGET=$(cfg_get_value "architecture" "accelerator")
-echo "bot/build.sh: EESSI_ACCELERATOR_TARGET='${EESSI_ACCELERATOR_TARGET}'"
+ACCEL_OVERRIDE=$(cfg_get_value "architecture" "accelerator")
+if [[ -n "$ACCEL_OVERRIDE" ]]; then
+    # bot job config does not include accel subdirectory
+    export EESSI_ACCELERATOR_TARGET_OVERRIDE="accel/$ACCEL_OVERRIDE"
+else
+    export EESSI_ACCELERATOR_TARGET_OVERRIDE=""
+fi
+echo "bot/build.sh: EESSI_ACCELERATOR_TARGET_OVERRIDE='${EESSI_ACCELERATOR_TARGET_OVERRIDE}'"
+
+# Log the full lscpu, ulimits, and os-release info:
+lscpu > _bot_job${SLURM_JOB_ID}.lscpu
+ulimit -a > _bot_job${SLURM_JOB_ID}.ulimits
+cat /etc/os-release > _bot_job${SLURM_JOB_ID}.os
+
+# Also: fetch CPU flags into an array, so that we can implement a hard check against a reference
+lscpu_flags_line=$(lscpu | grep "Flags:" || echo "")
+# strip leading "Flags:" and spaces, and put result in a bash array
+if [[ $lscpu_flags =~ Flags:\ (.*) ]]; then lscpu_flags=(${BASH_REMATCH[1]}); fi
+# for now, just print
+echo "bot/build.sh: CPU flags=${lscpu_flags[@]}"
+# TODO: an actual comparison with a reference bash array, e.g. through
+# diff_result=$(diff <(printf "%s\n" "${lscpu_flags[@]}" | sort) <(printf "%s\n" "${lscpu_flags_ref[@]}" | sort))
+# if [ ! -z "$diff_result" ]; then
+#    echo "bot/build.sh: ERROR: difference between reported lscpu flags and reference for this ($EESSI_SOFTWARE_SUBDIR_OVERRIDE) CPU architecture. This could mean an incorrect build host was used to build for this target.
+# fi
 
 # get EESSI_OS_TYPE from .architecture.os_type in ${JOB_CFG_FILE} (default: linux)
 EESSI_OS_TYPE=$(cfg_get_value "architecture" "os_type")
@@ -180,10 +225,23 @@ COMMON_ARGS+=("--mode" "run")
 [[ ! -z ${HTTPS_PROXY} ]] && COMMON_ARGS+=("--https-proxy" "${HTTPS_PROXY}")
 [[ ! -z ${REPOSITORY_ID} ]] && COMMON_ARGS+=("--repository" "${REPOSITORY_ID}")
 
-# Also expose software.eessi.io when configured for dev.eessi.io
-# Need software.eessi.io for the compat layer
-if [[ "${REPOSITORY_NAME}" == "dev.eessi.io" ]]; then
+# Also expose software.eessi.io when building on top of EESSI (i.e. when EESSI_SITE_INSTALL_FORCE is set)
+# or on top of the EESSI compat layer (i.e. for dev.eessi.io)
+if [[ "${REPOSITORY_NAME}" == "dev.eessi.io" || -n "${EESSI_SITE_INSTALL_FORCE}" ]]; then
     COMMON_ARGS+=("--repository" "software.eessi.io,access=ro")
+fi
+
+# Override the compat layer if EESSI_CVMFS_COMPAT_REPO is defined. This allows using a different repo for the
+# compatibility layer compared to the EESSI_CVMFS_REPO (in which things will be installed)
+# (this is already done for dev.eessi.io through a customized SLURM script but that could probably be removed then)
+if [[ -n "${EESSI_CVMFS_COMPAT_REPO}" && -n "${EESSI_VERSION_OVERRIDE:-$EESSI_VERSION}" ]]; then
+    export EESSI_COMPAT_LAYER_DIR_OVERRIDE="${EESSI_CVMFS_COMPAT_REPO}/versions/${EESSI_VERSION_OVERRIDE:-$EESSI_VERSION}/compat/linux/$(uname -m)"
+    msg="bot:build.sh: Set EESSI_COMPAT_LAYER_DIR_OVERRIDE to $EESSI_COMPAT_LAYER_DIR_OVERRIDE since both EESSI_CVMFS_COMPAT_REPO"
+    msg="$msg (${EESSI_CVMFS_COMPAT_REPO}) and EESSI_VERSION_OVERRIDE (${EESSI_VERSION_OVERRIDE}) are defined"
+    echo "$msg"
+else
+    echo "bot/build.sh: EESSI_CVMFS_COMPAT_REPO: ${EESSI_CVMFS_COMPAT_REPO}"
+    echo "bot/build.sh: EESSI_VERSION_OVERRIDE: ${EESSI_VERSION_OVERRIDE}"
 fi
 
 # add $software_layer_dir and /dev as extra bind paths
@@ -198,58 +256,10 @@ COMMON_ARGS+=("--pass-through" "--contain")
 # make sure to use the same parent dir for storing tarballs of tmp
 PREVIOUS_TMP_DIR=${PWD}/previous_tmp
 
-# prepare arguments to install_software_layer.sh (specific to build step)
-declare -a BUILD_STEP_ARGS=()
-declare -a INSTALL_SCRIPT_ARGS=()
-declare -a REMOVAL_SCRIPT_ARGS=()
-if [[ ${EESSI_SOFTWARE_SUBDIR_OVERRIDE} =~ .*/generic$ ]]; then
-    INSTALL_SCRIPT_ARGS+=("--generic")
-    REMOVAL_SCRIPT_ARGS+=("--generic")
-fi
-[[ ! -z ${BUILD_LOGS_DIR} ]] && INSTALL_SCRIPT_ARGS+=("--build-logs-dir" "${BUILD_LOGS_DIR}")
-[[ ! -z ${SHARED_FS_PATH} ]] && INSTALL_SCRIPT_ARGS+=("--shared-fs-path" "${SHARED_FS_PATH}")
-
 # Skip CUDA installation for riscv.eessi.io
 if [[ "${REPOSITORY_NAME}" == "riscv.eessi.io" ]]; then
     echo "bot/build.sh: disabling CUDA installation for RISC-V repository (${REPOSITORY_NAME})"
     INSTALL_SCRIPT_ARGS+=("--skip-cuda-install")
-fi
-
-# determine if the removal step has to be run
-# assume there's only one diff file that corresponds to the PR patch file
-pr_diff=$(ls [0-9]*.diff | head -1)
-# the true at the end of the next command is important: grep will expectedly return 1 if there is no easystack file being added under rebuilds,
-# but due to "set -e" the entire script would otherwise fail
-changed_easystacks_rebuilds=$(cat ${pr_diff} | grep '^+++' | cut -f2 -d' ' | sed 's@^[a-z]/@@g' | grep 'easystacks/.*yml$' | (grep "/rebuilds/" || true))
-if [[ -z "${changed_easystacks_rebuilds}" ]]; then
-    echo "This PR does not add any easystack files in a rebuilds subdirectory, so let's skip the removal step."
-else
-    # prepare directory to store tarball of tmp for removal and build steps
-    TARBALL_TMP_REMOVAL_STEP_DIR=${PREVIOUS_TMP_DIR}/removal_step
-    mkdir -p ${TARBALL_TMP_REMOVAL_STEP_DIR}
-
-    # prepare arguments to eessi_container.sh specific to remove step
-    declare -a REMOVAL_STEP_ARGS=()
-    REMOVAL_STEP_ARGS+=("--save" "${TARBALL_TMP_REMOVAL_STEP_DIR}")
-    REMOVAL_STEP_ARGS+=("--storage" "${STORAGE}")
-
-    # add fakeroot option in order to be able to remove software, see:
-    # https://github.com/EESSI/software-layer/issues/312
-    REMOVAL_STEP_ARGS+=("--fakeroot")
-
-    # create tmp file for output of removal step
-    removal_outerr=$(mktemp remove.outerr.XXXX)
-
-    echo "Executing command to remove software:"
-    echo "$software_layer_dir/eessi_container.sh ${COMMON_ARGS[@]} ${REMOVAL_STEP_ARGS[@]}"
-    echo "                     -- $software_layer_dir/EESSI-remove-software.sh \"${REMOVAL_SCRIPT_ARGS[@]}\" \"$@\" 2>&1 | tee -a ${removal_outerr}"
-    $software_layer_dir/eessi_container.sh "${COMMON_ARGS[@]}" "${REMOVAL_STEP_ARGS[@]}" \
-                         -- $software_layer_dir/EESSI-remove-software.sh "${REMOVAL_SCRIPT_ARGS[@]}" "$@" 2>&1 | tee -a ${removal_outerr}
-
-    # make sure that the build step resumes from the same temporary directory
-    # this is important, as otherwise the removed software will still be there
-    REMOVAL_TMPDIR=$(grep ' as tmp directory ' ${removal_outerr} | cut -d ' ' -f 2)
-    BUILD_STEP_ARGS+=("--resume" "${REMOVAL_TMPDIR}")
 fi
 
 # prepare directory to store tarball of tmp for build step
@@ -257,27 +267,14 @@ TARBALL_TMP_BUILD_STEP_DIR=${PREVIOUS_TMP_DIR}/build_step
 mkdir -p ${TARBALL_TMP_BUILD_STEP_DIR}
 
 # prepare arguments to eessi_container.sh specific to build step
+declare -a BUILD_STEP_ARGS=()
 BUILD_STEP_ARGS+=("--save" "${TARBALL_TMP_BUILD_STEP_DIR}")
 BUILD_STEP_ARGS+=("--storage" "${STORAGE}")
 
 # add options required to handle NVIDIA support
-if command_exists "nvidia-smi"; then
-    # Accept that this may fail
-    set +e
-    nvidia-smi --version
-    ec=$?
-    set -e
-    if [ ${ec} -eq 0 ]; then
-        echo "Command 'nvidia-smi' found, using available GPU"
-        BUILD_STEP_ARGS+=("--nvidia" "all")
-    else
-        echo "Warning: command 'nvidia-smi' found, but 'nvidia-smi --version' did not run succesfully."
-        echo "This script now assumes this is NOT a GPU node."
-        echo "If, and only if, the current node actually does contain Nvidia GPUs, this should be considered an error."
-        BUILD_STEP_ARGS+=("--nvidia" "install")
-    fi
+if nvidia_gpu_available; then
+    BUILD_STEP_ARGS+=("--nvidia" "all")
 else
-    echo "No 'nvidia-smi' found, no available GPU but allowing overriding this check"
     BUILD_STEP_ARGS+=("--nvidia" "install")
 fi
 
@@ -286,6 +283,14 @@ fi
 if [[ ! -z ${SHARED_FS_PATH} ]]; then
     BUILD_STEP_ARGS+=("--host-injections" "${SHARED_FS_PATH}/host-injections")
 fi
+
+# prepare arguments to install_software_layer.sh (specific to build step)
+declare -a INSTALL_SCRIPT_ARGS=()
+if [[ ${EESSI_SOFTWARE_SUBDIR_OVERRIDE} =~ .*/generic$ ]]; then
+    INSTALL_SCRIPT_ARGS+=("--generic")
+fi
+[[ ! -z ${BUILD_LOGS_DIR} ]] && INSTALL_SCRIPT_ARGS+=("--build-logs-dir" "${BUILD_LOGS_DIR}")
+[[ ! -z ${SHARED_FS_PATH} ]] && INSTALL_SCRIPT_ARGS+=("--shared-fs-path" "${SHARED_FS_PATH}")
 
 # create tmp file for output of build step
 build_outerr=$(mktemp build.outerr.XXXX)
@@ -308,23 +313,29 @@ declare -a TARBALL_STEP_ARGS=()
 TARBALL_STEP_ARGS+=("--save" "${TARBALL_TMP_TARBALL_STEP_DIR}")
 
 # determine temporary directory to resume from
-if [[ -z ${REMOVAL_TMPDIR} ]]; then
-    # no rebuild step was done, so the tarball step should resume from the build directory
-    BUILD_TMPDIR=$(grep ' as tmp directory ' ${build_outerr} | cut -d ' ' -f 2)
-    TARBALL_STEP_ARGS+=("--resume" "${BUILD_TMPDIR}")
-else
-    # a removal step was done, so resume from its temporary directory (which was also used for the build step)
-    TARBALL_STEP_ARGS+=("--resume" "${REMOVAL_TMPDIR}")
-fi
+BUILD_TMPDIR=$(grep ' as tmp directory ' ${build_outerr} | cut -d ' ' -f 2)
+TARBALL_STEP_ARGS+=("--resume" "${BUILD_TMPDIR}")
 
 timestamp=$(date +%s)
+# determine compression/extension for tarball, check in order of preference
+if [[ -x "$(command -v zstd)" ]]; then
+    tarball_extension="tar.zst"
+elif [[ -x "$(command -v gzip)" ]]; then
+    tarball_extension="tar.gz"
+else
+    tarball_extension="tar"
+fi
 # to set EESSI_VERSION we need to source init/eessi_defaults now
 source $software_layer_dir/init/eessi_defaults
-# Note: iff ${EESSI_DEV_PROJECT} is defined (building for dev.eessi.io), then we 
+# Note: if ${EESSI_DEV_PROJECT} is defined (building for dev.eessi.io), then we 
 # append the project (subdirectory) name to the end tarball name. This is information
 # then used at the ingestion stage. If ${EESSI_DEV_PROJECT} is not defined, nothing is
 # appended
-export TGZ=$(printf "eessi-%s-software-%s-%s-%b%d.tar.gz" ${EESSI_VERSION} ${EESSI_OS_TYPE} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE//\//-} ${EESSI_DEV_PROJECT:+$EESSI_DEV_PROJECT-} ${timestamp})
+if [[ -z ${EESSI_ACCELERATOR_TARGET_OVERRIDE} ]]; then
+    export TARBALL=$(printf "eessi-%s-software-%s-%s-%b%d.${tarball_extension}" ${EESSI_VERSION} ${EESSI_OS_TYPE} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE//\//-} ${EESSI_DEV_PROJECT:+$EESSI_DEV_PROJECT-} ${timestamp})
+else
+    export TARBALL=$(printf "eessi-%s-software-%s-%s-%s-%b%d.${tarball_extension}" ${EESSI_VERSION} ${EESSI_OS_TYPE} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE//\//-} ${EESSI_ACCELERATOR_TARGET_OVERRIDE//\//-} ${EESSI_DEV_PROJECT:+$EESSI_DEV_PROJECT-} ${timestamp})
+fi
 
 # Export EESSI_DEV_PROJECT to use it (if needed) when making tarball
 echo "bot/build.sh: EESSI_DEV_PROJECT='${EESSI_DEV_PROJECT}'"
@@ -337,8 +348,8 @@ export EESSI_DEV_PROJECT=${EESSI_DEV_PROJECT}
 TMP_IN_CONTAINER=/tmp
 echo "Executing command to create tarball:"
 echo "$software_layer_dir/eessi_container.sh ${COMMON_ARGS[@]} ${TARBALL_STEP_ARGS[@]}"
-echo "                     -- $software_layer_dir/create_tarball.sh ${TMP_IN_CONTAINER} ${EESSI_VERSION} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE} \"${EESSI_ACCELERATOR_TARGET}\" /eessi_bot_job/${TGZ} 2>&1 | tee -a ${tar_outerr}"
+echo "                     -- $software_layer_dir/create_tarball.sh ${TMP_IN_CONTAINER} ${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE} \"${EESSI_ACCELERATOR_TARGET_OVERRIDE}\" /eessi_bot_job/${TARBALL} 2>&1 | tee -a ${tar_outerr}"
 $software_layer_dir/eessi_container.sh "${COMMON_ARGS[@]}" "${TARBALL_STEP_ARGS[@]}" \
-                     -- $software_layer_dir/create_tarball.sh ${TMP_IN_CONTAINER} ${EESSI_VERSION} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE} "${EESSI_ACCELERATOR_TARGET}" /eessi_bot_job/${TGZ} 2>&1 | tee -a ${tar_outerr}
+                     -- $software_layer_dir/create_tarball.sh ${TMP_IN_CONTAINER} ${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE} "${EESSI_ACCELERATOR_TARGET_OVERRIDE}" /eessi_bot_job/${TARBALL} 2>&1 | tee -a ${tar_outerr}
 
 exit 0

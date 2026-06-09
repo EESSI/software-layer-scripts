@@ -24,6 +24,8 @@
 #
 set -o pipefail
 
+EESSI_EXTEND_EASYCONFIG="EESSI-extend-easybuild.eb"
+
 # this script is *sourced*, not executed, so can't rely on $0 to determine path to self or script name
 # $BASH_SOURCE points to correct path or script name, see also http://mywiki.wooledge.org/BashFAQ/028
 if [ $# -ne 1 ]; then
@@ -65,11 +67,25 @@ ml_av_eessi_extend_out=${TMPDIR}/ml_av_eessi_extend.out
 # need to use --ignore_cache to avoid the case that the module was removed (to be
 # rebuilt) but it is still in the cache
 module --ignore_cache avail 2>&1 | grep -i EESSI-extend/${EESSI_EXTEND_VERSION} &> ${ml_av_eessi_extend_out}
-
 if [[ $? -eq 0 ]]; then
     echo_green ">> Module for EESSI-extend/${EESSI_EXTEND_VERSION} found!"
+    install_eessi_extend=false
+    rebuild_eessi_extend=false
+    # $PR_DIFF should be set by the calling script (EESSI-install-software.sh)
+    if [[ ! -z ${PR_DIFF} ]] && [[ -f "$PR_DIFF" ]]; then
+        # check if EESSI-extend easyconfig was modified; if so, we need to rebuild it
+        grep -q "^+++ b/${EESSI_EXTEND_EASYCONFIG}" "${PR_DIFF}"
+        if [[ $? -eq 0 ]]; then
+            rebuild_eessi_extend=true
+        fi
+    fi
 else
     echo_yellow ">> No module yet for EESSI-extend/${EESSI_EXTEND_VERSION}, installing it..."
+    install_eessi_extend=true
+    rebuild_eessi_extend=false
+fi
+
+if [ "${install_eessi_extend}" = true ] || [ "${rebuild_eessi_extend}" = true ]; then
 
     EB_TMPDIR=${TMPDIR}/ebtmp
     echo ">> Using temporary installation of EasyBuild (in ${EB_TMPDIR})..."
@@ -80,7 +96,7 @@ else
     ORIG_PATH=${PATH}
     ORIG_PYTHONPATH=${PYTHONPATH}
 
-    # source configure_easybuild to use correct eb settings
+    # minimally configure easybuild to get EESSI-extend in the right place
     (
         export EASYBUILD_PREFIX=${TMPDIR}/easybuild
         export EASYBUILD_READ_ONLY_INSTALLDIR=1
@@ -98,9 +114,13 @@ else
         eessi_install_out=${TMPDIR}/eessi_install.out
         ok_msg="EESSI-extend/${EESSI_EXTEND_VERSION} installed, let's go!"
         fail_msg="Installing EESSI-extend/${EESSI_EXTEND_VERSION} failed, that's not good... (output: ${eessi_install_out})"
-        # while always adding --try-amend=keep... may do no harm, we could make
-        # an attempt to figure out if it is needed, e.g., when we are rebuilding
-        ${EB} "EESSI-extend-easybuild.eb" --try-amend=keeppreviousinstall=True 2>&1 | tee ${eessi_install_out}
+
+        eb_args=""
+        if [ "${rebuild_eessi_extend}" = true ]; then
+            eb_args+="--rebuild"
+        fi
+        echo ">> Installing EESSI-extend with '${EB} ${eb_args} ${EESSI_EXTEND_EASYCONFIG}'..."
+        ${EB} ${eb_args} "${EESSI_EXTEND_EASYCONFIG}" 2>&1 | tee ${eessi_install_out}
         check_exit_code $? "${ok_msg}" "${fail_msg}"
     )
 

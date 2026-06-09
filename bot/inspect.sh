@@ -382,15 +382,12 @@ else
     fatal_error "Failed to initialize Lmod?! (see output in ${ml_version_out}"
 fi
 
-echo ">> Configuring EasyBuild..."
-source $TOPDIR/configure_easybuild
-
 echo ">> Setting up \$MODULEPATH..."
 # make sure no modules are loaded
 module --force purge
 # ignore current $MODULEPATH entirely
 module unuse $MODULEPATH
-module use $EASYBUILD_INSTALLPATH/modules/all
+module use $EESSI_SOFTWARE_PATH/modules/all
 if [[ -z ${MODULEPATH} ]]; then
     fatal_error "Failed to set up \$MODULEPATH?!"
 else
@@ -405,14 +402,15 @@ echo " - job directory is $HOME (\$HOME), check for slurm-*.out file"
 echo " - temporary data of the job is available at /tmp"
 echo " - note, the prefix $EESSI_PREFIX is writable"
 echo
-echo "You may want to load an EasyBuild module. The inspect.sh script does not load"
-echo "that automatically, because multiple versions might have been used by the job."
+echo "You may want to load an EasyBuild/EESSI-extend module. The inspect.sh script does not"
+echo "load those automatically, because multiple versions might have been used by the job."
 echo "Choose an EasyBuild version (see installed versions with 'module avail EasyBuild')"
 echo "and simply run"
 echo
 echo "module load EasyBuild/_VERSION_"
+echo "module load EEESSI-extend"
 echo
-echo "Replace _VERSION_ with the version you want to use."
+echo "Replace _VERSION_ with the EasyBuild version you want/need to use."
 echo
 
 EOF

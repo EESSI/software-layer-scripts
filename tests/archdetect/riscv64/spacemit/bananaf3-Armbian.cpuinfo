@@ -1,0 +1,9 @@
+processor       : 0
+hart            : 0
+model name      : Spacemit(R) X60
+isa             : rv64imafdcv_sscofpmf_sstc_svpbmt_zicbom_zicboz_zicbop_zihintpause
+mmu             : sv39
+mvendorid       : 0x710
+marchid         : 0x8000000058000001
+mimpid          : 0x1000000049772200
+

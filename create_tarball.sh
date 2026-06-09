@@ -5,14 +5,14 @@ set -e
 base_dir=$(dirname $(realpath $0))
 
 if [ $# -ne 5 ]; then
-    echo "ERROR: Usage: $0 <EESSI tmp dir (example: /tmp/$USER/EESSI)> <version (example: 2023.06)> <CPU arch subdir (example: x86_64/amd/zen2)> <accelerator subdir (example: nvidia/cc80)> <path to tarball>" >&2
+    echo "ERROR: Usage: $0 <EESSI tmp dir (example: /tmp/$USER/EESSI)> <version (example: 2023.06)> <CPU arch subdir (example: x86_64/amd/zen2)> <accelerator subdir (example: accel/nvidia/cc80)> <path to tarball>" >&2
     exit 1
 fi
 eessi_tmpdir=$1
 eessi_version=$2
 cpu_arch_subdir=$3
 accel_subdir=$4
-target_tgz=$5
+target_tarball=$5
 
 tmpdir=`mktemp -d`
 echo ">> tmpdir: $tmpdir"
@@ -62,8 +62,12 @@ if [ -d ${eessi_version}/init ]; then
     find ${eessi_version}/init -type f \! -name '.wh.*' >> ${files_list}
 fi
 
-# consider both CPU-only and accelerator subdirectories
-for subdir in ${cpu_arch_subdir} ${cpu_arch_subdir}/accel/${accel_subdir}; do
+# consider both CPU-only and accelerator subdirectories (if an accelerator was configured)
+sw_subdirs=${cpu_arch_subdir}
+if [ -n "${accel_subdir}" ]; then
+    sw_subdirs="${sw_subdirs} ${cpu_arch_subdir}/${accel_subdir}"
+fi
+for subdir in ${sw_subdirs}; do
 
     if [ -d ${eessi_version}/software/${os}/${subdir}/modules ]; then
         # module files
@@ -86,8 +90,13 @@ for subdir in ${cpu_arch_subdir} ${cpu_arch_subdir}/accel/${accel_subdir}; do
         for package_version in $(cat ${module_files_list}); do
             echo "handling ${package_version}"
             find ${eessi_version}/software/${os}/${subdir}/software/${package_version} -maxdepth 0 -type d \! -name '.wh.*' >> ${files_list}
+            # if there is a directory for this installation in the stack's reprod directory, include that too
+            if [ -d ${eessi_version}/software/${os}/${subdir}/reprod/${package_version} ]; then
+                find ${eessi_version}/software/${os}/${subdir}/reprod/${package_version} -maxdepth 0 -type d \! -name '.wh.*' >> ${files_list}
+            fi
         done
     fi
+
 done
 
 # add a bit debug output
@@ -105,10 +114,9 @@ fi
 
 topdir=${cvmfs_repo}/versions/
 
-echo ">> Creating tarball ${target_tgz} from ${topdir}..."
-tar cfvz ${target_tgz} -C ${topdir} --files-from=${files_list}
-
-echo ${target_tgz} created!
+echo ">> Creating tarball ${target_tarball} from ${topdir}..."
+tar cavf ${target_tarball} -C ${topdir} --files-from=${files_list}
+echo ${target_tarball} created!
 
 echo ">> Cleaning up tmpdir ${tmpdir}..."
 rm -r ${tmpdir}
