@@ -50,9 +50,13 @@ jobs:
           export MY_INSTALLATION_PATH=/tmp/easybuild
           export EASYBUILD_PREFIX=$MY_INSTALLATION_PATH
           eb EESSI-extend-easybuild.eb --rebuild
+          module unload EasyBuild
 
           # Verify that we can pick the installed version up
           module use $MY_INSTALLATION_PATH/modules/all
+          # Verify we can run "module show" on the module
+          module show EESSI-extend/${{matrix.eessi_version}}-easybuild
+          # Now load it and run additional checks
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild
           echo $EBROOTEESSIMINEXTEND | grep $MY_INSTALLATION_PATH || { echo "ERROR: Installed version of EESSI-extend not picked up (loaded $EBROOTEESSIMINEXTEND)" >&2; exit 1; }
           # Do a test rebuild (with default and local hooks)

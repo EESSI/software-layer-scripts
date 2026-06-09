@@ -193,8 +193,9 @@ else
 fi
 echo "bot/build.sh: EESSI_ACCELERATOR_TARGET_OVERRIDE='${EESSI_ACCELERATOR_TARGET_OVERRIDE}'"
 
-# Log the full lscpu and os-release info:
+# Log the full lscpu, ulimits, and os-release info:
 lscpu > _bot_job${SLURM_JOB_ID}.lscpu
+ulimit -a > _bot_job${SLURM_JOB_ID}.ulimits
 cat /etc/os-release > _bot_job${SLURM_JOB_ID}.os
 
 # Also: fetch CPU flags into an array, so that we can implement a hard check against a reference
