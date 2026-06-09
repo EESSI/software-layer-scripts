@@ -760,7 +760,7 @@ def pre_fetch_hook_check_installation_path(self, *args, **kwargs):
                     f"non-accelerator location {self.installdir}. You need to reconfigure your installation to target "
                     "the correct location. If using the EESSI-extend module, this means reloading that module "
                     "with EESSI_ACCELERATOR_INSTALL set:\n"
-                    "  EESSI_ACCELERATOR_TARGET=1 module load EESSI-extend"
+                    "  EESSI_ACCELERATOR_INSTALL=1 module load EESSI-extend"
                     )
         else:
             # If we don't have an accelerator dependency then we should be in a CPU installation path
@@ -770,7 +770,7 @@ def pre_fetch_hook_check_installation_path(self, *args, **kwargs):
                     f"{self.installdir}. If this is a dependency of the package you are really interested in you will "
                     "need to first install the CPU-only dependencies of that package. If using the EESSI-extend "
                     "module, this means reloading that module with EESSI_ACCELERATOR_INSTALL unset:\n"
-                    "  unset EESSI_ACCELERATOR_TARGET=1 && module load EESSI-extend"
+                    "  unset EESSI_ACCELERATOR_INSTALL && module load EESSI-extend"
                     )
 
 
