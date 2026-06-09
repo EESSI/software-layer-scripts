@@ -2195,4 +2195,7 @@ PARALLELISM_LIMITS = {
     'ROCm-LLVM': {
         '*': (set_maximum, 12),
     },
+    'jax': {
+        '*': (divide_by_factor, 2),
+    },
 }
