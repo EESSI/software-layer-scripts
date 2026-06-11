@@ -1058,6 +1058,27 @@ def pre_prepare_hook_pytorch(self, *args, **kwargs):
         raise EasyBuildError("PyTorch-specific hook triggered for non-PyTorch easyconfig?!")
 
 
+def pre_prepare_hook_LAMMPS_kokkos_CUDA_families(self, *args, **kwargs):
+    """
+    Kokkos does not have support building for GPU families.
+    This cause problems for EasyBuild cuda sanity check for CUDA Compute Capalities such as 9.0a, 10.0f, 12.0f etc.
+    This hook strips the suffixes when building LAMMPS with kokkos.
+    """
+    if self.name == 'LAMMPS':
+        if self.version in ['22Jul2025']:
+            if self.cfg['kokkos']:
+                cuda_cc = build_option('cuda_compute_capabilities')
+                if cuda_cc and '9.0a' in cuda_cc:
+                    updated_cuda_cc = [v.replace('9.0a', '9.0') for v in cuda_cc]
+                    update_build_option('cuda_compute_capabilities', updated_cuda_cc)
+                elif cuda_cc and '10.0f' in cuda_cc:
+                    updated_cuda_cc = [v.replace('10.0f', '10.0') for v in cuda_cc]
+                    update_build_option('cuda_compute_capabilities', updated_cuda_cc)
+                elif cuda_cc and '12.0f' in cuda_cc:
+                    updated_cuda_cc = [v.replace('12.0f', '12.0') for v in cuda_cc]
+                    update_build_option('cuda_compute_capabilities', updated_cuda_cc)
+
+
 def post_prepare_hook_llvm_a64fx(self, *args, **kwargs):
     """
     Post-prepare hook for LLVM 14 and 15 on A64FX to reset optarch build option.
@@ -2079,6 +2100,7 @@ PRE_PREPARE_HOOKS = {
     'LLVM': pre_prepare_hook_llvm_a64fx,
     'PyTorch': pre_prepare_hook_pytorch,
     'Rust': pre_prepare_hook_llvm_a64fx,
+    'LAMMPS': pre_prepare_hook_LAMMPS_kokkos_CUDA_families,
 }
 
 POST_PREPARE_HOOKS = {
