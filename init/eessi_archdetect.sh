@@ -17,7 +17,7 @@ else
     exit 1
 fi
 
-VERSION="1.2.0"
+VERSION="1.3.0"
 
 # default log level: only emit warnings or errors
 LOG_LEVEL="WARN"
@@ -154,6 +154,12 @@ cpupath(){
     fi
 
     local cpu_flags=$(get_cpuinfo "$cpu_flag_tag")
+    if [ "${machine_type}" == "riscv64" ]; then
+	# RISC-V ISA strings use '_' as extension separators.
+	# Convert them to space-separated feature tokens so they
+	# can be matched like x86 CPU flags.
+        cpu_flags=${cpu_flags//_/ }    
+    fi
     log "DEBUG" "cpupath: CPU flags of host system: '$cpu_flags'"
 
     # Default to generic CPU
