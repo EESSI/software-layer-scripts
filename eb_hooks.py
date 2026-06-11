@@ -2097,10 +2097,10 @@ PRE_FETCH_HOOKS = {}
 PRE_PREPARE_HOOKS = {
     'cuDNN': pre_prepare_hook_cudnn,
     'Highway': pre_prepare_hook_highway_handle_test_compilation_issues,
+    'LAMMPS': pre_prepare_hook_LAMMPS_kokkos_CUDA_families,
     'LLVM': pre_prepare_hook_llvm_a64fx,
     'PyTorch': pre_prepare_hook_pytorch,
     'Rust': pre_prepare_hook_llvm_a64fx,
-    'LAMMPS': pre_prepare_hook_LAMMPS_kokkos_CUDA_families,
 }
 
 POST_PREPARE_HOOKS = {
