@@ -11,7 +11,11 @@ from typing import NamedTuple
 import easybuild.tools.environment as env
 from easybuild.easyblocks.generic.configuremake import obtain_config_guess
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
-from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy
+from easybuild.framework.easyconfig.easyconfig import (
+    get_toolchain_hierarchy,
+    process_easyconfig,
+    robot_find_easyconfig,
+)
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option, install_path, update_build_option
@@ -1989,44 +1993,80 @@ def replace_binary_non_distributable_files_with_symlinks(log, install_dir, pkg_n
                     symlink(host_inj_path, full_path)
 
 
+def find_rocm_llvm_dependency(ec):
+    """
+    Return the ROCm-LLVM dependency for this easyconfig, or None. ROCm-LLVM can
+    be a direct dependency, a direct toolchain component (rocm-compilers as the
+    toolchain), or one level deeper inside the rocm-compilers bundle when the
+    toolchain is rompi/rfbf/rfoss.
+    """
+    for dep in ec.asdict()['dependencies']:
+        if dep[0] == 'ROCm-LLVM':
+            return dep
+
+    # Only inspect the toolchain for ROCm toolchains.
+    if ec['toolchain']['name'] not in ('rocm-compilers', 'rompi', 'rfbf', 'rfoss'):
+        return None
+
+    tcdeps = ec.toolchain.tcdeps or []
+    for dep in tcdeps:
+        if dep[0] == 'ROCm-LLVM':
+            return dep
+    for dep in tcdeps:
+        if dep[0] == 'rocm-compilers':
+            versionsuffix = dep[2] if len(dep) > 2 else ''
+            rocm_compilers_ec = robot_find_easyconfig(dep[0], dep[1] + versionsuffix)
+            if rocm_compilers_ec:
+                rocm_compilers_deps = process_easyconfig(rocm_compilers_ec)[0]['ec'].dependencies(runtime_only=True)
+                for subdep in rocm_compilers_deps:
+                    if subdep[0] == 'ROCm-LLVM':
+                        return subdep
+
+    return None
+
+
 def inject_gpu_property(ec):
     """
     Add 'gpu' property and EESSI<PACKAGE>VERSION envvars via modluafooter
     easyconfig parameter, and drop dependencies to build dependencies
     """
     ec_dict = ec.asdict()
-    # Check if CUDA, cuDNN, you-name-it is in the dependencies, if so
-    # - drop dependency to build dependency
-    # - add 'gpu' Lmod property
-    # - add envvar with package version
-    pkg_names = ( "CUDA", "cuDNN" )
     pkg_versions = { }
     add_gpu_property = ''
 
-    for pkg_name in pkg_names:
-        # Check if pkg_name is in the dependencies, if so drop dependency to build
-        # dependency and set variable for later adding the 'gpu' Lmod property
-        # to '.remove' dependencies from ec_dict['dependencies'] we make a copy,
-        # iterate over the copy and can then savely use '.remove' on the original
-        # ec_dict['dependencies'].
-        deps = ec_dict['dependencies'][:]
-        if (pkg_name in [dep[0] for dep in deps]):
+    # Check if pkg_name is related to CUDA, if so drop dependency to build
+    # dependency and set variable for later adding the 'gpu' Lmod property
+    # to '.remove' dependencies from ec_dict['dependencies'] we make a copy,
+    # iterate over the copy and can then savely use '.remove' on the original
+    # ec_dict['dependencies'].
+    for pkg_name in ('CUDA', 'cuDNN'):
+        for dep in ec_dict['dependencies'][:]:
+            if dep[0] != pkg_name:
+                continue
+
             add_gpu_property = 'add_property("arch","gpu")'
-            for dep in deps:
-                if pkg_name == dep[0]:
-                    # make pkg_name a build dependency only (rpathing saves us from link errors)
-                    ec.log.info("Dropping dependency on %s to build dependency" % pkg_name)
-                    ec_dict['dependencies'].remove(dep)
-                    if dep not in ec_dict['builddependencies']:
-                        ec_dict['builddependencies'].append(dep)
-                    # take note of version for creating the modluafooter
-                    pkg_versions[pkg_name] = dep[1]
+            pkg_versions[pkg_name] = dep[1]
+
+            ec.log.info("Dropping dependency on %s to build dependency" % pkg_name)
+            ec_dict['dependencies'].remove(dep)
+            if dep not in ec_dict['builddependencies']:
+                ec_dict['builddependencies'].append(dep)
+
+    # ROCm-LLVM is handled separately: it is redistributable (kept as a runtime dep)
+    # and may be pulled in via a ROCm toolchain rather than as a direct dependency.
+    rocm_llvm_dep = find_rocm_llvm_dependency(ec)
+    if rocm_llvm_dep is not None:
+        add_gpu_property = 'add_property("arch","gpu")'
+        versionsuffix = rocm_llvm_dep[2] if len(rocm_llvm_dep) > 2 else ''
+        pkg_versions['ROCm-LLVM'] = rocm_llvm_dep[1] + versionsuffix
+
     if add_gpu_property:
         ec.log.info("Injecting gpu as Lmod arch property and envvars for dependencies with their version")
         modluafooter = 'modluafooter'
         extra_mod_footer_lines = [add_gpu_property]
         for pkg_name, version in pkg_versions.items():
-            envvar = "EESSI%sVERSION" % pkg_name.upper()
+            # follow the convention for replacing - with MIN
+            envvar = "EESSI%sVERSION" % pkg_name.upper().replace('-', 'MIN')
             extra_mod_footer_lines.append('setenv("%s","%s")' % (envvar, version))
         # take into account that modluafooter may already be set
         if modluafooter in ec_dict:
