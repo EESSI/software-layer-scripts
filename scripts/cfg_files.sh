@@ -39,13 +39,13 @@ function cfg_load {
   local cur_val=""
   IFS=
   while read -r line; do
-    new_section=$(cfg_get_section $line)
+    new_section=$(cfg_get_section "${line}")
     # got a new section
     if [[ -n "$new_section" ]]; then
       cur_section=$new_section
     # not a section, try a key value
     else
-      val=$(cfg_get_key_value $line)
+      val=$(cfg_get_key_value "${line}")
       # trim leading and trailing spaces as well
       cur_key=$(echo $val | cut -f1 -d'=' | cfg_trim_spaces)
       cur_val=$(echo $val | cut -f2 -d'=' | cfg_trim_spaces)
