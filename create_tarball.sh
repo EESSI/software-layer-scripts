@@ -11,7 +11,7 @@ fi
 eessi_tmpdir=$1
 eessi_version=$2
 cpu_arch_subdir=$3
-accel_subdir=$4
+accel_subdirs="$4"
 target_tarball=$5
 
 tmpdir=`mktemp -d`
@@ -64,11 +64,14 @@ fi
 
 # consider both CPU-only and accelerator subdirectories (if an accelerator was configured)
 sw_subdirs=${cpu_arch_subdir}
-if [ -n "${accel_subdir}" ]; then
-    sw_subdirs="${sw_subdirs} ${cpu_arch_subdir}/${accel_subdir}"
+if [ -n "${accel_subdirs}" ]; then
+    # convert accel_subdirs into an array...
+    IFS='+' read -ra accel_subdirs <<< "${accel_subdirs}"
+    # and prepend the cpu_arch_subdir to all elements
+    accel_subdirs="${accel_subdirs[@]/#/${cpu_arch_subdir}/}"
+    sw_subdirs="${sw_subdirs} ${accel_subdirs[@]}"
 fi
 for subdir in ${sw_subdirs}; do
-
     if [ -d ${eessi_version}/software/${os}/${subdir}/modules ]; then
         # module files
         find ${eessi_version}/software/${os}/${subdir}/modules -type f \! -name '.wh.*' >> ${files_list}
