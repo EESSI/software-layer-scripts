@@ -73,7 +73,10 @@ EESSI_SUPPORTED_TOP_LEVEL_TOOLCHAINS = {
 }
 if EASYBUILD_VERSION >= '5.2.0':
     EESSI_SUPPORTED_TOP_LEVEL_TOOLCHAINS['2025.06'].append(
-        {'name': 'lfoss', 'version': '2025b'}
+        {'name': 'lfoss', 'version': '2025b'},
+        {'name': 'rocm-compilers', 'version': '19.0.0-ROCm-6.4.1'},
+        {'name': 'rompi', 'version': '2025a'},
+        {'name': 'rfoss', 'version': '2025a'},
     )
 
 # Supported compute capabilities by CUDA toolkit version
