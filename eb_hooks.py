@@ -76,6 +76,11 @@ if EASYBUILD_VERSION >= '5.2.0':
         {'name': 'lfoss', 'version': '2025b'}
     )
 
+if EASYBUILD_VERSION >= '5.3.0':
+    EESSI_SUPPORTED_TOP_LEVEL_TOOLCHAINS['2025.06'].append(
+        {'name': 'rfoss', 'version': '2025a'}
+    )
+
 # Supported compute capabilities by CUDA toolkit version
 # Obtained by installing all CUDAs from 12.0.0 to 13.1.0, then using:
 
