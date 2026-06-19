@@ -1722,7 +1722,7 @@ def pre_test_hook_Siesta_ignore_failure_with_crosscompilation(self, *args, **kwa
                     ]
                     extra_testopts = "|".join(failing_tests)
                     testopts = self.cfg['testopts']
-                    self.cfg['testopts'] = re.sub(r"-E '(.*)'", rf"-E '\1|{extra_testopts}'", testopts))
+                    self.cfg['testopts'] = re.sub(r"-E '(.*)'", rf"-E '\1|{extra_testopts}'", testopts)
 
 
 def pre_single_extension_hook(ext, *args, **kwargs):
