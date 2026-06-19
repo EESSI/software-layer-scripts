@@ -1,1 +1,0 @@
-/cvmfs/software.eessi.io
