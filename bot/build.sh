@@ -261,13 +261,6 @@ declare -a BUILD_STEP_ARGS=()
 BUILD_STEP_ARGS+=("--save" "${TARBALL_TMP_BUILD_STEP_DIR}")
 BUILD_STEP_ARGS+=("--storage" "${STORAGE}")
 
-# add options required to handle NVIDIA support
-if nvidia_gpu_available; then
-    BUILD_STEP_ARGS+=("--nvidia" "all")
-else
-    BUILD_STEP_ARGS+=("--nvidia" "install")
-fi
-
 # Retain location for host injections so we don't reinstall CUDA
 # (Always need to run the driver installation as available driver may change)
 if [[ ! -z ${SHARED_FS_PATH} ]]; then
@@ -294,19 +287,37 @@ else
     # prepend accel/ to all array elements
     EESSI_ACCELERATOR_TARGET_OVERRIDES=("${ACCEL_OVERRIDES_ARRAY[@]/#/accel/}")
 fi
+RESUME_DIR=""
+
 for ACCEL_OVERRIDE in "${EESSI_ACCELERATOR_TARGET_OVERRIDES[@]}"; do
+    # copy the common build step arguments to a a
+    BUILD_STEP_ARGS_ACCEL=("${BUILD_STEP_ARGS[@]}")
+    if [[ "${ACCEL_OVERRIDE}" == "accel/nvidia/"* ]]; then
+        nvidia_cc=${ACCEL_OVERRIDE##*/cc}
+        # add options required to handle NVIDIA support
+        # only make the GPU available in the container if the host has a GPU and it has the correct compute capability
+        if nvidia_gpu_available && nvidia_gpu_has_compute_capability "${nvidia_cc}" ; then
+            BUILD_STEP_ARGS_ACCEL+=("--nvidia" "all")
+        else
+            BUILD_STEP_ARGS_ACCEL+=("--nvidia" "install")
+        fi
+    fi
+    # resume from the previous accelerator's build directory
+    # as we want to combine all accelerator builds into a single tarball in the end
+    if [[ ! -z "${RESUME_DIR}" ]]; then
+        BUILD_STEP_ARGS_ACCEL+=("--resume" "${RESUME_DIR}")
+    fi
+
     export EESSI_ACCELERATOR_TARGET_OVERRIDE="${ACCEL_OVERRIDE}"
     echo "bot/build.sh: EESSI_ACCELERATOR_TARGET_OVERRIDE='${ACCEL_OVERRIDE}'"
     echo "Executing command to build software:"
-    echo "$software_layer_dir/eessi_container.sh ${COMMON_ARGS[@]} ${BUILD_STEP_ARGS[@]}"
+    echo "$software_layer_dir/eessi_container.sh ${COMMON_ARGS[@]} ${BUILD_STEP_ARGS_ACCEL[@]}"
     echo "                     -- $software_layer_dir/install_software_layer.sh \"${INSTALL_SCRIPT_ARGS[@]}\" \"$@\" 2>&1 | tee -a ${build_outerr}"
-    $software_layer_dir/eessi_container.sh "${COMMON_ARGS[@]}" "${BUILD_STEP_ARGS[@]}" \
+    $software_layer_dir/eessi_container.sh "${COMMON_ARGS[@]}" "${BUILD_STEP_ARGS_ACCEL[@]}" \
                          -- $software_layer_dir/install_software_layer.sh "${INSTALL_SCRIPT_ARGS[@]}" "$@" 2>&1 | tee -a ${build_outerr}
 
     # determine temporary directory to resume from for the next accelerator,
-    # as we want to combine all accelerator builds into a single tarball in the end
-    BUILD_TMPDIR=$(grep ' as tmp directory ' ${build_outerr} | cut -d ' ' -f 2)
-    BUILD_STEP_ARGS+=("--resume" "${BUILD_TMPDIR}")
+    RESUME_DIR=$(grep ' as tmp directory ' ${build_outerr} | cut -d ' ' -f 2)
 done
 
 # prepare directory to store tarball of tmp for tarball step
