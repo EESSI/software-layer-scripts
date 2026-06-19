@@ -1707,19 +1707,22 @@ def pre_test_hook_ignore_failing_tests_OpenBabel_a64fx(self, *args, **kwargs):
 
 def pre_test_hook_Siesta_ignore_failure_with_crosscompilation(self, *args, **kwargs):
     """
-    Ignore failing tests when crosscompiling without gpu pressent.
+    Ignore failing tests when crosscompiling without gpu present.
     """
     if self.name == 'Siesta': 
         if self.version in ['5.4.2']:
-            cuda_cc = build_option('cuda_compute_capabilities')
-            if cuda_cc and not get_gpu_info(): 
-                failing_tests=[
-                    "Solvers-si-qdot-elsi-elpa-gpu_mpi4_omp1", # runs cuda get device
-                    "Solvers-si-qdot-elsi-elpa-1stage-gpu_mpi4_omp1", # runs cuda get device
-                    "Solvers-si-qdot-elpa-native-gpu_mpi4_omp1", # runs cuda get device
-                    "Solvers-si-qdot-elpa-native-1stage-gpu_mpi4_omp1", # runs cuda get device
-                ]
-                self.cfg['testopts'] = self.cfg['testopts'][:-1] + "|" + "|".join(failing_tests) + "'"
+            if 'CUDA' in self.cfg['versionsuffix']: 
+                cuda_cc = build_option('cuda_compute_capabilities')
+                if cuda_cc and not get_gpu_info():
+                    failing_tests=[
+                        "Solvers-si-qdot-elsi-elpa-gpu_mpi4_omp1", # runs cuda get device
+                        "Solvers-si-qdot-elsi-elpa-1stage-gpu_mpi4_omp1", # runs cuda get device
+                        "Solvers-si-qdot-elpa-native-gpu_mpi4_omp1", # runs cuda get device
+                        "Solvers-si-qdot-elpa-native-1stage-gpu_mpi4_omp1", # runs cuda get device
+                    ]
+                    extra_testopts = "|".join(failing_tests)
+                    testopts = self.cfg['testopts']
+                    self.cfg['testopts'] = re.sub(r"-E '(.*)'", rf"-E '\1|{extra_testopts}'", testopts))
 
 
 def pre_single_extension_hook(ext, *args, **kwargs):
