@@ -239,7 +239,7 @@ def get_eessi_envvar(eessi_envvar):
     return eessi_envvar_value
 
 
-def get_rpath_override_dirs(software_name):
+def get_rpath_override_dirs(software_name, toolchain_version):
     # determine path to installations in software layer via $EESSI_SOFTWARE_PATH
     eessi_software_path = get_eessi_envvar('EESSI_SOFTWARE_PATH')
 
@@ -257,6 +257,36 @@ def get_rpath_override_dirs(software_name):
 
     # Allow for libraries in lib or lib64
     rpath_injection_dirs = [os.path.join(rpath_injection_stub, x) for x in ('lib', 'lib64')]
+    
+    # Add toolchain specific RPATH that precedes the host_injections RPATH
+    # by adding toolchain version before the second software occurence. 
+
+    # Split the path into segments based on the word "software"
+    search_string = "software"
+    replace_string = toolchain_version + "/software"
+    eessi_software_path_parts = eessi_software_path.split(search_string)
+
+    # Ensure that the second occurrence of "software" is replaced.
+    toolchain_rpath_injection_prefix = eessi_software_path_parts[0] + search_string + eessi_software_path_parts[1]
+    toolchain_rpath_injection_suffix = os.path.normpath(search_string.join(eessi_software_path_parts[2:]))
+    # Add the subdirectory for the specific software
+    toolchain_rpath_injection_stub = os.path.join(
+        # Make sure we are looking inside the `host_injections` directory
+        toolchain_rpath_injection_prefix.replace('versions', 'host_injections', 1),
+        replace_string + toolchain_rpath_injection_suffix,
+        # Add the subdirectory for the specific software
+        'rpath_overrides',
+        software_name,
+        # We can't know the version, but this allows the use of a symlink
+        # to facilitate version upgrades without removing files
+        'system',
+    )
+
+    # Allow for libraries in lib or lib64
+    toolchain_rpath_injection_dirs = [os.path.join(toolchain_rpath_injection_stub, x) for x in ('lib', 'lib64')]
+
+    # Prepend toolchain version based RPATHs before host_injections RPATHs
+    rpath_injection_dirs = toolchain_rpath_injection_dirs + rpath_injection_dirs
 
     return rpath_injection_dirs
 
@@ -427,11 +457,11 @@ def pre_prepare_hook(self, *args, **kwargs):
 
     # Check if we have an MPI family in the toolchain (returns None if there is not)
     mpi_family = self.toolchain.mpi_family()
-
+    tcversion = self.toolchain.version
     # Inject an RPATH override for MPI (if needed)
     if mpi_family:
         # Get list of override directories
-        mpi_rpath_override_dirs = get_rpath_override_dirs(mpi_family)
+        mpi_rpath_override_dirs = get_rpath_override_dirs(mpi_family, tcversion)
 
         # update the relevant option (but keep the original value so we can reset it later)
         if hasattr(self, EESSI_RPATH_OVERRIDE_ATTR):
