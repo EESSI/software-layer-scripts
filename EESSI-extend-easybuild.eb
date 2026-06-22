@@ -93,26 +93,30 @@ working_dir = os.getenv("WORKING_DIR") or pathJoin("/tmp", os.getenv("USER"))
 -- Gather the EPREFIX to use as a sysroot
 sysroot = os.getenv("EESSI_EPREFIX")
 
--- Check if we have GPU capabilities and configure CUDA compute capabilities
+-- Check if we have GPU capabilities and configure AMD/CUDA compute capabilities
 eessi_accelerator_target = os.getenv("EESSI_ACCELERATOR_TARGET")
 if (eessi_accelerator_target ~= nil) then
   cuda_compute_capability = string.match(eessi_accelerator_target, "^accel/nvidia/cc([0-9]+)$")
+  amd_compute_capability = string.match(eessi_accelerator_target, "^accel/amd/(gfx[0-9a-f]+)$")
+
   if (cuda_compute_capability ~= nil) then
     -- The last digit should be the minor version, insert a dot in the one-but-last position
     major_version = cuda_compute_capability:sub(1, #cuda_compute_capability - 1)
     minor_version = cuda_compute_capability:sub(#cuda_compute_capability)
     easybuild_cuda_compute_capabilities = string.format("%s.%s", major_version, minor_version)
+
+    -- If architectures are 9.0, 10.0 or 12.0, enable architecture or family-specific optimizations
+    if easybuild_cuda_compute_capabilities == '9.0' then
+      easybuild_cuda_compute_capabilities = '9.0a'
+    elseif easybuild_cuda_compute_capabilities == '10.0' then
+      easybuild_cuda_compute_capabilities = '10.0f'
+    elseif easybuild_cuda_compute_capabilities == '12.0' then
+      easybuild_cuda_compute_capabilities = '12.0f'
+    end
+  elseif (amd_compute_capability ~= nil) then
+    easybuild_amdgcn_compute_capabilities = amd_compute_capability
   else
     LmodError("Incorrect value for $EESSI_ACCELERATOR_TARGET: " .. eessi_accelerator_target)
-  end
-
-  -- If architectures are 9.0, 10.0 or 12.0, enable architecture or family-specific optimizations
-  if easybuild_cuda_compute_capabilities == '9.0' then
-    easybuild_cuda_compute_capabilities = '9.0a'
-  elseif easybuild_cuda_compute_capabilities == '10.0' then
-    easybuild_cuda_compute_capabilities = '10.0f'
-  elseif easybuild_cuda_compute_capabilities == '12.0' then
-    easybuild_cuda_compute_capabilities = '12.0f'
   end
 end
 
@@ -129,8 +133,8 @@ if eessi_cvmfs_install then
     LmodError("You cannot use EESSI_CVMFS_INSTALL in combination with any other EESSI_*_INSTALL environment variables")
   end
   easybuild_installpath = os.getenv("EESSI_SOFTWARE_PATH")
-  -- enforce accelerator subdirectory usage for CVMFS installs (only if an accelerator install is requested)
-  if (eessi_accelerator_target ~= nil) and (cuda_compute_capability ~= nil) and (os.getenv("EESSI_ACCELERATOR_INSTALL") ~= nil) then
+  -- Enforce accelerator subdirectory usage for CVMFS installs (only if an accelerator install is requested)
+  if (eessi_accelerator_target ~= nil) and (cuda_compute_capability ~= nil or amd_compute_capability ~= nil) and (os.getenv("EESSI_ACCELERATOR_INSTALL") ~= nil) then
       easybuild_installpath = pathJoin(easybuild_installpath, eessi_accelerator_target)
   end
 elseif eessi_site_install then
@@ -139,7 +143,7 @@ elseif eessi_site_install then
     LmodError("You cannot use EESSI_SITE_INSTALL in combination with any other EESSI_*_INSTALL environment variables")
   end
   easybuild_installpath = os.getenv("EESSI_SITE_SOFTWARE_PATH")
-  -- enforce accelerator subdirectory usage for site installs (only if an accelerator install is requested)
+  -- Enforce accelerator subdirectory usage for site installs (only if an accelerator install is requested)
   if (eessi_accelerator_target ~= nil) and (cuda_compute_capability ~= nil) and (os.getenv("EESSI_ACCELERATOR_INSTALL") ~= nil) then
       easybuild_installpath = pathJoin(easybuild_installpath, eessi_accelerator_target)
   end
@@ -202,6 +206,11 @@ if (easybuild_cuda_compute_capabilities ~= nil) then
   setenv ("EASYBUILD_CUDA_COMPUTE_CAPABILITIES", easybuild_cuda_compute_capabilities)
 end
 
+-- Set environment variables if building for AMDGCN compute capabilities
+if (easybuild_amdgcn_compute_capabilities ~= nil) then
+  setenv ("EASYBUILD_AMDGCN_CAPABILITIES", easybuild_amdgcn_compute_capabilities)
+end
+
 -- Set all related environment variables if we have project or user installations (including extending MODULEPATH)
 if (user_modulepath ~= nil) then
   -- Use a more restrictive umask for this case
@@ -223,7 +232,8 @@ end
 
 -- Make sure EasyBuild itself is loaded
 -- need to also handle the unload behaviour where the version is defined only before we unload
-easybuild_version = os.getenv("EBVERSIONEASYBUILD")
+-- (also provide a sensible default for cases like 'module show' where the modules are never loaded at all)
+easybuild_version = os.getenv("EBVERSIONEASYBUILD") or "5.1.1"
 if not ( isloaded("EasyBuild") ) then
     load(latest("EasyBuild"))
 end

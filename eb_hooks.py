@@ -16,12 +16,12 @@ from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option, install_path, update_build_option
 from easybuild.tools.filetools import apply_regex_substitutions, copy_dir, copy_file, remove_file, symlink, which
+from easybuild.tools.modules import get_software_root, get_software_root_env_var_name
 from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import AARCH64, POWER, X86_64, det_parallelism, get_cpu_architecture, get_cpu_features
 from easybuild.tools.toolchain.compiler import OPTARCH_GENERIC
 from easybuild.tools.toolchain.toolchain import is_system_toolchain
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
-from easybuild.tools.modules import get_software_root_env_var_name
 
 # prefer importing LooseVersion from easybuild.tools, but fall back to distuils in case EasyBuild <= 4.7.0 is used
 try:
@@ -52,6 +52,7 @@ SYSTEM = EASYCONFIG_CONSTANTS['SYSTEM'][0]
 
 EESSI_INSTALLATION_REGEX = r"^/cvmfs/[^/]*.eessi.io/versions/"
 HOST_INJECTIONS_LOCATION = "/cvmfs/software.eessi.io/host_injections/"
+SITE_INSTALLATION_LOCATION = os.getenv("EESSI_SITE_SOFTWARE_PREFIX", HOST_INJECTIONS_LOCATION)
 
 # Make sure a single environment variable name is used for this throughout the hooks
 EESSI_IGNORE_ZEN4_GCC1220_ENVVAR="EESSI_IGNORE_LMOD_ERROR_ZEN4_GCC1220"
@@ -73,6 +74,11 @@ EESSI_SUPPORTED_TOP_LEVEL_TOOLCHAINS = {
 if EASYBUILD_VERSION >= '5.2.0':
     EESSI_SUPPORTED_TOP_LEVEL_TOOLCHAINS['2025.06'].append(
         {'name': 'lfoss', 'version': '2025b'}
+    )
+
+if EASYBUILD_VERSION >= '5.3.0':
+    EESSI_SUPPORTED_TOP_LEVEL_TOOLCHAINS['2025.06'].append(
+        {'name': 'rocm-compilers', 'version': '19.0.0-ROCm-6.4.1'}
     )
 
 # Supported compute capabilities by CUDA toolkit version
@@ -311,9 +317,17 @@ def verify_toolchains_supported_by_eessi_version(easyconfigs):
         # It uses <= as there may be other dict entries in the values returned from get_toolchain_hierarchy()
         # but we only care that the toolchain dict (which has 'name' and 'version') appear.
         elif not any(toolchain.items() <= supported.items() for supported in supported_eessi_toolchains):
+            expected_site_top_level_toolchains = [toolchain] + site_top_level_toolchains
             raise EasyBuildError(
-                f"Toolchain {toolchain} (required by {ec['full_mod_name']}) is not supported in EESSI/{eessi_version}\n"
-                f"Supported toolchains are:\n" + "\n".join(sorted("  " + str(tc) for tc in supported_eessi_toolchains))
+                f"Toolchain {toolchain} (required by {ec['full_mod_name']}) is not supported in "
+                f"EESSI/{eessi_version}\n"
+                f"Supported toolchains are:\n"
+                + "\n".join(sorted("  " + str(tc) for tc in supported_eessi_toolchains))
+                + "\nIf you are using EESSI as a base for a local software stack, you can add locally supported "
+                " toolchains by setting the environment variable:\n"
+                f"\texport {site_top_level_toolchains_envvar}='{json.dumps(expected_site_top_level_toolchains)}'\n"
+                "(you only need to add the highest level toolchains you use, the toolchain hierarchy is automatically "
+                "supported)"
             )
 
 
@@ -440,6 +454,9 @@ def pre_prepare_hook(self, *args, **kwargs):
 
     # Always trigger this, regardless of ec.name
     pre_prepare_hook_unsupported_modules(self, *args, **kwargs)
+
+    # Always trigger this, regardless of ec.name
+    pre_prepare_hook_cuda_dependant(self, *args, **kwargs)
 
 
 def post_prepare_hook_gcc_prefixed_ld_rpath_wrapper(self, *args, **kwargs):
@@ -644,6 +661,29 @@ def parse_hook_qt5_check_qtwebengine_disable(ec, eprefix):
         raise EasyBuildError("Qt5-specific hook triggered for non-Qt5 easyconfig?!")
 
 
+def parse_hook_qt6_libinput(ec, eprefix):
+    """
+    Add dependency on libinput to Qt6.
+    This is not included in upstream EasyBuild as it brings a dependency on system-d
+    """
+    qt6_toolchain_version_to_libinput_version_map = {'14.3.0': '1.30.1'}
+    if ec.name == 'Qt6':
+        # Only enforcing from GCCcore 14.3.0 onwards for Qt6 6.9.3 onwards
+        if ec.toolchain.version >= LooseVersion('14.3.0'):
+            if ec.version >= LooseVersion('6.9.3'):
+                dep_names = [dep[0] for dep in ec['dependencies']]
+                if 'libinput' not in dep_names:
+                    if ec.toolchain.version in qt6_toolchain_version_to_libinput_version_map.keys():
+                        libinput = ('libinput', qt6_toolchain_version_to_libinput_version_map[ec.toolchain.version])
+                        ec['dependencies'].append(libinput)
+                        print_msg(f"Added {libinput} dependency for {ec.name} {ec.version}")
+                    else:
+                        raise EasyBuildError(
+                            f"No libinput dependency found for {ec.name} {ec.version}, please update relevant Qt6 hook"
+                        )
+    else:
+        raise EasyBuildError(f"Qt6-specific hook triggered for non-Qt6 easyconfig?!")
+
 def parse_hook_maturin(ec, eprefix):
     """
     Replace build dependency on Rust 1.88.0 by 1.91.1,
@@ -706,19 +746,26 @@ def pre_fetch_hook(self, *args, **kwargs):
 def pre_fetch_hook_check_installation_path(self, *args, **kwargs):
     # When we know the CUDA status, we will need to verify the installation path
     # if we are doing an EESSI or host_injections installation
-    accelerator_deps = ['CUDA']
+    accelerator_deps = ['CUDA', 'ROCm-LLVM']
+    accelerator_toolchains = ['rocm-compilers', 'rompi', 'rfbf', 'rfoss']
     strict_eessi_installation = (
         bool(re.search(EESSI_INSTALLATION_REGEX, self.installdir)) or
-        self.installdir.startswith(HOST_INJECTIONS_LOCATION))
+        self.installdir.startswith(SITE_INSTALLATION_LOCATION))
     if strict_eessi_installation and not os.getenv("EESSI_OVERRIDE_STRICT_INSTALLPATH_CHECK"):
         dependency_names = self.cfg.dependency_names()
-        if self.cfg.name in accelerator_deps or any(dep in dependency_names for dep in accelerator_deps):
+        if (
+            self.cfg.name in accelerator_deps
+            or any(dep in dependency_names for dep in accelerator_deps)
+            or self.toolchain.name in accelerator_toolchains
+        ):
             # Make sure the path is an accelerator location
             if "/accel/" not in self.installdir:
                 raise EasyBuildError(
                     f"It seems you are trying to install an accelerator package {self.cfg.name} into a "
                     f"non-accelerator location {self.installdir}. You need to reconfigure your installation to target "
-                    "the correct location."
+                    "the correct location. If using the EESSI-extend module, this means reloading that module "
+                    "with EESSI_ACCELERATOR_INSTALL set:\n"
+                    "  EESSI_ACCELERATOR_INSTALL=1 module load EESSI-extend"
                     )
         else:
             # If we don't have an accelerator dependency then we should be in a CPU installation path
@@ -726,7 +773,9 @@ def pre_fetch_hook_check_installation_path(self, *args, **kwargs):
                 raise EasyBuildError(
                     f"It seems you are trying to install a CPU-only package {self.cfg.name} into accelerator location "
                     f"{self.installdir}. If this is a dependency of the package you are really interested in you will "
-                    "need to first install the CPU-only dependencies of that package."
+                    "need to first install the CPU-only dependencies of that package. If using the EESSI-extend "
+                    "module, this means reloading that module with EESSI_ACCELERATOR_INSTALL unset:\n"
+                    "  unset EESSI_ACCELERATOR_INSTALL && module load EESSI-extend"
                     )
 
 
@@ -902,6 +951,20 @@ def post_easyblock_hook_copy_easybuild_subdir(self, *args, **kwargs):
     copy_dir(app_easybuild_dir, app_reprod_dir)
 
 
+def pre_prepare_hook_cuda_dependant(self, *args, **kwargs):
+    """
+    CUDA 12.8.0 doesn't support the 10.0f and 12.0f targets, only 10.0 and 12.0. This hook converts
+    any CC 10.0f / 12.0f into 10.0 / 12.0 if the current package depends on CUDA.
+    """
+
+    cudaver = get_dependency_software_version("CUDA", ec=self.cfg, check_deps=True, check_builddeps=True)
+    if cudaver and cudaver == '12.8.0':
+        cuda_cc = build_option('cuda_compute_capabilities')
+        if cuda_cc and ('10.0f' in cuda_cc or '12.0f' in cuda_cc):
+            updated_cuda_cc = [v.replace('.0f', '.0') if v in ['10.0f', '12.0f'] else v for v in cuda_cc]
+            update_build_option('cuda_compute_capabilities', updated_cuda_cc)
+
+
 def pre_prepare_hook_cudnn(self, *args, **kwargs):
     """
     cuDNN is a binary install, that doesn't always have the device code for the suffixed CUDA
@@ -998,6 +1061,27 @@ def pre_prepare_hook_pytorch(self, *args, **kwargs):
                 os.environ['GLIBC_TUNABLES'] = 'glibc.rtld.execstack=2'
     else:
         raise EasyBuildError("PyTorch-specific hook triggered for non-PyTorch easyconfig?!")
+
+
+def pre_prepare_hook_LAMMPS_kokkos_CUDA_families(self, *args, **kwargs):
+    """
+    Kokkos does not have support building for GPU families.
+    This cause problems for EasyBuild cuda sanity check for CUDA Compute Capalities such as 9.0a, 10.0f, 12.0f etc.
+    This hook strips the suffixes when building LAMMPS with kokkos.
+    """
+    if self.name == 'LAMMPS':
+        if self.version in ['22Jul2025']:
+            if self.cfg['kokkos']:
+                cuda_cc = build_option('cuda_compute_capabilities')
+                if cuda_cc and '9.0a' in cuda_cc:
+                    updated_cuda_cc = [v.replace('9.0a', '9.0') for v in cuda_cc]
+                    update_build_option('cuda_compute_capabilities', updated_cuda_cc)
+                elif cuda_cc and '10.0f' in cuda_cc:
+                    updated_cuda_cc = [v.replace('10.0f', '10.0') for v in cuda_cc]
+                    update_build_option('cuda_compute_capabilities', updated_cuda_cc)
+                elif cuda_cc and '12.0f' in cuda_cc:
+                    updated_cuda_cc = [v.replace('12.0f', '12.0') for v in cuda_cc]
+                    update_build_option('cuda_compute_capabilities', updated_cuda_cc)
 
 
 def post_prepare_hook_llvm_a64fx(self, *args, **kwargs):
@@ -1102,6 +1186,31 @@ def pre_configure_hook_score_p(self, *args, **kwargs):
         raise EasyBuildError("Score-P-specific hook triggered for non-Score-P easyconfig?!")
 
 
+def pre_configure_hook_dyninst(self, *args, **kwargs):
+    """
+    Pre-configure hook for Dyninst
+    - specify correct path to binutils (in compat layer)
+    """
+    if self.name == 'Dyninst':
+
+        # determine path to Prefix installation in compat layer via $EPREFIX
+        eprefix = get_eessi_envvar('EPREFIX')
+
+        binutils_lib_path_glob_pattern = os.path.join(eprefix, 'usr', 'lib*', 'binutils', '*-linux-gnu', '2.*')
+        binutils_lib_path = glob.glob(binutils_lib_path_glob_pattern)
+        if len(binutils_lib_path) == 1:
+            print_msg("Defining LibIberty variables for Dyninst...")
+            self.cfg.update('configopts', '-DLibIberty_ROOT_DIR=' + binutils_lib_path[0])
+            self.cfg.update('configopts', '-DLibIberty_INCLUDE_DIRS=' + os.path.join(binutils_lib_path[0], 'include'))
+            self.cfg.update('configopts', '-DLibIberty_LIBRARIES=' + os.path.join(binutils_lib_path[0], 'libiberty.a'))
+        else:
+            raise EasyBuildError("Failed to isolate path for binutils libraries using %s, got %s",
+                                 binutils_lib_path_glob_pattern, binutils_lib_path)
+
+    else:
+        raise EasyBuildError("Dyninst-specific hook triggered for non-Dyninst easyconfig?!")
+
+
 def pre_configure_hook_extrae(self, *args, **kwargs):
     """
     Pre-configure hook for Extrae
@@ -1116,7 +1225,16 @@ def pre_configure_hook_extrae(self, *args, **kwargs):
         binutils_lib_path_glob_pattern = os.path.join(eprefix, 'usr', 'lib*', 'binutils', '*-linux-gnu', '2.*')
         binutils_lib_path = glob.glob(binutils_lib_path_glob_pattern)
         if len(binutils_lib_path) == 1:
-            self.cfg.update('configopts', '--with-binutils=' + binutils_lib_path[0])
+            if self.version < LooseVersion('5.0.0'):
+                self.cfg.update('configopts', '--with-binutils=' + binutils_lib_path[0])
+            else:
+                # Setting --with-binutils to the real binutils subdir (as for older versions) causes issues for finding addr2line,
+                # as it will try to find that binary in $BINUTILS_ROOT/bin,
+                # so we use $EPREFIX/usr instead.
+                # Also, as of version 5, we can use more specific flags for binutils headers and libraries.
+                self.cfg.update('configopts', '--with-binutils=' + os.path.join(eprefix, 'usr'))
+                self.cfg.update('configopts', '--with-binutils-headers=' + os.path.join(binutils_lib_path[0], 'include'))
+                self.cfg.update('configopts', '--with-binutils-libs=' + binutils_lib_path[0])
         else:
             raise EasyBuildError("Failed to isolate path for binutils libraries using %s, got %s",
                                  binutils_lib_path_glob_pattern, binutils_lib_path)
@@ -1124,14 +1242,12 @@ def pre_configure_hook_extrae(self, *args, **kwargs):
         # zlib is a filtered dependency, so we need to manually specify it's location to avoid the host version
         self.cfg.update('configopts', '--with-libz=' + eprefix)
 
-        # replace use of 'which' with 'command -v', since 'which' is broken in EESSI build container;
-        # this must be done *after* running configure script, because initial configuration re-writes configure script,
-        # and problem due to use of which only pops up when running make ?!
+        # replace use of 'which' with 'command -v' in several files, since 'which' is broken in EESSI build container
         self.cfg.update(
-            'prebuildopts',
-            "cp config/mpi-macros.m4 config/mpi-macros.m4.orig && "
-            "sed -i 's/`which /`command -v /g' config/mpi-macros.m4 && "
-            )
+            'preconfigopts',
+            "sed -i.orig 's/`which /`command -v /g' config/mpi-macros.m4 configure.ac config/macros.m4 include/Makefile.am Makefile.am tests/overhead/Makefile.am && "
+            "autoreconf -fi && "
+        )
     else:
         raise EasyBuildError("Extrae-specific hook triggered for non-Extrae easyconfig?!")
 
@@ -1195,12 +1311,24 @@ def pre_configure_hook_llvm(self, *args, **kwargs):
     into pointing to the compat layer.
     """
     if self.name in ['LLVM', 'ROCm-LLVM']:
+        from easybuild.easyblocks.generic.bundle import Bundle
+        from easybuild.easyblocks.llvm import EB_LLVM
+
         eprefix = get_eessi_envvar('EPREFIX')
 
-        for software in ('zlib', 'ncurses'):
-            var_name = get_software_root_env_var_name(software)
-            env.setvar(var_name, os.path.join(eprefix, 'usr'))
-            self.deps.append(software)
+        def recursive_set_deps(item, softwares):
+            if isinstance(item, (list, tuple)):
+                for elem in item:
+                    recursive_set_deps(elem, softwares)
+            elif isinstance(item, Bundle):
+                recursive_set_deps(item.comp_instances, softwares)
+            elif isinstance(item, EB_LLVM):
+                for sftw in softwares:
+                    var_name = get_software_root_env_var_name(sftw)
+                    env.setvar(var_name, os.path.join(eprefix, 'usr'))
+                    item.deps.append(sftw)
+
+        recursive_set_deps(self, softwares=('zlib', 'ncurses'))
     else:
         raise EasyBuildError("LLVM-specific hook triggered for non-LLVM easyconfig?!")
 
@@ -1383,6 +1511,23 @@ def pre_configure_hook_cmake_system(self, *args, **kwargs):
         raise EasyBuildError("CMake-specific hook triggered for non-CMake easyconfig?!")
 
 
+def pre_configure_hook_Zoltan(self, *args, **kwargs):
+    """
+    Pre-configure hook for Zoltan to filter out ParMETIS configure options,
+    since we filter out ParMETIS as a dependency
+    """
+    if self.name == 'Zoltan':
+        if get_software_root('ParMETIS') is None:
+            configopts = self.cfg['configopts']
+            # get rid of all --with-parmetis configure options, and inject --without-parmetis
+            configopts = re.sub('--with-parmetis[^ ]*', '', configopts)
+            configopts += " --without-parmetis"
+            self.cfg['configopts'] = configopts
+            self.log.info("Removed --with-parmetis* configure options for {self.name}, ParMETIS is not a dependency")
+    else:
+        raise EasyBuildError("Zoltan-specific hook triggered for non-Zoltan easyconfig?!")
+
+
 def pre_test_hook(self, *args, **kwargs):
     """Main pre-test hook: trigger custom functions based on software name."""
     if self.name in PRE_TEST_HOOKS:
@@ -1406,6 +1551,18 @@ def pre_test_hook_exclude_failing_test_Highway(self, *args, **kwargs):
         self.cfg['runtest'] += ' ARGS="-E TestAllSumOfLanes"'
 
 
+def pre_test_hook_gromacs(self, *args, **kwargs):
+    """
+    Solve GROMACS test failure on NVIDIA Grace CPUs when hwloc support is enabled.
+    """
+    cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+    if self.name == 'GROMACS':
+        if self.version < '2026.3' and cpu_target == CPU_TARGET_NVIDIA_GRACE:
+            self.cfg['pretestopts'] = 'export HWLOC_KEEP_NVIDIA_GPU_NUMA_NODES=0 && '
+    else:
+        raise EasyBuildError("GROMACS-specific hook triggered for non-GROMACS easyconfig?!")
+
+
 def pre_test_hook_ignore_failing_tests_ESPResSo(self, *args, **kwargs):
     """
     Pre-test hook for ESPResSo: skip failing tests, tests frequently timeout due to known bugs in ESPResSo v4.2.1
@@ -1423,6 +1580,25 @@ def pre_test_hook_ignore_failing_tests_FFTWMPI(self, *args, **kwargs):
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
     if self.name == 'FFTW.MPI' and self.version == '3.3.10' and cpu_target == CPU_TARGET_NEOVERSE_V1:
         self.cfg['testopts'] = "|| echo ignoring failing tests"
+
+
+def pre_test_hook_lammps_ignore_failure_arm_generic(self, *args, **kwargs):
+    """
+    Ignore failing tests on ARM generic target for LAMMPS version 22Jul2025
+    """
+    # Ignore failing ctest for LAMMPS/22Jul2025 on aarch64/generic
+    cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+    if cpu_target == CPU_TARGET_AARCH64_GENERIC:
+        if self.name == 'LAMMPS' and self.version == '22Jul2025':
+            # This command matches what is in
+            # https://github.com/easybuilders/easybuild-easyblocks/blob/71b010288084e1777fbdd0e3db319f0104134b1d/easybuild/easyblocks/l/lammps.py#L682
+            # If a test_cmd is already defined, the easyblock linked above should not overwrite it anymore
+            test_cmd = 'ctest '
+            test_cmd += '--no-tests=error '
+            test_cmd += '-LE unstable -E "TestMliapPyUnified|AtomicPairStyle:meam_spline|KSpaceStyle:scafacos.*" '
+            test_cmd += f' || echo "Ignoring failing tests when installing for {cpu_target}"'
+            self.log.debug(f"Running tests using test_cmd = '{test_cmd}' as test_cmd")
+            self.cfg['test_cmd'] = test_cmd
 
 
 def pre_test_hook_ignore_failing_tests_SciPybundle(self, *args, **kwargs):
@@ -1917,6 +2093,7 @@ PARSE_HOOKS = {
     'OpenBLAS': parse_hook_openblas_relax_lapack_tests_num_errors,
     'pybind11': parse_hook_pybind11_replace_catch2,
     'Qt5': parse_hook_qt5_check_qtwebengine_disable,
+    'Qt6': parse_hook_qt6_libinput,
     'UCX': parse_hook_ucx_eprefix,
 }
 
@@ -1925,6 +2102,7 @@ PRE_FETCH_HOOKS = {}
 PRE_PREPARE_HOOKS = {
     'cuDNN': pre_prepare_hook_cudnn,
     'Highway': pre_prepare_hook_highway_handle_test_compilation_issues,
+    'LAMMPS': pre_prepare_hook_LAMMPS_kokkos_CUDA_families,
     'LLVM': pre_prepare_hook_llvm_a64fx,
     'PyTorch': pre_prepare_hook_pytorch,
     'Rust': pre_prepare_hook_llvm_a64fx,
@@ -1939,29 +2117,33 @@ POST_PREPARE_HOOKS = {
 
 PRE_CONFIGURE_HOOKS = {
     'BLIS': pre_configure_hook_BLIS,
+    'CMake': pre_configure_hook_cmake_system,
     'CUDA-Samples': pre_configure_hook_CUDA_Samples_test_remove,
-    'GObject-Introspection': pre_configure_hook_gobject_introspection,
+    'Dyninst': pre_configure_hook_dyninst,
     'Extrae': pre_configure_hook_extrae,
+    'GObject-Introspection': pre_configure_hook_gobject_introspection,
     'Graphviz': pre_configure_hook_graphviz,
     'GRASS': pre_configure_hook_grass,
+    'LAMMPS': pre_configure_hook_LAMMPS_zen4_and_aarch64_cuda,
     'libfabric': pre_configure_hook_libfabric_disable_psm3_x86_64_generic,
     'LLVM': pre_configure_hook_llvm,
-    'ROCm-LLVM': pre_configure_hook_llvm,
     'MetaBAT': pre_configure_hook_metabat_filtered_zlib_dep,
     'OpenBLAS': pre_configure_hook_openblas_optarch_generic,
     'OpenMPI': pre_configure_hook_openmpi_ipv6,
     'PMIx': pre_configure_hook_pmix_ipv6,
     'PRRTE': pre_configure_hook_prrte_ipv6,
-    'WRF': pre_configure_hook_wrf_aarch64,
-    'LAMMPS': pre_configure_hook_LAMMPS_zen4_and_aarch64_cuda,
+    'ROCm-LLVM': pre_configure_hook_llvm,
     'Score-P': pre_configure_hook_score_p,
-    'CMake': pre_configure_hook_cmake_system,
+    'WRF': pre_configure_hook_wrf_aarch64,
+    'Zoltan': pre_configure_hook_Zoltan,
 }
 
 PRE_TEST_HOOKS = {
     'ESPResSo': pre_test_hook_ignore_failing_tests_ESPResSo,
     'FFTW.MPI': pre_test_hook_ignore_failing_tests_FFTWMPI,
+    'GROMACS': pre_test_hook_gromacs,
     'Highway': pre_test_hook_exclude_failing_test_Highway,
+    'LAMMPS': pre_test_hook_lammps_ignore_failure_arm_generic,
     'SciPy-bundle': pre_test_hook_ignore_failing_tests_SciPybundle,
     'netCDF': pre_test_hook_ignore_failing_tests_netCDF,
     'OpenBabel': pre_test_hook_ignore_failing_tests_OpenBabel_a64fx,
@@ -2012,7 +2194,7 @@ PARALLELISM_LIMITS = {
     # software-specific limits
     'libxc': {
         '*': (divide_by_factor, 2),
-        CPU_TARGET_A64FX: (set_maximum, 12),
+        CPU_TARGET_A64FX: (set_maximum, 6),
     },
     'LLVM': {
         '*': (divide_by_factor, 2),
@@ -2042,5 +2224,11 @@ PARALLELISM_LIMITS = {
         CPU_TARGET_AARCH64_GENERIC: (divide_by_factor, 2),
         CPU_TARGET_NEOVERSE_N1: (divide_by_factor, 2),
         CPU_TARGET_NEOVERSE_V1: (divide_by_factor, 2),
+    },
+    'ROCm-LLVM': {
+        '*': (set_maximum, 12),
+    },
+    'jax': {
+        '*': (divide_by_factor, 2),
     },
 }

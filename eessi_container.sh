@@ -113,6 +113,9 @@ display_help() {
   echo "                            when a directory is provided, the format of the"
   echo "                            tarball's name will be {REPO_ID}-{TIMESTAMP}.tgz"
   echo "                            [default: not set]"
+  echo "  -S | --sandbox          - use sandbox mode (i.e. convert .sif image to sandbox and then run" 
+  echo "                            it instead)"
+  echo "                            [default: not set]"
   echo "  -v | --verbose          - display more information [default: false]"
   echo "  -x | --http-proxy URL   - provides URL for the env variable http_proxy"
   echo "                            [default: not set]; uses env var \$http_proxy if set"
@@ -274,6 +277,10 @@ while [[ $# -gt 0 ]]; do
     -s|--save)
       SAVE="$2"
       shift 2
+      ;;
+    -S|--sandbox)
+      SANDBOX=1
+      shift 1
       ;;
     -u|--resume)
       RESUME="$2"
@@ -1039,10 +1046,23 @@ for arg in "${PASS_THROUGH[@]}"; do
     ADDITIONAL_CONTAINER_OPTIONS+=(${arg})
 done
 
-echo "Launching container with command (next line):"
-echo "singularity ${RUN_QUIET} ${MODE} ${ADDITIONAL_CONTAINER_OPTIONS[@]} ${EESSI_FUSE_MOUNTS[@]} ${CONTAINER} $@"
-singularity ${RUN_QUIET} ${MODE} "${ADDITIONAL_CONTAINER_OPTIONS[@]}" "${EESSI_FUSE_MOUNTS[@]}" ${CONTAINER} "$@"
-exit_code=$?
+# EESSI_SINGULARITY_SANDBOX is an environment variable (typically set in site_config.sh, if needed)
+if [[ -n "${EESSI_SINGULARITY_SANDBOX}"  ||  ${SANDBOX} -eq 1 ]]; then
+    # using a sandbox image mode is more robust at the cleanup phase at the end
+    CONTAINER_SANDBOX="${CONTAINER%.sif}.sandbox"
+    echo "Building a sandbox image with command (next line):"
+    echo "singularity build --sandbox --force ${CONTAINER_SANDBOX} ${CONTAINER}"
+    singularity build --sandbox --force ${CONTAINER_SANDBOX} ${CONTAINER}
+    echo "Launching sandbox container with command (next line):"
+    echo "singularity ${RUN_QUIET} ${MODE} ${ADDITIONAL_CONTAINER_OPTIONS[@]} ${EESSI_FUSE_MOUNTS[@]} ${CONTAINER_SANDBOX} $@"
+    singularity ${RUN_QUIET} ${MODE} "${ADDITIONAL_CONTAINER_OPTIONS[@]}" "${EESSI_FUSE_MOUNTS[@]}" ${CONTAINER_SANDBOX} "$@"
+    exit_code=$?
+else
+    echo "Launching container with command (next line):"
+    echo "singularity ${RUN_QUIET} ${MODE} ${ADDITIONAL_CONTAINER_OPTIONS[@]} ${EESSI_FUSE_MOUNTS[@]} ${CONTAINER} $@"
+    singularity ${RUN_QUIET} ${MODE} "${ADDITIONAL_CONTAINER_OPTIONS[@]}" "${EESSI_FUSE_MOUNTS[@]}" ${CONTAINER} "$@"
+    exit_code=$?
+fi
 
 # 6. save tmp if requested (arg -s|--save)
 if [[ ! -z ${SAVE} ]]; then
