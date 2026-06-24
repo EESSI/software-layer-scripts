@@ -297,8 +297,10 @@ for ACCEL_OVERRIDE in "${EESSI_ACCELERATOR_TARGET_OVERRIDES[@]}"; do
         # add options required to handle NVIDIA support
         # only make the GPU available in the container if the host has a GPU and it has the correct compute capability
         if nvidia_gpu_available && nvidia_gpu_has_compute_capability "${nvidia_cc}" ; then
+            echo "bot/build.sh: GPU with the requested compute capability is available, using '--nvidia all'"
             BUILD_STEP_ARGS_ACCEL+=("--nvidia" "all")
         else
+            echo "bot/build.sh: no GPU with the requested compute capability is available, using '--nvidia install'"
             BUILD_STEP_ARGS_ACCEL+=("--nvidia" "install")
         fi
     fi
