@@ -72,9 +72,9 @@ fi
 # Example: PROPAGATE_INTO_PREFIX_FOO=bar => export FOO=bar
 while IFS='=' read -r var_name var_value; do
     # Only act on variables that start with the marker prefix
-    if [[ ${var_name} == PROPAGATE_INTO_PREFIX_* ]]; then
+    if [[ ${var_name} == EESSI_PROPAGATE_INTO_PREFIX_* ]]; then
         # Strip the marker prefix to obtain the target name
-        target_name=${var_name#PROPAGATE_INTO_PREFIX_}
+        target_name=${var_name#EESSI_PROPAGATE_INTO_PREFIX_}
         # Guard against empty target names
         if [[ -n ${target_name} ]]; then
             INPUT="export ${target_name}=${var_value}; ${INPUT}"
