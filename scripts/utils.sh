@@ -166,3 +166,34 @@ function nvidia_gpu_available {
 	return 2
     fi
 }
+
+function nvidia_gpu_has_compute_capability {
+  # Ensure we are given a single compute capability argument
+  if [ $# -ne 1 ]; then
+    echo_red "Function requires a single compute capability argument" >&2
+    return $ANY_ERROR_EXITCODE
+  fi
+  # Remove period (if present) from the given compute capability, i.e. 8.0 -> 80
+  requested_cc=${1//./}
+  # We are careful here in case we are running in a container and LD_LIBARY_PATH has been wiped.
+  mapfile -t gpu_ccs < <(LD_LIBRARY_PATH="/.singularity.d/libs:${LD_LIBRARY_PATH}" nvidia-smi --query-gpu=compute_cap --format=noheader)
+  # Remove the periods from all compute capabilities
+  gpu_ccs=("${gpu_ccs[@]//./}")
+  # On a multi-GPU system we may get the compute capabilities of all GPUs, one per line.
+  # In that case we print a warning and check the first GPU.
+  if [ ${#gpu_ccs[@]} -eq 0 ]; then
+    echo_red "ERROR: querying for the GPU's compute capability did not return anything."
+    return 1
+  else
+    if [ ${#gpu_ccs[@]} -gt 1 ]; then
+      echo_yellow "Warning: multiple GPUs detected, checking the compute capability of the first GPU".
+    fi
+    if [ "$requested_cc" == "${gpu_ccs[0]}" ]; then
+      echo_green "Requested compute capability matches the one from the GPU."
+      return 0
+    else
+      echo_yellow "Warning: the compute capability of the GPU (${gpu_ccs[0]}) does not match the requested compute capability ($requested_cc)."
+      return 2
+    fi
+  fi
+}
