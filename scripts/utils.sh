@@ -182,7 +182,7 @@ function nvidia_gpu_has_compute_capability {
   # On a multi-GPU system we may get the compute capabilities of all GPUs, one per line.
   # In that case we print a warning and check the first GPU.
   if [ ${#gpu_ccs[@]} -eq 0 ]; then
-    echo_red "Error: querying for the GPU's compute capability did not return anything."
+    echo_red "ERROR: querying for the GPU's compute capability did not return anything."
     return 1
   else
     if [ ${#gpu_ccs[@]} -gt 1 ]; then
@@ -192,7 +192,7 @@ function nvidia_gpu_has_compute_capability {
       echo_green "Requested compute capability matches the one from the GPU."
       return 0
     else
-      echo_red "Error: the compute capability of the GPU (${gpu_ccs[0]}) does not match the requested compute capability ($requested_cc)."
+      echo_yellow "Warning: the compute capability of the GPU (${gpu_ccs[0]}) does not match the requested compute capability ($requested_cc)."
       return 2
     fi
   fi
