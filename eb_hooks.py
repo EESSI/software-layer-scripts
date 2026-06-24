@@ -18,7 +18,7 @@ from easybuild.tools.config import build_option, install_path, update_build_opti
 from easybuild.tools.filetools import apply_regex_substitutions, copy_dir, copy_file, remove_file, symlink, which
 from easybuild.tools.modules import get_software_root, get_software_root_env_var_name
 from easybuild.tools.run import run_cmd
-from easybuild.tools.systemtools import AARCH64, POWER, X86_64, det_parallelism, get_cpu_architecture, get_cpu_features
+from easybuild.tools.systemtools import AARCH64, POWER, X86_64, det_parallelism, get_cpu_architecture, get_cpu_features, get_gpu_info
 from easybuild.tools.toolchain.compiler import OPTARCH_GENERIC
 from easybuild.tools.toolchain.toolchain import is_system_toolchain
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
@@ -1731,6 +1731,26 @@ def pre_test_hook_ignore_failing_tests_OpenBabel_a64fx(self, *args, **kwargs):
         self.cfg['testopts'] = "|| echo ignoring failing tests"
 
 
+def pre_test_hook_Siesta_ignore_failure_with_crosscompilation(self, *args, **kwargs):
+    """
+    Ignore failing tests when crosscompiling without gpu present.
+    """
+    if self.name == 'Siesta': 
+        if self.version in ['5.4.2']:
+            if 'CUDA' in self.cfg['versionsuffix']: 
+                cuda_cc = build_option('cuda_compute_capabilities')
+                if cuda_cc and not get_gpu_info():
+                    failing_tests=[
+                        "Solvers-si-qdot-elsi-elpa-gpu_mpi4_omp1", # runs cuda get device
+                        "Solvers-si-qdot-elsi-elpa-1stage-gpu_mpi4_omp1", # runs cuda get device
+                        "Solvers-si-qdot-elpa-native-gpu_mpi4_omp1", # runs cuda get device
+                        "Solvers-si-qdot-elpa-native-1stage-gpu_mpi4_omp1", # runs cuda get device
+                    ]
+                    extra_testopts = "|".join(failing_tests)
+                    testopts = self.cfg['testopts']
+                    self.cfg['testopts'] = re.sub(r"-E '(.*)'", rf"-E '\1|{extra_testopts}'", testopts)
+
+
 def pre_single_extension_hook(ext, *args, **kwargs):
     """Main pre-extension: trigger custom functions based on software name."""
     if ext.name in PRE_SINGLE_EXTENSION_HOOKS:
@@ -2145,6 +2165,7 @@ PRE_TEST_HOOKS = {
     'Highway': pre_test_hook_exclude_failing_test_Highway,
     'LAMMPS': pre_test_hook_lammps_ignore_failure_arm_generic,
     'SciPy-bundle': pre_test_hook_ignore_failing_tests_SciPybundle,
+    'Siesta': pre_test_hook_Siesta_ignore_failure_with_crosscompilation,
     'netCDF': pre_test_hook_ignore_failing_tests_netCDF,
     'OpenBabel': pre_test_hook_ignore_failing_tests_OpenBabel_a64fx,
     'PyTorch': pre_test_hook_increase_max_failed_tests_arm_PyTorch,
