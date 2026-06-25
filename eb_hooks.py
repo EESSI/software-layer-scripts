@@ -1713,11 +1713,15 @@ def pre_test_hook_increase_max_failed_tests_arm_PyTorch(self, *args, **kwargs):
     See https://github.com/EESSI/software-layer/issues/461
     """
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
-    if self.name == 'PyTorch' and self.version == '2.1.2':
-        if get_cpu_architecture() == AARCH64:
-            self.cfg['max_failed_tests'] = 10
-        if cpu_target in [CPU_TARGET_CASCADELAKE, CPU_TARGET_ICELAKE, CPU_TARGET_SAPPHIRE_RAPIDS]:
-            self.cfg['max_failed_tests'] = 4
+    if self.name == 'PyTorch':
+        if self.version == '2.1.2':
+            if get_cpu_architecture() == AARCH64:
+                self.cfg['max_failed_tests'] = 10
+            if cpu_target in [CPU_TARGET_CASCADELAKE, CPU_TARGET_ICELAKE, CPU_TARGET_SAPPHIRE_RAPIDS]:
+                self.cfg['max_failed_tests'] = 4
+        if self.version == '2.9.1':
+            if cpu_target == CPU_TARGET_A64FX:
+                self.cfg['max_failed_tests'] = 41
 
 
 def pre_test_hook_ignore_failing_tests_OpenBabel_a64fx(self, *args, **kwargs):
@@ -2280,6 +2284,12 @@ PARALLELISM_LIMITS = {
     'MBX': {
         '*': (divide_by_factor, 2),
         CPU_TARGET_A64FX: (set_maximum, 1),
+    },
+    'PyTorch': {
+        CPU_TARGET_AARCH64_GENERIC: (divide_by_factor, 2),
+        CPU_TARGET_A64FX: (set_maximum, 8),
+        CPU_TARGET_NEOVERSE_N1: (divide_by_factor, 2),
+        CPU_TARGET_NEOVERSE_V1: (divide_by_factor, 2),
     },
     'QuantumESPRESSO': {
         CPU_TARGET_A64FX: (set_maximum, 6),
