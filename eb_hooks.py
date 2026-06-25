@@ -11,7 +11,9 @@ from typing import NamedTuple
 import easybuild.tools.environment as env
 from easybuild.easyblocks.generic.configuremake import obtain_config_guess
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
-from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy
+from easybuild.framework.easyconfig.easyconfig import (
+    get_toolchain_hierarchy,
+)
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option, install_path, update_build_option
@@ -2014,38 +2016,93 @@ def replace_binary_non_distributable_files_with_symlinks(log, install_dir, pkg_n
                     symlink(host_inj_path, full_path)
 
 
+def find_rocm_llvm_dependency(ec):
+    """
+    Return the ROCm-LLVM dependency for this easyconfig, or None. ROCm-LLVM can
+    be a direct dependency, a direct toolchain component (rocm-compilers as the
+    toolchain), or one level deeper inside the rocm-compilers bundle when the
+    toolchain is rompi/rfbf/rfoss.
+    """
+    # Check if ROCm-LLVM is a direct dependency, and if so, return that
+    #
+    for dep in ec.asdict()['dependencies']:
+        # dep is a tuple (name, version, versionsuffix, toolchain); normalise it to the
+        # same dict format as ec.toolchain.tcdeps entries before returning
+        if dep[0] == 'ROCm-LLVM':
+            return {
+                'name': dep[0],
+                'version': dep[1],
+                'versionsuffix': dep[2] if len(dep) > 2 else '',
+                'toolchain': dep[3] if len(dep) > 3 else None,
+            }
+
+    # ROCm-LLVM can also be part of the toolchain. First, return early if this is NOT a ROCm-based toolchain
+    if ec['toolchain']['name'] not in ('rocm-compilers', 'rompi', 'rfbf', 'rfoss'):
+        return None
+
+    tcdeps = ec.toolchain.tcdeps or []
+    # Check if ROCm-LLVM is a direct dependency for this toolchain (which would be the case for rocm-compilers)
+    for dep in tcdeps:
+        if dep['name'] == 'ROCm-LLVM':
+            return dep
+    # For rompi, rfbf, rfoss, ROCm-LLVM is pulled in indirectly via rocm-compilers. the rocm-compilers 
+    # toolchain dependency already encodes the ROCm version in its version string (e.g. '19.0.0-ROCm-6.4.1')
+    rocm_prefix = '-ROCm-'
+    for dep in tcdeps:
+        if dep['name'] == 'rocm-compilers':
+            full_version = dep['version'] + dep.get('versionsuffix', '')
+            if rocm_prefix in full_version:
+                version, rocm_version = full_version.split(rocm_prefix, 1)
+                return {
+                    'name': dep['name'],
+                    'version': version,
+                    'versionsuffix': rocm_prefix + rocm_version,
+                }
+
+    return None
+
+
 def inject_gpu_property(ec):
     """
     Add 'gpu' property and EESSI<PACKAGE>VERSION envvars via modluafooter
     easyconfig parameter, and drop dependencies to build dependencies
     """
     ec_dict = ec.asdict()
-    # Check if CUDA, cuDNN, you-name-it is in the dependencies, if so
-    # - drop dependency to build dependency
-    # - add 'gpu' Lmod property
-    # - add envvar with package version
-    pkg_names = ( "CUDA", "cuDNN" )
     pkg_versions = { }
     add_gpu_property = ''
 
-    for pkg_name in pkg_names:
-        # Check if pkg_name is in the dependencies, if so drop dependency to build
-        # dependency and set variable for later adding the 'gpu' Lmod property
-        # to '.remove' dependencies from ec_dict['dependencies'] we make a copy,
-        # iterate over the copy and can then savely use '.remove' on the original
-        # ec_dict['dependencies'].
-        deps = ec_dict['dependencies'][:]
-        if (pkg_name in [dep[0] for dep in deps]):
+    # Check if pkg_name is related to CUDA, if so drop dependency to build
+    # dependency and set variable for later adding the 'gpu' Lmod property
+    # to '.remove' dependencies from ec_dict['dependencies'] we make a copy,
+    # iterate over the copy and can then savely use '.remove' on the original
+    # ec_dict['dependencies'].
+    for pkg_name in ('CUDA', 'cuDNN'):
+        for dep in ec_dict['dependencies'][:]:
+            if dep[0] != pkg_name:
+                continue
+
             add_gpu_property = 'add_property("arch","gpu")'
-            for dep in deps:
-                if pkg_name == dep[0]:
-                    # make pkg_name a build dependency only (rpathing saves us from link errors)
-                    ec.log.info("Dropping dependency on %s to build dependency" % pkg_name)
-                    ec_dict['dependencies'].remove(dep)
-                    if dep not in ec_dict['builddependencies']:
-                        ec_dict['builddependencies'].append(dep)
-                    # take note of version for creating the modluafooter
-                    pkg_versions[pkg_name] = dep[1]
+            pkg_versions[pkg_name] = dep[1]
+
+            ec.log.info("Dropping dependency on %s to build dependency" % pkg_name)
+            ec_dict['dependencies'].remove(dep)
+            if dep not in ec_dict['builddependencies']:
+                ec_dict['builddependencies'].append(dep)
+
+    # ROCm-LLVM is handled separately: it is redistributable (kept as a runtime dep)
+    # and may be pulled in via a ROCm toolchain rather than as a direct dependency.
+    rocm_llvm_dep = find_rocm_llvm_dependency(ec)
+    if rocm_llvm_dep is not None:
+        add_gpu_property = 'add_property("arch","gpu")'
+        versionsuffix = rocm_llvm_dep['versionsuffix']
+        rocm_prefix = "-ROCm-"
+
+        if versionsuffix.startswith(rocm_prefix):
+            rocm_version = versionsuffix[len(rocm_prefix):]
+        else:
+            raise EasyBuildError(f"Invalid format for ROCm versionssuffix: {versionsuffix}")
+        pkg_versions['ROCm'] = rocm_version
+
     if add_gpu_property:
         ec.log.info("Injecting gpu as Lmod arch property and envvars for dependencies with their version")
         modluafooter = 'modluafooter'
