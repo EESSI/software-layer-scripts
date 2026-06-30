@@ -2080,10 +2080,11 @@ def inject_gpu_property(ec):
     """
     ec_dict = ec.asdict()
 
-    top_level_accelerator_packages = ["CUDA", "ROCm"]
     pkg_versions = { }
     add_gpu_property = ''
     
+    # Packages that define the accelerator ecosystem
+    top_level_accelerator_packages = ["CUDA", "ROCm"]
     # Create a dependency property in the easyconfig instance that provides
     # quick access to the CUDA/ROCm version
     ec.eessi_gpu_dependency = ()
@@ -2129,7 +2130,7 @@ def inject_gpu_property(ec):
             envvar = "EESSI%sVERSION" % pkg_name.upper()
             extra_mod_footer_lines.append('setenv("%s","%s")' % (envvar, version))
             # Store the information about what ROCm/CUDA version the software is using
-            if pkg_name in top_level_accelerator_packages:
+            if pkg_name.upper() in [pkg.upper() for pkg in top_level_accelerator_packages]:
                 ec.eessi_gpu_dependency = (pkg_name.upper(), version.upper())
         # take into account that modluafooter may already be set
         if modluafooter in ec_dict:
