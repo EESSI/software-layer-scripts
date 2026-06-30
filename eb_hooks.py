@@ -11,17 +11,19 @@ from typing import NamedTuple
 import easybuild.tools.environment as env
 from easybuild.easyblocks.generic.configuremake import obtain_config_guess
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
-from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy
+from easybuild.framework.easyconfig.easyconfig import (
+    get_toolchain_hierarchy,
+)
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option, install_path, update_build_option
 from easybuild.tools.filetools import apply_regex_substitutions, copy_dir, copy_file, remove_file, symlink, which
+from easybuild.tools.modules import get_software_root, get_software_root_env_var_name
 from easybuild.tools.run import run_cmd
-from easybuild.tools.systemtools import AARCH64, POWER, X86_64, det_parallelism, get_cpu_architecture, get_cpu_features
+from easybuild.tools.systemtools import AARCH64, POWER, X86_64, det_parallelism, get_cpu_architecture, get_cpu_features, get_gpu_info
 from easybuild.tools.toolchain.compiler import OPTARCH_GENERIC
 from easybuild.tools.toolchain.toolchain import is_system_toolchain
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
-from easybuild.tools.modules import get_software_root_env_var_name
 
 # prefer importing LooseVersion from easybuild.tools, but fall back to distuils in case EasyBuild <= 4.7.0 is used
 try:
@@ -52,6 +54,7 @@ SYSTEM = EASYCONFIG_CONSTANTS['SYSTEM'][0]
 
 EESSI_INSTALLATION_REGEX = r"^/cvmfs/[^/]*.eessi.io/versions/"
 HOST_INJECTIONS_LOCATION = "/cvmfs/software.eessi.io/host_injections/"
+SITE_INSTALLATION_LOCATION = os.getenv("EESSI_SITE_SOFTWARE_PREFIX", HOST_INJECTIONS_LOCATION)
 
 # Make sure a single environment variable name is used for this throughout the hooks
 EESSI_IGNORE_ZEN4_GCC1220_ENVVAR="EESSI_IGNORE_LMOD_ERROR_ZEN4_GCC1220"
@@ -73,6 +76,11 @@ EESSI_SUPPORTED_TOP_LEVEL_TOOLCHAINS = {
 if EASYBUILD_VERSION >= '5.2.0':
     EESSI_SUPPORTED_TOP_LEVEL_TOOLCHAINS['2025.06'].append(
         {'name': 'lfoss', 'version': '2025b'}
+    )
+
+if EASYBUILD_VERSION >= '5.3.1':
+    EESSI_SUPPORTED_TOP_LEVEL_TOOLCHAINS['2025.06'].append(
+        {'name': 'rompi', 'version': '2025a'}
     )
 
 # Supported compute capabilities by CUDA toolkit version
@@ -755,7 +763,7 @@ def pre_fetch_hook_check_installation_path(self, *args, **kwargs):
     accelerator_toolchains = ['rocm-compilers', 'rompi', 'rfbf', 'rfoss']
     strict_eessi_installation = (
         bool(re.search(EESSI_INSTALLATION_REGEX, self.installdir)) or
-        self.installdir.startswith(HOST_INJECTIONS_LOCATION))
+        self.installdir.startswith(SITE_INSTALLATION_LOCATION))
     if strict_eessi_installation and not os.getenv("EESSI_OVERRIDE_STRICT_INSTALLPATH_CHECK"):
         dependency_names = self.cfg.dependency_names()
         if (
@@ -768,7 +776,9 @@ def pre_fetch_hook_check_installation_path(self, *args, **kwargs):
                 raise EasyBuildError(
                     f"It seems you are trying to install an accelerator package {self.cfg.name} into a "
                     f"non-accelerator location {self.installdir}. You need to reconfigure your installation to target "
-                    "the correct location."
+                    "the correct location. If using the EESSI-extend module, this means reloading that module "
+                    "with EESSI_ACCELERATOR_INSTALL set:\n"
+                    "  EESSI_ACCELERATOR_INSTALL=1 module load EESSI-extend"
                     )
         else:
             # If we don't have an accelerator dependency then we should be in a CPU installation path
@@ -776,7 +786,9 @@ def pre_fetch_hook_check_installation_path(self, *args, **kwargs):
                 raise EasyBuildError(
                     f"It seems you are trying to install a CPU-only package {self.cfg.name} into accelerator location "
                     f"{self.installdir}. If this is a dependency of the package you are really interested in you will "
-                    "need to first install the CPU-only dependencies of that package."
+                    "need to first install the CPU-only dependencies of that package. If using the EESSI-extend "
+                    "module, this means reloading that module with EESSI_ACCELERATOR_INSTALL unset:\n"
+                    "  unset EESSI_ACCELERATOR_INSTALL && module load EESSI-extend"
                     )
 
 
@@ -1062,6 +1074,27 @@ def pre_prepare_hook_pytorch(self, *args, **kwargs):
                 os.environ['GLIBC_TUNABLES'] = 'glibc.rtld.execstack=2'
     else:
         raise EasyBuildError("PyTorch-specific hook triggered for non-PyTorch easyconfig?!")
+
+
+def pre_prepare_hook_LAMMPS_kokkos_CUDA_families(self, *args, **kwargs):
+    """
+    Kokkos does not have support building for GPU families.
+    This cause problems for EasyBuild cuda sanity check for CUDA Compute Capalities such as 9.0a, 10.0f, 12.0f etc.
+    This hook strips the suffixes when building LAMMPS with kokkos.
+    """
+    if self.name == 'LAMMPS':
+        if self.version in ['22Jul2025']:
+            if self.cfg['kokkos']:
+                cuda_cc = build_option('cuda_compute_capabilities')
+                if cuda_cc and '9.0a' in cuda_cc:
+                    updated_cuda_cc = [v.replace('9.0a', '9.0') for v in cuda_cc]
+                    update_build_option('cuda_compute_capabilities', updated_cuda_cc)
+                elif cuda_cc and '10.0f' in cuda_cc:
+                    updated_cuda_cc = [v.replace('10.0f', '10.0') for v in cuda_cc]
+                    update_build_option('cuda_compute_capabilities', updated_cuda_cc)
+                elif cuda_cc and '12.0f' in cuda_cc:
+                    updated_cuda_cc = [v.replace('12.0f', '12.0') for v in cuda_cc]
+                    update_build_option('cuda_compute_capabilities', updated_cuda_cc)
 
 
 def post_prepare_hook_llvm_a64fx(self, *args, **kwargs):
@@ -1491,6 +1524,23 @@ def pre_configure_hook_cmake_system(self, *args, **kwargs):
         raise EasyBuildError("CMake-specific hook triggered for non-CMake easyconfig?!")
 
 
+def pre_configure_hook_Zoltan(self, *args, **kwargs):
+    """
+    Pre-configure hook for Zoltan to filter out ParMETIS configure options,
+    since we filter out ParMETIS as a dependency
+    """
+    if self.name == 'Zoltan':
+        if get_software_root('ParMETIS') is None:
+            configopts = self.cfg['configopts']
+            # get rid of all --with-parmetis configure options, and inject --without-parmetis
+            configopts = re.sub('--with-parmetis[^ ]*', '', configopts)
+            configopts += " --without-parmetis"
+            self.cfg['configopts'] = configopts
+            self.log.info("Removed --with-parmetis* configure options for {self.name}, ParMETIS is not a dependency")
+    else:
+        raise EasyBuildError("Zoltan-specific hook triggered for non-Zoltan easyconfig?!")
+
+
 def pre_test_hook(self, *args, **kwargs):
     """Main pre-test hook: trigger custom functions based on software name."""
     if self.name in PRE_TEST_HOOKS:
@@ -1512,6 +1562,18 @@ def pre_test_hook_exclude_failing_test_Highway(self, *args, **kwargs):
         self.cfg['runtest'] += ' ARGS="-E TestAllShiftRightLanes/SVE_256"'
     if self.name == 'Highway' and self.version in ['1.0.3'] and cpu_target == CPU_TARGET_NVIDIA_GRACE:
         self.cfg['runtest'] += ' ARGS="-E TestAllSumOfLanes"'
+
+
+def pre_test_hook_gromacs(self, *args, **kwargs):
+    """
+    Solve GROMACS test failure on NVIDIA Grace CPUs when hwloc support is enabled.
+    """
+    cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+    if self.name == 'GROMACS':
+        if self.version < '2026.3' and cpu_target == CPU_TARGET_NVIDIA_GRACE:
+            self.cfg['pretestopts'] = 'export HWLOC_KEEP_NVIDIA_GPU_NUMA_NODES=0 && '
+    else:
+        raise EasyBuildError("GROMACS-specific hook triggered for non-GROMACS easyconfig?!")
 
 
 def pre_test_hook_ignore_failing_tests_ESPResSo(self, *args, **kwargs):
@@ -1680,6 +1742,26 @@ def pre_test_hook_ignore_failing_tests_OpenBabel_a64fx(self, *args, **kwargs):
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
     if self.name == 'OpenBabel' and self.version == '3.1.1' and cpu_target == CPU_TARGET_A64FX:
         self.cfg['testopts'] = "|| echo ignoring failing tests"
+
+
+def pre_test_hook_Siesta_ignore_failure_with_crosscompilation(self, *args, **kwargs):
+    """
+    Ignore failing tests when crosscompiling without gpu present.
+    """
+    if self.name == 'Siesta': 
+        if self.version in ['5.4.2']:
+            if 'CUDA' in self.cfg['versionsuffix']: 
+                cuda_cc = build_option('cuda_compute_capabilities')
+                if cuda_cc and not get_gpu_info():
+                    failing_tests=[
+                        "Solvers-si-qdot-elsi-elpa-gpu_mpi4_omp1", # runs cuda get device
+                        "Solvers-si-qdot-elsi-elpa-1stage-gpu_mpi4_omp1", # runs cuda get device
+                        "Solvers-si-qdot-elpa-native-gpu_mpi4_omp1", # runs cuda get device
+                        "Solvers-si-qdot-elpa-native-1stage-gpu_mpi4_omp1", # runs cuda get device
+                    ]
+                    extra_testopts = "|".join(failing_tests)
+                    testopts = self.cfg['testopts']
+                    self.cfg['testopts'] = re.sub(r"-E '(.*)'", rf"-E '\1|{extra_testopts}'", testopts)
 
 
 def pre_single_extension_hook(ext, *args, **kwargs):
@@ -1945,46 +2027,99 @@ def replace_binary_non_distributable_files_with_symlinks(log, install_dir, pkg_n
                     symlink(host_inj_path, full_path)
 
 
+def find_rocm_llvm_dependency(ec):
+    """
+    Return the ROCm-LLVM dependency for this easyconfig, or None. ROCm-LLVM can
+    be a direct dependency, a direct toolchain component (rocm-compilers as the
+    toolchain), or one level deeper inside the rocm-compilers bundle when the
+    toolchain is rompi/rfbf/rfoss.
+    """
+    # Check if ROCm-LLVM is a direct dependency, and if so, return that
+    #
+    for dep in ec.asdict()['dependencies']:
+        # dep is a tuple (name, version, versionsuffix, toolchain); normalise it to the
+        # same dict format as ec.toolchain.tcdeps entries before returning
+        if dep[0] == 'ROCm-LLVM':
+            return {
+                'name': dep[0],
+                'version': dep[1],
+                'versionsuffix': dep[2] if len(dep) > 2 else '',
+                'toolchain': dep[3] if len(dep) > 3 else None,
+            }
+
+    # ROCm-LLVM can also be part of the toolchain. First, return early if this is NOT a ROCm-based toolchain
+    if ec['toolchain']['name'] not in ('rocm-compilers', 'rompi', 'rfbf', 'rfoss'):
+        return None
+
+    tcdeps = ec.toolchain.tcdeps or []
+    # Check if ROCm-LLVM is a direct dependency for this toolchain (which would be the case for rocm-compilers)
+    for dep in tcdeps:
+        if dep['name'] == 'ROCm-LLVM':
+            return dep
+    # For rompi, rfbf, rfoss, ROCm-LLVM is pulled in indirectly via rocm-compilers. the rocm-compilers 
+    # toolchain dependency already encodes the ROCm version in its version string (e.g. '19.0.0-ROCm-6.4.1')
+    rocm_prefix = '-ROCm-'
+    for dep in tcdeps:
+        if dep['name'] == 'rocm-compilers':
+            full_version = dep['version'] + dep.get('versionsuffix', '')
+            if rocm_prefix in full_version:
+                version, rocm_version = full_version.split(rocm_prefix, 1)
+                return {
+                    'name': dep['name'],
+                    'version': version,
+                    'versionsuffix': rocm_prefix + rocm_version,
+                }
+
+    return None
+
+
 def inject_gpu_property(ec):
     """
     Add 'gpu' property and EESSI<PACKAGE>VERSION envvars via modluafooter
     easyconfig parameter, and drop dependencies to build dependencies
     """
     ec_dict = ec.asdict()
-    # Check if CUDA, cuDNN, you-name-it is in the dependencies, if so
-    # - drop dependency to build dependency
-    # - add 'gpu' Lmod property
-    # - add envvar with package version
-    top_level_accelerator_packages = ( "CUDA" )
-    pkg_names = ( "CUDA", "cuDNN" )
+
+    top_level_accelerator_packages = ["CUDA", "ROCm"]
     pkg_versions = { }
     add_gpu_property = ''
+    
     # Create a dependency property in the easyconfig instance that provides
     # quick access to the CUDA/ROCm version
     ec.eessi_gpu_dependency = ()
 
-    for pkg_name in pkg_names:
-        # Check if pkg_name is in the dependencies, if so drop dependency to build
-        # dependency and set variable for later adding the 'gpu' Lmod property
-        # to '.remove' dependencies from ec_dict['dependencies'] we make a copy,
-        # iterate over the copy and can then savely use '.remove' on the original
-        # ec_dict['dependencies'].
-        deps = ec_dict['dependencies'][:]
-        if (pkg_name in [dep[0] for dep in deps]):
+    # Check if pkg_name is related to CUDA, if so drop dependency to build
+    # dependency and set variable for later adding the 'gpu' Lmod property
+    # to '.remove' dependencies from ec_dict['dependencies'] we make a copy,
+    # iterate over the copy and can then savely use '.remove' on the original
+    # ec_dict['dependencies'].
+    for pkg_name in ('CUDA', 'cuDNN'):
+        for dep in ec_dict['dependencies'][:]:
+            if dep[0] != pkg_name:
+                continue
+
             add_gpu_property = 'add_property("arch","gpu")'
-            for dep in deps:
-                if pkg_name == dep[0]:
-                    # make pkg_name a build dependency only (rpathing saves us from link errors)
-                    ec.log.info("Dropping dependency on %s to build dependency" % pkg_name)
-                    ec_dict['dependencies'].remove(dep)
-                    if dep not in ec_dict['builddependencies']:
-                        ec_dict['builddependencies'].append(dep)
-                    # take note of version for creating the modluafooter
-                    pkg_versions[pkg_name] = dep[1]
-                if dep[0] in top_level_accelerator_packages:
-                    # Store the dependency as a property for later potential use
-                    # (e.g., accelerator-specific MPI RPATH overrides)
-                    ec.eessi_gpu_dependency = dep
+
+            pkg_versions[pkg_name] = dep[1]
+
+            ec.log.info("Dropping dependency on %s to build dependency" % pkg_name)
+            ec_dict['dependencies'].remove(dep)
+            if dep not in ec_dict['builddependencies']:
+                ec_dict['builddependencies'].append(dep)
+
+    # ROCm-LLVM is handled separately: it is redistributable (kept as a runtime dep)
+    # and may be pulled in via a ROCm toolchain rather than as a direct dependency.
+    rocm_llvm_dep = find_rocm_llvm_dependency(ec)
+    if rocm_llvm_dep is not None:
+        add_gpu_property = 'add_property("arch","gpu")'
+        versionsuffix = rocm_llvm_dep['versionsuffix']
+        rocm_prefix = "-ROCm-"
+
+        if versionsuffix.startswith(rocm_prefix):
+            rocm_version = versionsuffix[len(rocm_prefix):]
+        else:
+            raise EasyBuildError(f"Invalid format for ROCm versionssuffix: {versionsuffix}")
+        pkg_versions['ROCm'] = rocm_version
 
     if add_gpu_property:
         ec.log.info("Injecting gpu as Lmod arch property and envvars for dependencies with their version")
@@ -1993,6 +2128,9 @@ def inject_gpu_property(ec):
         for pkg_name, version in pkg_versions.items():
             envvar = "EESSI%sVERSION" % pkg_name.upper()
             extra_mod_footer_lines.append('setenv("%s","%s")' % (envvar, version))
+            # Store the information about what ROCm/CUDA version the software is using
+            if pkg_name in top_level_accelerator_packages:
+                ec.eessi_gpu_dependency = (pkg_name.upper(), version.upper())
         # take into account that modluafooter may already be set
         if modluafooter in ec_dict:
             value = ec_dict[modluafooter]
@@ -2062,6 +2200,7 @@ PRE_FETCH_HOOKS = {}
 PRE_PREPARE_HOOKS = {
     'cuDNN': pre_prepare_hook_cudnn,
     'Highway': pre_prepare_hook_highway_handle_test_compilation_issues,
+    'LAMMPS': pre_prepare_hook_LAMMPS_kokkos_CUDA_families,
     'LLVM': pre_prepare_hook_llvm_a64fx,
     'PyTorch': pre_prepare_hook_pytorch,
     'Rust': pre_prepare_hook_llvm_a64fx,
@@ -2076,32 +2215,35 @@ POST_PREPARE_HOOKS = {
 
 PRE_CONFIGURE_HOOKS = {
     'BLIS': pre_configure_hook_BLIS,
+    'CMake': pre_configure_hook_cmake_system,
     'CUDA-Samples': pre_configure_hook_CUDA_Samples_test_remove,
-    'GObject-Introspection': pre_configure_hook_gobject_introspection,
+    'Dyninst': pre_configure_hook_dyninst,
     'Extrae': pre_configure_hook_extrae,
+    'GObject-Introspection': pre_configure_hook_gobject_introspection,
     'Graphviz': pre_configure_hook_graphviz,
     'GRASS': pre_configure_hook_grass,
+    'LAMMPS': pre_configure_hook_LAMMPS_zen4_and_aarch64_cuda,
     'libfabric': pre_configure_hook_libfabric_disable_psm3_x86_64_generic,
     'LLVM': pre_configure_hook_llvm,
-    'ROCm-LLVM': pre_configure_hook_llvm,
     'MetaBAT': pre_configure_hook_metabat_filtered_zlib_dep,
     'OpenBLAS': pre_configure_hook_openblas_optarch_generic,
     'OpenMPI': pre_configure_hook_openmpi_ipv6,
     'PMIx': pre_configure_hook_pmix_ipv6,
     'PRRTE': pre_configure_hook_prrte_ipv6,
-    'WRF': pre_configure_hook_wrf_aarch64,
-    'LAMMPS': pre_configure_hook_LAMMPS_zen4_and_aarch64_cuda,
+    'ROCm-LLVM': pre_configure_hook_llvm,
     'Score-P': pre_configure_hook_score_p,
-    'Dyninst': pre_configure_hook_dyninst,
-    'CMake': pre_configure_hook_cmake_system,
+    'WRF': pre_configure_hook_wrf_aarch64,
+    'Zoltan': pre_configure_hook_Zoltan,
 }
 
 PRE_TEST_HOOKS = {
     'ESPResSo': pre_test_hook_ignore_failing_tests_ESPResSo,
     'FFTW.MPI': pre_test_hook_ignore_failing_tests_FFTWMPI,
+    'GROMACS': pre_test_hook_gromacs,
     'Highway': pre_test_hook_exclude_failing_test_Highway,
     'LAMMPS': pre_test_hook_lammps_ignore_failure_arm_generic,
     'SciPy-bundle': pre_test_hook_ignore_failing_tests_SciPybundle,
+    'Siesta': pre_test_hook_Siesta_ignore_failure_with_crosscompilation,
     'netCDF': pre_test_hook_ignore_failing_tests_netCDF,
     'OpenBabel': pre_test_hook_ignore_failing_tests_OpenBabel_a64fx,
     'PyTorch': pre_test_hook_increase_max_failed_tests_arm_PyTorch,
@@ -2151,7 +2293,7 @@ PARALLELISM_LIMITS = {
     # software-specific limits
     'libxc': {
         '*': (divide_by_factor, 2),
-        CPU_TARGET_A64FX: (set_maximum, 12),
+        CPU_TARGET_A64FX: (set_maximum, 6),
     },
     'LLVM': {
         '*': (divide_by_factor, 2),
@@ -2178,5 +2320,8 @@ PARALLELISM_LIMITS = {
     },
     'ROCm-LLVM': {
         '*': (set_maximum, 12),
+    },
+    'jax': {
+        '*': (divide_by_factor, 2),
     },
 }

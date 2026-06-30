@@ -59,6 +59,29 @@ fi
 if [ ! -z ${EESSI_INIT_PREFIX} ]; then
     INPUT="export EESSI_INIT_PREFIX=${EESSI_INIT_PREFIX}; ${INPUT}"
 fi
+if [ ! -z ${EESSI_SITE_INSTALL_FORCE} ]; then
+    INPUT="export EESSI_SITE_INSTALL_FORCE=${EESSI_SITE_INSTALL_FORCE}; ${INPUT}"
+    if [ ! -z ${EESSI_SITE_SOFTWARE_PREFIX} ]; then
+        INPUT="export EESSI_SITE_SOFTWARE_PREFIX=${EESSI_SITE_SOFTWARE_PREFIX}; ${INPUT}"
+    fi
+fi
+
+# The above propagates some hard-coded environment variables into the prefix environment
+# Here, we provide a mechanism that propagates ANY variable named PROPAGATE_INTO_PREFIX_<NAME>
+# into the prefix environment as "export <NAME>=<value>"
+# Example: PROPAGATE_INTO_PREFIX_FOO=bar => export FOO=bar
+while IFS='=' read -r var_name var_value; do
+    # Only act on variables that start with the marker prefix
+    if [[ ${var_name} == EESSI_PROPAGATE_INTO_PREFIX_* ]]; then
+        # Strip the marker prefix to obtain the target name
+        target_name=${var_name#EESSI_PROPAGATE_INTO_PREFIX_}
+        # Guard against empty target names
+        if [[ -n ${target_name} ]]; then
+            INPUT="export ${target_name}=${var_value}; ${INPUT}"
+        fi
+    fi
+done < <(env)   # feed the current environment to the while‑loop
+
 
 echo "Running '${INPUT}' in EESSI (${EESSI_CVMFS_REPO}) ${EESSI_VERSION} compatibility layer environment..."
 ${EESSI_COMPAT_LAYER_DIR}/startprefix <<< "${INPUT}"
