@@ -17,37 +17,6 @@ display_help() {
   echo "  --skip-cuda-install    -  disable installing a full CUDA SDK in the host_injections prefix (e.g. in CI)"
 }
 
-function copy_build_log() {
-    # copy specified build log to specified directory, with some context added
-    build_log=${1}
-    build_logs_dir=${2}
-
-    # also copy to build logs directory, if specified
-    if [ ! -z "${build_logs_dir}" ]; then
-        log_filename="$(basename ${build_log})"
-        if [ ! -z "${SLURM_JOB_ID}" ]; then
-            # use subdirectory for build log in context of a Slurm job
-            build_log_path="${build_logs_dir}/jobs/${SLURM_JOB_ID}/${log_filename}"
-        else
-            build_log_path="${build_logs_dir}/non-jobs/${log_filename}"
-        fi
-        mkdir -p $(dirname ${build_log_path})
-        cp -a ${build_log} ${build_log_path}
-        chmod 0644 ${build_log_path}
-
-        # add context to end of copied log file
-        echo >> ${build_log_path}
-        echo "Context from which build log was copied:" >> ${build_log_path}
-        echo "- original path of build log: ${build_log}" >> ${build_log_path}
-        echo "- working directory: ${PWD}" >> ${build_log_path}
-        echo "- Slurm job ID: ${SLURM_OUT}" >> ${build_log_path}
-        echo "- EasyBuild version: ${eb_version}" >> ${build_log_path}
-        echo "- easystack file: ${easystack_file}" >> ${build_log_path}
-
-        echo "EasyBuild log file ${build_log} copied to ${build_log_path} (with context appended)"
-    fi
-}
-
 function safe_module_use {
     # add a given non-empty directory to $MODULEPATH if and only if it is not yet in
     directory=${1}
