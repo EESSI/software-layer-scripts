@@ -1159,7 +1159,6 @@ def pre_configure_hook_CUDA_Samples_test_remove(self, *args, **kwargs):
             print_msg(f"CUDA-Samples hook triggered but no hook needed for version {self.version}")
 
 
-
 def pre_configure_hook_grass(self, *args, **kwargs):
     """
     Pre-configure hook for GRASS to remove filtered deps specific configopts lines for readline, zlib, and bzlib
