@@ -1156,7 +1156,7 @@ def pre_configure_hook_CUDA_Samples_test_remove(self, *args, **kwargs):
                 else:
                     print_msg("Makefile not found at %s", makefile_path)
         else:
-            print_warning(f"CUDA-Samples hook triggered but version {self.version} does not have a code path.")
+            print_msg(f"CUDA-Samples hook triggered but no hook needed for version {self.version}")
 
 
 
