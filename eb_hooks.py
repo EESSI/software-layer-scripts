@@ -1141,21 +1141,22 @@ def pre_configure_hook_BLIS(self, *args, **kwargs):
 
 def pre_configure_hook_CUDA_Samples_test_remove(self, *args, **kwargs):
     """skip immaTensorCoreGemm in CUDA-Samples for compute capability 7.0."""
-    if self.name == 'CUDA-Samples' and self.version in ['12.1']:
-        # Get compute capability from build option
-        cuda_caps = build_option('cuda_compute_capabilities')
-        # Check if compute capability 7.0 is in the list
-        if cuda_caps and '7.0' in cuda_caps:
-            print_msg("Applying hook for CUDA-Samples %s with compute capability 7.0", self.version)
-            # local_filters is set by the easyblock, remove path to the Makefile instead
-            makefile_path = os.path.join(self.start_dir, 'Samples/3_CUDA_Features/immaTensorCoreGemm/Makefile')
-            if os.path.exists(makefile_path):
-                remove_file(makefile_path)
-                print_msg("Removed Makefile at %s to skip immaTensorCoreGemm build", makefile_path)
-            else:
-                print_msg("Makefile not found at %s", makefile_path)
-    else:
-        raise EasyBuildError("CUDA-Samples-specific hook triggered for non-CUDA-Samples easyconfig?!")
+    if self.name == 'CUDA-Samples':
+        if self.version in ['12.1']:
+            # Get compute capability from build option
+            cuda_caps = build_option('cuda_compute_capabilities')
+            # Check if compute capability 7.0 is in the list
+            if cuda_caps and '7.0' in cuda_caps:
+                print_msg("Applying hook for CUDA-Samples %s with compute capability 7.0", self.version)
+                # local_filters is set by the easyblock, remove path to the Makefile instead
+                makefile_path = os.path.join(self.start_dir, 'Samples/3_CUDA_Features/immaTensorCoreGemm/Makefile')
+                if os.path.exists(makefile_path):
+                    remove_file(makefile_path)
+                    print_msg("Removed Makefile at %s to skip immaTensorCoreGemm build", makefile_path)
+                else:
+                    print_msg("Makefile not found at %s", makefile_path)
+        else:
+            print_msg(f"CUDA-Samples hook triggered but no hook needed for version {self.version}")
 
 
 def pre_configure_hook_grass(self, *args, **kwargs):
