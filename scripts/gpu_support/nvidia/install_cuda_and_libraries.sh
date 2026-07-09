@@ -225,9 +225,9 @@ for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
     fi
     avail_space=$(df --output=avail "${tmpdir}"/ | tail -n 1 | awk '{print $1}')
     if (( avail_space < required_space_in_tmpdir )); then
-      error="Need at least $(echo "${required_space_in_tmpdir} / 1000000" | bc) temporary disk space under ${tmpdir}.\n"
-      error="${error}Set the environment variable TEMP_DIR to a location with adequate space to pass this check."
-      error="${error}You can alternatively set EASYBUILD_BUILDPATH and/or EASYBUILD_SOURCEPATH"
+      error="Need at least $(echo "${required_space_in_tmpdir} / 1000000" | bc) GB temporary disk space under ${tmpdir}.\n"
+      error="${error}Provide a location with adequate space via the argument '--temp-dir /path/to/tmpdir' to pass this check. "
+      error="${error}You can alternatively set EASYBUILD_BUILDPATH and/or EASYBUILD_SOURCEPATH "
       error="${error}to reduce this requirement. Exiting now..."
       fatal_error "${error}"
     fi
