@@ -1765,6 +1765,18 @@ def pre_test_hook_Siesta_ignore_failure_with_crosscompilation(self, *args, **kwa
                     self.cfg['testopts'] = re.sub(r"-E '(.*)'", rf"-E '\1|{extra_testopts}'", testopts)
 
 
+def pre_test_hook_LAMMPS_skip_ctest_with_crosscompilation(self, *args, **kwargs):
+    """
+    Ignore failing tests when crosscompiling without gpu present.
+    """
+    if self.name == 'LAMMPS': 
+        if self.version in ['22Jul2025']:
+            if 'CUDA' in self.cfg['versionsuffix']: 
+                cuda_cc = build_option('cuda_compute_capabilities')
+                if cuda_cc and not get_gpu_info():
+                    self.cfg['runtest'] = False
+
+
 def pre_single_extension_hook(ext, *args, **kwargs):
     """Main pre-extension: trigger custom functions based on software name."""
     if ext.name in PRE_SINGLE_EXTENSION_HOOKS:
@@ -2249,6 +2261,7 @@ PRE_TEST_HOOKS = {
     'netCDF': pre_test_hook_ignore_failing_tests_netCDF,
     'OpenBabel': pre_test_hook_ignore_failing_tests_OpenBabel_a64fx,
     'PyTorch': pre_test_hook_increase_max_failed_tests_arm_PyTorch,
+    'LAMMPS': pre_test_hook_LAMMPS_skip_ctest_with_crosscompilation,
 }
 
 PRE_SINGLE_EXTENSION_HOOKS = {
