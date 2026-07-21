@@ -74,6 +74,7 @@ EESSI_SUPPORTED_TOP_LEVEL_TOOLCHAINS = {
     ],
     '2026.06': [
         {'name': 'foss', 'version': '2026.1'},
+        {'name': 'lfoss', 'version': '2026.1'},
     ],
 }
 if EASYBUILD_VERSION >= '5.2.0':
