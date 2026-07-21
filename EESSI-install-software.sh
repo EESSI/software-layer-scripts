@@ -201,7 +201,6 @@ module unuse $MODULEPATH
 # drivers and libraries are installed in /cvmfs/software.eessi.io, and not in the EESSI_SITE_SOFTWARE_PREFIX
 EESSI_SITE_SOFTWARE_PREFIX_BACKUP=${EESSI_SITE_SOFTWARE_PREFIX}
 unset EESSI_SITE_SOFTWARE_PREFIX
-export EESSI_DEBUG_INIT=1
 module use $TOPDIR/init/modules
 module load EESSI/$EESSI_VERSION
 
