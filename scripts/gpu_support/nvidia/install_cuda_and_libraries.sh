@@ -290,7 +290,7 @@ done
 
 # Check that we processed at least one easystack file
 if [ ${#PROCESSED_EASYSTACK_FILES[@]} -gt 0 ]; then
-    echo_green "${#PROCESSED_EASYSTACK_FILES[@]} easystack files processed."
+    echo_green "${#PROCESSED_EASYSTACK_FILES[@]} easystack files processed:"
     for EASYSTACK_FILE in "${PROCESSED_EASYSTACK_FILES[@]}"; do
         echo_green "- ${EASYSTACK_FILE}"
     done
