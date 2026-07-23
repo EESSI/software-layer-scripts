@@ -94,12 +94,16 @@ SAVE_MODULEPATH=${MODULEPATH}
 
 # Check if NVIDIA_EASYSTACKS_DIRECTORY is already set and not empty
 if [ -n "${NVIDIA_EASYSTACKS_DIRECTORY}" ]; then
-    echo_yellow "Using environment override NVIDIA_EASYSTACKS_DIRECTORY: ${EASYSTACKS_DIRECTORY}"
+    echo_yellow "Using environment override NVIDIA_EASYSTACKS_DIRECTORY: ${NVIDIA_EASYSTACKS_DIRECTORY}"
 else
-    NVIDIA_EASYSTACKS_DIRECTORY="${TOPDIR}"
-    echo_green "NVIDIA_EASYSTACKS_DIRECTORY environment variable override is not set, using default ${EASYSTACKS_DIRECTORY}"
+    NVIDIA_EASYSTACKS_DIRECTORY="${TOPDIR}/easystacks"
+    echo_green "NVIDIA_EASYSTACKS_DIRECTORY environment variable override is not set, using default ${NVIDIA_EASYSTACKS_DIRECTORY}"
 fi
-for EASYSTACK_FILE in ${NVIDIA_EASYSTACKS_DIRECTORY}/easystacks/eessi-*CUDA*.yml; do
+# Initialize an empty array to store the processed easystack paths
+PROCESSED_EASYSTACK_FILES=()
+for EASYSTACK_FILE in ${NVIDIA_EASYSTACKS_DIRECTORY}/eessi-*CUDA*.yml; do
+    # The file must exist
+    [ -e "${EASYSTACK_FILE}" ] || continue
     echo -e "Processing easystack file ${EASYSTACK_FILE}...\n\n"
 
     # determine version of EasyBuild module to load based on EasyBuild version included in name of easystack file
@@ -274,6 +278,7 @@ for EASYSTACK_FILE in ${NVIDIA_EASYSTACKS_DIRECTORY}/easystacks/eessi-*CUDA*.yml
       fatal_error "some installation failed, please check EasyBuild logs ${PWD}/$(basename ${eb_last_log})..."
     else
       echo_green "all installations at ${EASYBUILD_INSTALLPATH}/software/... succeeded!"
+      PROCESSED_EASYSTACK_FILES+=("${EASYSTACK_FILE}")
     fi
 
     # clean up tmpdir content
@@ -282,5 +287,17 @@ for EASYSTACK_FILE in ${NVIDIA_EASYSTACKS_DIRECTORY}/easystacks/eessi-*CUDA*.yml
     # Restore MODULEPATH for next loop iteration
     MODULEPATH=${SAVE_MODULEPATH}
 done
+
+# Check that we processed at least one easystack file
+if [ ${#PROCESSED_EASYSTACK_FILES[@]} -gt 0 ]; then
+    echo_green "${#PROCESSED_EASYSTACK_FILES[@]} easystack files processed."
+    for EASYSTACK_FILE in "${PROCESSED_EASYSTACK_FILES[@]}"; do
+        echo_green "- ${EASYSTACK_FILE}"
+    done
+else
+    echo_red "Error: No matching CUDA easystack files were found in ${NVIDIA_EASYSTACKS_DIRECTORY}!"
+    # exit 1
+fi
+
 # Remove the temporary directory
 rm -rf "${tmpdir}"
