@@ -295,7 +295,7 @@ if [ ${#PROCESSED_EASYSTACK_FILES[@]} -gt 0 ]; then
         echo_green "- ${EASYSTACK_FILE}"
     done
 else
-    fatal_error "Error: No matching CUDA easystack files were found in ${NVIDIA_EASYSTACKS_DIRECTORY}!"
+    fatal_error "Error: No matching CUDA easystack files were successfully found/processed in ${NVIDIA_EASYSTACKS_DIRECTORY}!"
 fi
 
 # Remove the temporary directory
