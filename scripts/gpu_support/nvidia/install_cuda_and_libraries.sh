@@ -92,7 +92,14 @@ echo "Created temporary directory '${tmpdir}'"
 # Store MODULEPATH so it can be restored at the end of each loop iteration
 SAVE_MODULEPATH=${MODULEPATH}
 
-for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
+# Check if NVIDIA_EASYSTACKS_DIRECTORY is already set and not empty
+if [ -n "${NVIDIA_EASYSTACKS_DIRECTORY}" ]; then
+    echo_yellow "Using environment override NVIDIA_EASYSTACKS_DIRECTORY: ${EASYSTACKS_DIRECTORY}"
+else
+    NVIDIA_EASYSTACKS_DIRECTORY="${TOPDIR}"
+    echo_green "NVIDIA_EASYSTACKS_DIRECTORY environment variable override is not set, using default ${EASYSTACKS_DIRECTORY}"
+fi
+for EASYSTACK_FILE in ${NVIDIA_EASYSTACKS_DIRECTORY}/easystacks/eessi-*CUDA*.yml; do
     echo -e "Processing easystack file ${EASYSTACK_FILE}...\n\n"
 
     # determine version of EasyBuild module to load based on EasyBuild version included in name of easystack file
