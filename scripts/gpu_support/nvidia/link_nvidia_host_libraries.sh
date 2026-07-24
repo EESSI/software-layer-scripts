@@ -110,8 +110,8 @@ get_nvlib_list() {
 
     # see https://apptainer.org/docs/admin/1.0/configfiles.html#nvidia-gpus-cuda
     # https://github.com/apptainer/apptainer/commits/main/etc/nvliblist.conf
-    # This default_nvlib_list is based on this commit on Oct 1, 2024:
-    # https://github.com/apptainer/apptainer/commit/a19fa01527a8914839b8d1649688f83c61ba9ad2
+    # This default_nvlib_list is based on this commit on July 24, 2026:
+    # https://github.com/apptainer/apptainer/commit/b86c0aa171357c7be265d3130ab4f13a4061422f
     # TODO: driver version which corresponds to?
     local default_nvlib_list=(
         "libcuda.so"
