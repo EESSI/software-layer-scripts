@@ -212,7 +212,8 @@ nvidia_accelpath() {
 
 amd_accelpath() {
     # Method 1: Check for AMD GPUs via KFD sysfs interface (No amd-smi or Python required)
-    local kfd_nodes="/sys/devices/virtual/kfd/kfd/topology/nodes"
+    # The base path can be overridden via $EESSI_KFD_NODES_OVERRIDE (used for testing with fixtures)
+    local kfd_nodes="${EESSI_KFD_NODES_OVERRIDE:-/sys/devices/virtual/kfd/kfd/topology/nodes}"
 
     if [[ -d "$kfd_nodes" ]]; then
         log "DEBUG" "amd_accelpath: KFD sysfs path found @ ${kfd_nodes}"
