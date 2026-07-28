@@ -292,24 +292,33 @@ accelpath() {
     fi
 
     # 1. Check for NVIDIA GPUs
-    local nv_res
+    local nv_res nv_rc
     nv_res=$(nvidia_accelpath)
-    if [[ $? -eq 0 ]]; then
+    nv_rc=$?
+    if [[ $nv_rc -eq 0 ]]; then
         log "DEBUG" "accelpath: result: ${nv_res}"
         echo "$nv_res"
         return 0
+    elif [[ $nv_rc -eq 3 ]]; then
+        # nvidia-smi is present but failed: treat as a hard error rather than
+        # silently falling through to other accelerator vendors
+        exit 3
     fi
 
     # 2. Check for AMD GPUs
-    local amd_res
+    local amd_res amd_rc
     amd_res=$(amd_accelpath)
-    if [[ $? -eq 0 ]]; then
+    amd_rc=$?
+    if [[ $amd_rc -eq 0 ]]; then
         log "DEBUG" "accelpath: result: ${amd_res}"
         echo "$amd_res"
         return 0
+    elif [[ $amd_rc -eq 3 ]]; then
+        # amd-smi is present but failed: treat as a hard error
+        exit 3
     fi
 
-    # 3. Fail gracefully if neither is found
+    # 3. Fail gracefully if no accelerator was found
     log "DEBUG" "accelpath: No supported accelerators found on this system."
     exit 2
 }
