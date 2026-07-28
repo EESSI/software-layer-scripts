@@ -74,12 +74,14 @@ jobs:
                   test "x${match}" = "x" || (echo "unexpected match found for '${pattern}' in init output" && exit 1)
 
               else
-                  # no AMD accelerator stack exists in EESSI yet, so a detected AMD GPU
-                  # is expected to have no matching path under the CPU target
-                  accel=$(cat ./tests/archdetect/amd-kfd/${{matrix.kfd_fixture}}.output)
-                  pattern="No matching path found in x86_64/amd/zen2 for accelerator detected by archdetect (${accel})"
+                  # No AMD accelerator stack exists in EESSI yet, so a detected AMD GPU is
+                  # expected to have no matching path under the CPU target. The init script may
+                  # first map the detected target to its nearest supported base target (e.g.
+                  # gfx90a->gfx900, gfx942->gfx940, gfx1101->gfx1100), so match the "No matching
+                  # path found" line without pinning the exact gfx string.
+                  pattern="No matching path found in x86_64/amd/zen2 for accelerator detected by archdetect (accel/amd/gfx"
                   echo ">>> checking for pattern '${pattern}' in init output..."
-                  grep "${pattern}" init.out || (echo "FAILED 1" && exit 1)
+                  grep -F "${pattern}" init.out || (echo "FAILED 1" && exit 1)
 
                   pattern="Prepending /cvmfs/software.eessi.io/versions/${{matrix.EESSI_VERSION}}/software/linux/.*/accel/.*/modules/all to \$MODULEPATH"
                   echo ">>> checking for lack of pattern '${pattern}' in init output..."
