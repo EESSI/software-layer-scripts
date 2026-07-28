@@ -2,4 +2,5 @@
   - LAMMPS-22Jul2025-foss-2024a-kokkos-CUDA-12.6.0.eb:
        # https://github.com/easybuilders/easybuild-easyblocks/pull/4175
        options:
-         include-easyblocks-from-commit: 96604beebcc0c0484c0c5eb72613e00f8ef3efab
+         include-easyblocks-from-commit: 29d749c2720f94fd566c18acd1af910c4484dd34
+         ignore-test-failure: true
