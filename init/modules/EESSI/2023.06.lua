@@ -54,6 +54,11 @@ if (
             LmodError("The EESSI development repository dev.eessi.io is not mounted on your system.\n" ..
                       "This is required for RISC-V systems.")
         end
+    -- RISCV and EESSI 2026.06 or later
+    else
+        if not os.getenv("EESSI_INIT_RISCV_SUPPRESS_SUPPORT_WARNING") then
+            LmodWarning("You are loading EESSI " .. eessi_version .. " on a system with RISC-V CPU. The RISC-V target is only partially supported by this EESSI version. You may find that some modules which are available for other targets are not available for this target. (set EESSI_INIT_RISCV_SUPPRESS_SUPPORT_WARNING=1 in your environment to suppress this warning)")
+        end
     end
 end
 setenv("EESSI_VERSION_DEFAULT", eessi_version)
