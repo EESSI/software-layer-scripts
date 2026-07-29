@@ -3,4 +3,3 @@
        # https://github.com/easybuilders/easybuild-easyblocks/pull/4175
        options:
          include-easyblocks-from-commit: 29d749c2720f94fd566c18acd1af910c4484dd34
-         ignore-test-failure: true
