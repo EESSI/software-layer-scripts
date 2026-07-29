@@ -1542,6 +1542,18 @@ def pre_configure_hook_Zoltan(self, *args, **kwargs):
         raise EasyBuildError("Zoltan-specific hook triggered for non-Zoltan easyconfig?!")
 
 
+def pre_configure_hook_LAMMPS_kokkos_CUDA_without_GPU(self, *args, **kwargs):
+    """
+    Set Kokkos Kokkos_ENABLE_Lambda=on when crosscompiling LAMMPS with CUDA without a GPU.
+    Testing if this does indeed change the linking to cuda libraries
+    """
+    if self.name == 'LAMMPS':
+        if self.version in ['22Jul2025']:
+            if 'CUDA' in self.cfg['versionsuffix']:
+                cuda_cc = build_option('cuda_compute_capabilities')
+                if cuda_cc and not get_gpu_info():
+                    self.cfg.update['configopts', '-DKokkos_ENABLE_Cuda_Lambda=on']
+
 def pre_test_hook(self, *args, **kwargs):
     """Main pre-test hook: trigger custom functions based on software name."""
     if self.name in PRE_TEST_HOOKS:
@@ -2248,6 +2260,7 @@ PRE_CONFIGURE_HOOKS = {
     'Score-P': pre_configure_hook_score_p,
     'WRF': pre_configure_hook_wrf_aarch64,
     'Zoltan': pre_configure_hook_Zoltan,
+    'LAMMPS': pre_configure_hook_LAMMPS_kokkos_CUDA_without_GPU,
 }
 
 PRE_TEST_HOOKS = {
