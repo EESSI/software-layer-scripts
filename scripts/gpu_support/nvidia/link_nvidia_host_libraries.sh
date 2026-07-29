@@ -110,8 +110,8 @@ get_nvlib_list() {
 
     # see https://apptainer.org/docs/admin/1.0/configfiles.html#nvidia-gpus-cuda
     # https://github.com/apptainer/apptainer/commits/main/etc/nvliblist.conf
-    # This default_nvlib_list is based on this commit on Oct 1, 2024:
-    # https://github.com/apptainer/apptainer/commit/a19fa01527a8914839b8d1649688f83c61ba9ad2
+    # This default_nvlib_list is based on this commit on July 24, 2026:
+    # https://github.com/apptainer/apptainer/commit/b86c0aa171357c7be265d3130ab4f13a4061422f
     # TODO: driver version which corresponds to?
     local default_nvlib_list=(
         "libcuda.so"
@@ -130,6 +130,9 @@ get_nvlib_list() {
         "libglx.so"
         "libGLX.so"
         "libnvcuvid.so"
+        "libnvcucompat.so"
+        "libnvcudla.so"
+        "libnvcuextend.so"
         "libnvidia-cbl.so"
         "libnvidia-cfg.so"
         "libnvidia-compiler.so"
@@ -150,10 +153,23 @@ get_nvlib_list() {
         "libnvidia-opencl.so"
         "libnvidia-opticalflow.so"
         "libnvidia-ptxjitcompiler.so"
+        "libnvidia-rmapi-tegra.so"
         "libnvidia-rtcore.so"
         "libnvidia-tls.so"
         "libnvidia-wfb.so"
         "libnvoptix.so"
+        "libnvos.so"
+        "libnvosd.so"
+        "libnvrm_chip.so"
+        "libnvrm_gpu.so"
+        "libnvrm_host1x.so"
+        "libnvrm_mem.so"
+        "libnvrm_stream.so"
+        "libnvrm_surface.so"
+        "libnvrm_sync.so"
+        "libnvsciipc.so"
+        "libnvsocsys.so"
+        "libnvtegrahv.so"
         "libOpenCL.so"
         "libOpenGL.so"
         "libvdpau_nvidia.so"
@@ -820,4 +836,3 @@ fi
 
 # If everything went OK, show success message
 echo_green "Host NVIDIA GPU drivers linked successfully for EESSI"
-

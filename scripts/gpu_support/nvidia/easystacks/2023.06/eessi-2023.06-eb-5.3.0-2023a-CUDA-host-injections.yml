@@ -7,3 +7,5 @@ easyconfigs:
         # needed to enforce acceptance of EULA in cuDNN easyblock,
         # see https://github.com/easybuilders/easybuild-easyblocks/pull/3473
         include-easyblocks-from-commit: 11afb88ec55e0ca431cbe823696aa43e2a9bfca8
+        # Don't fail for missing PTX
+        cuda-sanity-check-accept-missing-ptx: True

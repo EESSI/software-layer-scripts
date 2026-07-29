@@ -859,7 +859,6 @@ if [ -z ${EESSI_DO_NOT_MOUNT_CVMFS_CONFIG_CERN_CH+x} ]; then
     fi
 fi
 
-
 # iterate over REPOSITORIES and either use repository-specific access mode or global setting (possibly a global default)
 for cvmfs_repo in "${REPOSITORIES[@]}"
 do
@@ -1040,6 +1039,14 @@ if [ ! -z ${EESSI_SOFTWARE_SUBDIR_OVERRIDE} ]; then
     # also specify via $APPTAINERENV_* (future proof, cfr. https://apptainer.org/docs/user/latest/singularity_compatibility.html#singularity-environment-variable-compatibility)
     export APPTAINERENV_EESSI_SOFTWARE_SUBDIR_OVERRIDE=${EESSI_SOFTWARE_SUBDIR_OVERRIDE}
 fi
+
+# For Apptainer 1.5+, Apptainer includes system library locations in LD_LIBRARY_PATH
+# if host libraries are bind mounted to /.singularity/libs (as is done for GPU support).
+# This breaks our startprefix script in 2023.06/2025.06 in general, so we override this
+# behaviour universally.
+# (see https://github.com/EESSI/software-layer-scripts/issues/247)
+export SINGULARITYENV_LD_LIBRARY_PATH=/.singularity.d/libs
+export APPTAINERENV_LD_LIBRARY_PATH=/.singularity.d/libs
 
 # add pass through arguments
 for arg in "${PASS_THROUGH[@]}"; do
