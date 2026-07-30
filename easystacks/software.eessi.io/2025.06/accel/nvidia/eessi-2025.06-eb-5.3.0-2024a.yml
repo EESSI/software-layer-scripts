@@ -1,4 +1,10 @@
  easyconfigs:
+  # build also this one to see if it is the LAMMPS version or the build environment that is the issue
+  # Could also be the python bindings in this case since they have diffent python versions
+  - LAMMPS-2Aug2023_update2-foss-2024a-kokkos-CUDA-12.6.0.eb:
+       # https://github.com/easybuilders/easybuild-easyblocks/pull/4175
+       options:
+         include-easyblocks-from-commit: 29d749c2720f94fd566c18acd1af910c4484dd34
   - LAMMPS-22Jul2025-foss-2024a-kokkos-CUDA-12.6.0.eb:
        # https://github.com/easybuilders/easybuild-easyblocks/pull/4175
        options:
