@@ -1441,6 +1441,19 @@ def pre_configure_hook_openmpi_ipv6(self, *args, **kwargs):
         raise EasyBuildError("OpenMPI-specific hook triggered for non-OpenMPI easyconfig?!")
 
 
+def pre_configure_hook_petsc(self, *args, **kwargs):
+    """
+    Pre-configure hook for PETSc
+    - make sure that zlib is found in compat layer
+    """
+    if self.name == 'PETSc':
+        # only necessary for PETSc 3.24.0+
+        if LooseVersion(self.version) >= LooseVersion('3.24.0'):
+            self.cfg.update('configopts', '--with-zlib-dir=${EESSI_EPREFIX}/usr')
+    else:
+        raise EasyBuildError("PETSc-specific hook triggered for non-PETSc easyconfig?!")
+
+
 def pre_configure_hook_pmix_ipv6(self, *args, **kwargs):
     """
     Pre-configure hook to enable IPv6 support in PMIx from EESSI 2025.06 onwards
@@ -2277,6 +2290,7 @@ PRE_CONFIGURE_HOOKS = {
     'MetaBAT': pre_configure_hook_metabat_filtered_zlib_dep,
     'OpenBLAS': pre_configure_hook_openblas_optarch_generic,
     'OpenMPI': pre_configure_hook_openmpi_ipv6,
+    'PETSc': pre_configure_hook_petsc,
     'PMIx': pre_configure_hook_pmix_ipv6,
     'PRRTE': pre_configure_hook_prrte_ipv6,
     'ROCm-LLVM': pre_configure_hook_llvm,
