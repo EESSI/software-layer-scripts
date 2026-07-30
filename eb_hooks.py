@@ -244,7 +244,7 @@ def get_eessi_envvar(eessi_envvar):
 def get_rpath_override_dirs(software_name=None, stub_suffix=""):
     if software_name is None:
         raise EasyBuildError("This function should not be called without setting software_name")
-    
+
     # determine path to installations in software layer via $EESSI_SOFTWARE_PATH
     eessi_software_path = get_eessi_envvar('EESSI_SOFTWARE_PATH')
 
@@ -1208,6 +1208,45 @@ def pre_configure_hook_score_p(self, *args, **kwargs):
         raise EasyBuildError("Score-P-specific hook triggered for non-Score-P easyconfig?!")
 
 
+def pre_configure_hook_symengine(self, *args, **kwargs):
+    """
+    Pre-configure hook for SymEngine
+    """
+    if self.name == 'SymEngine':
+        # make sure that BFD (part of binutils) is found;
+        # full path depends on EESSI version and CPU family,
+        # something like ${EESSI_PREFIX}/usr/lib64/binutils/aarch64-unknown-linux-gnu/2.44/*
+        # or ${EESSI_PREFIX}/usr/lib64/binutils/x86_64-pc-linux-gnu/2.44/*
+        compat_layer_topdir = get_eessi_envvar('EESSI_EPREFIX')
+        libbfd_path_pattern = os.path.join(compat_layer_topdir, 'usr', 'lib64', 'binutils', '*-linux-gnu', '*', 'libbfd.so')
+        res = glob.glob(libbfd_path_pattern)
+        if res:
+            libbfd_path = res[0]
+            bfd_topdir = os.path.dirname(libbfd_path)
+            bfd_include_path = os.path.join(bfd_topdir, 'include')
+            if os.path.isdir(bfd_include_path):
+                self.cfg.update('configopts', f"-DBFD_INCLUDE_DIR={bfd_include_path}")
+                self.cfg.update('configopts', f"-DBFD_LIBRARY={libbfd_path}")
+                # add path to libbfd.so to $LIBRARY_PATH, so it gets added to RPATH section
+                library_path = os.getenv('LIBRARY_PATH')
+                os.environ['LIBRARY_PATH'] = f'{library_path}:{bfd_topdir}'
+            else:
+                raise EasyBuildError(f"binutils include path {bfd_include_path} does not exist?!")
+        else:
+            raise EasyBuildError(f"No match found for {libbfd_path_pattern}")
+
+        # make sure correct installation of GMP/MPC/MPFR is picked up (from dependencies, not compat layer)
+        for dep in ('GMP', 'MPC', 'MPFR'):
+            dep_installdir = get_software_root(dep)
+            if dep_installdir:
+                self.cfg.update('configopts', f"-D{dep}_INCLUDE_DIR={dep_installdir}/include")
+                self.cfg.update('configopts', f"-D{dep}_LIBRARY={dep_installdir}/lib/lib{dep.lower()}.so")
+            else:
+                raise EasyBuildError(f"Path for {dep} installaiton directory not found")
+    else:
+        raise EasyBuildError("SymEngine-specific hook triggered for non-SymEngine easyconfig?!")
+
+
 def pre_configure_hook_dyninst(self, *args, **kwargs):
     """
     Pre-configure hook for Dyninst
@@ -1770,9 +1809,9 @@ def pre_test_hook_Siesta_ignore_failure_with_crosscompilation(self, *args, **kwa
     """
     Ignore failing tests when crosscompiling without gpu present.
     """
-    if self.name == 'Siesta': 
+    if self.name == 'Siesta':
         if self.version in ['5.4.2']:
-            if 'CUDA' in self.cfg['versionsuffix']: 
+            if 'CUDA' in self.cfg['versionsuffix']:
                 cuda_cc = build_option('cuda_compute_capabilities')
                 if cuda_cc and not get_gpu_info():
                     failing_tests=[
@@ -2078,7 +2117,7 @@ def find_rocm_llvm_dependency(ec):
     for dep in tcdeps:
         if dep['name'] == 'ROCm-LLVM':
             return dep
-    # For rompi, rfbf, rfoss, ROCm-LLVM is pulled in indirectly via rocm-compilers. the rocm-compilers 
+    # For rompi, rfbf, rfoss, ROCm-LLVM is pulled in indirectly via rocm-compilers. the rocm-compilers
     # toolchain dependency already encodes the ROCm version in its version string (e.g. '19.0.0-ROCm-6.4.1')
     rocm_prefix = '-ROCm-'
     for dep in tcdeps:
@@ -2104,7 +2143,7 @@ def inject_gpu_property(ec):
 
     pkg_versions = { }
     add_gpu_property = ''
-    
+
     # Packages that define the accelerator ecosystem
     top_level_accelerator_packages = ["CUDA", "ROCm"]
     # Create a dependency property in the easyconfig instance that provides
@@ -2256,6 +2295,7 @@ PRE_CONFIGURE_HOOKS = {
     'PRRTE': pre_configure_hook_prrte_ipv6,
     'ROCm-LLVM': pre_configure_hook_llvm,
     'Score-P': pre_configure_hook_score_p,
+    'SymEngine': pre_configure_hook_symengine,
     'WRF': pre_configure_hook_wrf_aarch64,
     'Zoltan': pre_configure_hook_Zoltan,
 }
