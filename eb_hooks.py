@@ -961,7 +961,12 @@ def post_easyblock_hook_copy_easybuild_subdir(self, *args, **kwargs):
     now_utc_timestamp = datetime.datetime.now(datetime.UTC).strftime('%Y%m%d_%H%M%S%Z')
     app_easybuild_dir = os.path.join(self.installdir, config.log_path(ec=self.cfg))
     app_reprod_dir = os.path.join(stack_reprod_dir, self.install_subdir, now_utc_timestamp, 'easybuild')
-    copy_dir(app_easybuild_dir, app_reprod_dir)
+    # take into account that 'easybuild' subdirectory may not exist yet,
+    # for example in case of installations that failed because source files could not be downloaded
+    if os.path.exists(app_easybuild_dir):
+        copy_dir(app_easybuild_dir, app_reprod_dir)
+    else:
+        self.log.warning(f"{app_easybuild_dir} was *not* copied to {app_reprod_dir}, because it does not exist!")
 
 
 def pre_prepare_hook_cuda_dependant(self, *args, **kwargs):
