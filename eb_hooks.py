@@ -1222,10 +1222,14 @@ def pre_configure_hook_symengine(self, *args, **kwargs):
         res = glob.glob(libbfd_path_pattern)
         if res:
             libbfd_path = res[0]
-            bfd_include_path = os.path.join(os.path.dirname(libbfd_path), 'include')
+            bfd_topdir = os.path.dirname(libbfd_path)
+            bfd_include_path = os.path.join(bfd_topdir, 'include')
             if os.path.isdir(bfd_include_path):
                 self.cfg.update('configopts', f"-DBFD_INCLUDE_DIR={bfd_include_path}")
                 self.cfg.update('configopts', f"-DBFD_LIBRARY={libbfd_path}")
+                # add path to libbfd.so to $LIBRARY_PATH, so it gets added to RPATH section
+                library_path = os.getenv('LIBRARY_PATH')
+                os.environ['LIBRARY_PATH'] = f'{library_path}:{bfd_topdir}'
             else:
                 raise EasyBuildError(f"binutils include path {bfd_include_path} does not exist?!")
         else:
