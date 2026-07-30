@@ -1562,6 +1562,7 @@ def pre_configure_hook_LAMMPS_kokkos_CUDA_without_GPU(self, *args, **kwargs):
                 if cuda_cc and not get_gpu_info():
                     # This is not a fix will keep it arround for if I find something else
                     # self.cfg.update('configopts', '-DKokkos_ENABLE_CUDA_LAMBDA=on')
+                    print("DEBUG: ", self.cfg['configopts'])
 
 def pre_test_hook(self, *args, **kwargs):
     """Main pre-test hook: trigger custom functions based on software name."""
