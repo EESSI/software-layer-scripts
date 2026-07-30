@@ -1142,7 +1142,7 @@ def pre_configure_hook_BLIS(self, *args, **kwargs):
 def pre_configure_hook_CUDA_Samples_test_remove(self, *args, **kwargs):
     """skip immaTensorCoreGemm in CUDA-Samples for compute capability 7.0."""
     if self.name == 'CUDA-Samples':
-        if self.version in ['12.1']:
+        if self.version in ['12.1', '12.9']:
             # Get compute capability from build option
             cuda_caps = build_option('cuda_compute_capabilities')
             # Check if compute capability 7.0 is in the list
@@ -1150,9 +1150,17 @@ def pre_configure_hook_CUDA_Samples_test_remove(self, *args, **kwargs):
                 print_msg("Applying hook for CUDA-Samples %s with compute capability 7.0", self.version)
                 # local_filters is set by the easyblock, remove path to the Makefile instead
                 makefile_path = os.path.join(self.start_dir, 'Samples/3_CUDA_Features/immaTensorCoreGemm/Makefile')
+                # later versions use CMake rather than Makefiles
+                cmakefile_path = os.path.join(self.start_dir, 'Samples/3_CUDA_Features/CMakeLists.txt')
                 if os.path.exists(makefile_path):
                     remove_file(makefile_path)
                     print_msg("Removed Makefile at %s to skip immaTensorCoreGemm build", makefile_path)
+                elif os.path.exists(cmakefile_path):
+                    self.cfg.update(
+                        'preconfigopts',
+                        # Comment out the line that contains immaTensorCoreGemm
+                        "sed -i '17{/immaTensorCoreGemm/s/^/#/}' %s && " % cmakefile_path,
+                    )
                 else:
                     print_msg("Makefile not found at %s", makefile_path)
         else:
