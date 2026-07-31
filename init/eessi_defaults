@@ -19,7 +19,11 @@ else
     export EESSI_SOFTWARE_LAYER_VERSION_SUFFIX=""
 fi
 
-# use different defaults for RISC-V clients
+# Set defaults for EESSI_CVMFS_REPO and EESSI_INIT_PREFIX
+export EESSI_CVMFS_REPO="${EESSI_CVMFS_REPO_OVERRIDE:=/cvmfs/software.eessi.io}"
+export EESSI_INIT_PREFIX="${EESSI_CVMFS_REPO}/versions/${EESSI_VERSION}/init"
+
+# Overwrite with different defaults for RISC-V clients if they use EESSI version 2023.06, 20240402 or 2025.06
 if [[ $(uname -m) == "riscv64" ]]; then
     if [[ "${EESSI_VERSION}" == "2023.06" ]] || [[ "${EESSI_VERSION}" == "20240402" ]]; then
         export EESSI_CVMFS_REPO="${EESSI_CVMFS_REPO_OVERRIDE:=/cvmfs/riscv.eessi.io}"
@@ -39,10 +43,8 @@ if [[ $(uname -m) == "riscv64" ]]; then
             echo "software installations are provided by the EESSI development repository at ${EESSI_CVMFS_REPO}."
         fi
     fi
-else
-    export EESSI_CVMFS_REPO="${EESSI_CVMFS_REPO_OVERRIDE:=/cvmfs/software.eessi.io}"
-    export EESSI_INIT_PREFIX="${EESSI_CVMFS_REPO}/versions/${EESSI_VERSION}/init"
 fi
+
 # use archdetect by default, unless otherwise specified
 export EESSI_USE_ARCHDETECT="${EESSI_USE_ARCHDETECT:=1}"
 export EESSI_USE_ARCHSPEC="${EESSI_USE_ARCHSPEC:=0}"

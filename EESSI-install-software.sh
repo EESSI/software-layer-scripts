@@ -327,7 +327,7 @@ echo "Going to install full CUDA SDK and cu* libraries under host_injections if 
 temp_install_storage=${TMPDIR}/temp_install_storage
 mkdir -p ${temp_install_storage}
 if [ -z "${skip_cuda_install}" ] || [ ! "${skip_cuda_install}" ]; then
-    ${EESSI_PREFIX}/scripts/gpu_support/nvidia/install_cuda_and_libraries.sh \
+    ${TOPDIR}/scripts/gpu_support/nvidia/install_cuda_and_libraries.sh \
         -t ${temp_install_storage} \
         --accept-cuda-eula \
         --accept-cudnn-eula
@@ -339,7 +339,7 @@ fi
 if nvidia_gpu_available; then
     echo "Installing NVIDIA drivers for use in prefix shell..."
     # Site installs override EESSI_CVMFS_REPO, but link_nvidia_host_libraries should always use the usptream EESSI CVMFS repo
-    EESSI_CVMFS_REPO=/cvmfs/software.eessi.io ${EESSI_PREFIX}/scripts/gpu_support/nvidia/link_nvidia_host_libraries.sh
+    EESSI_CVMFS_REPO=/cvmfs/software.eessi.io ${TOPDIR}/scripts/gpu_support/nvidia/link_nvidia_host_libraries.sh
 fi
 
 # Now that we are done with all installs that should go the /cvmfs/software.eessi.io
