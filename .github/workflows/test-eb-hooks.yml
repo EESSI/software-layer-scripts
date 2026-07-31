@@ -14,6 +14,7 @@ jobs:
         EESSI_VERSION:
           - '2023.06'
           - '2025.06'
+          - '2026.06'
 
     steps:
         - name: Check out software-layer repository
@@ -58,6 +59,7 @@ jobs:
         EESSI_VERSION:
           - '2023.06'
           - '2025.06'
+          - '2026.06'
         include:
           # For each EESSI version we need to test different modules
           - EESSI_VERSION: '2023.06'
@@ -72,6 +74,12 @@ jobs:
             # Pick a site toolchain that will allow the incompatible easyconfig
             # (the name will be modified when exported)
             SITE_TOP_LEVEL_TOOLCHAINS: '[{"name": "GCCcore", "version": "13.2.0"}]'
+          - EESSI_VERSION: '2026.06'
+            COMPATIBLE_EASYCONFIG: 'M4-1.4.20-GCCcore-15.2.0.eb'
+            INCOMPATIBLE_EASYCONFIG: 'M4-1.4.19-GCCcore-14.2.0.eb'
+            # Pick a site toolchain that will allow the incompatible easyconfig
+            # (the name will be modified when exported)
+            SITE_TOP_LEVEL_TOOLCHAINS: '[{"name": "GCCcore", "version": "14.2.0"}]'
 
     steps:
         - name: Check out software-layer repository
@@ -123,6 +131,9 @@ jobs:
         # ROCm-LLVM / rocm-compilers / rompi only exist in the 2025.06 stack
         EESSI_VERSION:
           - '2025.06'
+          # TODO: this should be expanded for 2026.06 when ROCm support is added there
+          # But it will require specifying the non-GPU and GPU software to build for this version via an include: statement
+          # This would be similar to how COMPATIBLE_EASYCONFIG and INCOMPATIBLE_EASYCONFIG are used above
 
     steps:
         - name: Check out software-layer repository
