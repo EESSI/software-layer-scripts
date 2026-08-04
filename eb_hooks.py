@@ -2331,6 +2331,7 @@ PRE_TEST_HOOKS = {
     'Siesta': pre_test_hook_Siesta_ignore_failure_with_crosscompilation,
     'netCDF': pre_test_hook_ignore_failing_tests_netCDF,
     'OpenBabel': pre_test_hook_ignore_failing_tests_OpenBabel_a64fx,
+    'Perl': pre_test_hook_perl_reduce_parallelism,
     'PyTorch': pre_test_hook_increase_max_failed_tests_arm_PyTorch,
 }
 
