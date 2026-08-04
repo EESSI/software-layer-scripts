@@ -1684,6 +1684,18 @@ def pre_test_hook_lammps_ignore_failure_arm_generic(self, *args, **kwargs):
             self.cfg['test_cmd'] = test_cmd
 
 
+def pre_test_hook_perl_reduce_parallelism(self, *args, **kwargs):
+    """
+    Tests fail for Perl v5.42.0 when run with full parallelism. So, reduce parallelism.
+    See https://github.com/EESSI/software-layer/pull/1556#issuecomment-5183283054
+    """
+    if self.name == "Perl" and self.version == "5.42.0":
+        if hasattr(self, 'parallel'):
+            self.cfg.parallel = 1
+        else:
+            self.cfg['parallel'] = 1
+        print_msg("Limiting parallelism to 1 in the test step to avoid failures", log=self.log)
+
 def pre_test_hook_ignore_failing_tests_SciPybundle(self, *args, **kwargs):
     """
     Pre-test hook for SciPy-bundle: skip failing tests for selected SciPy-bundle versions
