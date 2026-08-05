@@ -1684,9 +1684,9 @@ def pre_test_hook_lammps_ignore_failure_arm_generic(self, *args, **kwargs):
             self.cfg['test_cmd'] = test_cmd
 
 
-def pre_test_hook_perl_reduce_parallelism(self, *args, **kwargs):
+def pre_test_hook_perl_increase_test_timeout(self, *args, **kwargs):
     """
-    Tests fail for Perl v5.42.0 when run with full parallelism. So, reduce parallelism.
+    Tests fail for Perl v5.42.0 when run with standard timeout. So, increase timeout by a factor of 10.
     See https://github.com/EESSI/software-layer/pull/1556#issuecomment-5183283054
     """
     if self.name == "Perl" and self.version == "5.42.0":
@@ -2328,7 +2328,7 @@ PRE_TEST_HOOKS = {
     'Siesta': pre_test_hook_Siesta_ignore_failure_with_crosscompilation,
     'netCDF': pre_test_hook_ignore_failing_tests_netCDF,
     'OpenBabel': pre_test_hook_ignore_failing_tests_OpenBabel_a64fx,
-    'Perl': pre_test_hook_perl_reduce_parallelism,
+    'Perl': pre_test_hook_perl_increase_test_timeout,
     'PyTorch': pre_test_hook_increase_max_failed_tests_arm_PyTorch,
 }
 
