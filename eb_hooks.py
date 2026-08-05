@@ -1690,6 +1690,7 @@ def pre_test_hook_perl_reduce_parallelism(self, *args, **kwargs):
     See https://github.com/EESSI/software-layer/pull/1556#issuecomment-5183283054
     """
     if self.name == "Perl" and self.version == "5.42.0":
+        self.cfg['pretestopts'] = "export PERL_TEST_TIME_OUT_FACTOR=10 && " + self.cfg['pretestopts']
         if hasattr(self, 'parallel'):
             self.cfg.parallel = 1
         else:
