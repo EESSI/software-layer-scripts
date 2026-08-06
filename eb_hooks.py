@@ -1684,6 +1684,15 @@ def pre_test_hook_lammps_ignore_failure_arm_generic(self, *args, **kwargs):
             self.cfg['test_cmd'] = test_cmd
 
 
+def pre_test_hook_perl_increase_test_timeout(self, *args, **kwargs):
+    """
+    Tests fail for Perl v5.42.0 when run with standard timeout. So, increase timeout by a factor of 10.
+    See https://github.com/EESSI/software-layer/pull/1556#issuecomment-5183283054
+    """
+    if self.name == "Perl" and self.version == "5.42.0":
+        # increase timeout for Perl tests, to avoid flaky failures in tests like dist/threads/t/libc.t
+        env.setvar('PERL_TEST_TIME_OUT_FACTOR', '10')
+
 def pre_test_hook_ignore_failing_tests_SciPybundle(self, *args, **kwargs):
     """
     Pre-test hook for SciPy-bundle: skip failing tests for selected SciPy-bundle versions
@@ -2319,6 +2328,7 @@ PRE_TEST_HOOKS = {
     'Siesta': pre_test_hook_Siesta_ignore_failure_with_crosscompilation,
     'netCDF': pre_test_hook_ignore_failing_tests_netCDF,
     'OpenBabel': pre_test_hook_ignore_failing_tests_OpenBabel_a64fx,
+    'Perl': pre_test_hook_perl_increase_test_timeout,
     'PyTorch': pre_test_hook_increase_max_failed_tests_arm_PyTorch,
 }
 
