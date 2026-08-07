@@ -1686,13 +1686,15 @@ def pre_test_hook_lammps_ignore_failure_arm_generic(self, *args, **kwargs):
 
 def pre_test_hook_perl_increase_test_timeout(self, *args, **kwargs):
     """
-    Tests fail for certain Perl versions when run with standard timeout. So, increase timeout by a factor of 10.
+    Tests fail for different Perl versions in EESSI 2026.06 when run with standard timeout. So, increase timeout by a factor of 10.
     See https://github.com/EESSI/software-layer/pull/1556#issuecomment-5183283054
     """
-    if self.name == "Perl":
-        if self.version == "5.42.0" or (self.version == "5.38.0" and is_system_toolchain(self.toolchain.name)):
-            # increase timeout for Perl tests, to avoid flaky failures in tests like dist/threads/t/libc.t
-            env.setvar('PERL_TEST_TIME_OUT_FACTOR', '10')
+    eessi_version = get_eessi_envvar('EESSI_VERSION')
+    if self.name == 'Perl':
+        if eessi_version == '2026.06':
+            if self.version in ['5.38.0', '5.42.0']:
+                # increase timeout for Perl tests, to avoid flaky failures in tests like dist/threads/t/libc.t
+                env.setvar('PERL_TEST_TIME_OUT_FACTOR', '10')
 
 def pre_test_hook_ignore_failing_tests_SciPybundle(self, *args, **kwargs):
     """
