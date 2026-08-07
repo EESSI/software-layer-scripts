@@ -1,0 +1,10 @@
+# Synthetic RVA23U64-floor host: unknown vendor; includes rva23 map tokens
+# (v + zba/zbb/zbs/zfhmin) plus zicbo* so the host also matches the stronger
+# rva22 floor (rva23 map omits zicbo*, but rva22 does not).
+processor	: 0
+hart		: 0
+isa		: rv64imafdcv_zicsr_zifencei_zba_zbb_zbs_zfhmin_zicbom_zicbop_zicboz
+mmu		: sv39
+mvendorid	: 0x123
+marchid		: 0x0
+mimpid		: 0x0

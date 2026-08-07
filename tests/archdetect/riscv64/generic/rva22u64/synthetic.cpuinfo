@@ -1,0 +1,9 @@
+# Synthetic RVA22U64-floor host: unknown vendor; ISA tokens match the
+# optarch-aligned rva22u64 matching floor (base + zba/zbb/zbs/zfhmin/zicbo*).
+processor	: 0
+hart		: 0
+isa		: rv64imafdc_zicsr_zifencei_zba_zbb_zbs_zfhmin_zicbom_zicbop_zicboz
+mmu		: sv39
+mvendorid	: 0x123
+marchid		: 0x0
+mimpid		: 0x0
