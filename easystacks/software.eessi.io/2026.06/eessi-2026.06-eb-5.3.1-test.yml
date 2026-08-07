@@ -1,4 +1,6 @@
 easyconfigs:
   - Automake-1.16.5.eb
   - Automake-1.18.1-GCCcore-15.2.0.eb
-  - parallel-20260522-GCCcore-15.2.0.eb
+  - parallel-20260522-GCCcore-15.2.0.eb:
+      options:
+        from-commit: cf3efa2000133a41fca32162f8de24a7cfda0a7d
