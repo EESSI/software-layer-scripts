@@ -25,9 +25,13 @@ jobs:
           - aarch64/neoverse_v1/AWS-awslinux-graviton3
           - aarch64/nvidia/grace/Jureca-Rocky95
           - aarch64/google/axion/GCP-axion
-          - riscv64/sifive/premier-Ubuntu24
+          - riscv64/sifive/p550/premier-Ubuntu24
+          - riscv64/sifive/u74-mc/starvision-Ubuntu24
           - riscv64/spacemit/bananaf3-Armbian
           - riscv64/spacemit/bananaf3-k6.6
+          - riscv64/generic/rva20u64/synthetic
+          - riscv64/generic/rva22u64/synthetic
+          - riscv64/generic/rva23u64/synthetic
           # commented out since these targets are currently not supported in software.eessi.io repo
           # (and some tests assume that the corresponding subdirectory in software layer is there)
           # - ppc64le/power9le/unknown-power9le
