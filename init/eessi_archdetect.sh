@@ -17,7 +17,7 @@ else
     exit 1
 fi
 
-VERSION="1.2.0"
+VERSION="1.3.0"
 
 # default log level: only emit warnings or errors
 LOG_LEVEL="WARN"
@@ -55,7 +55,7 @@ update_arch_specs(){
        # format spec line as an array and append it to array with all CPU arch specs
        cpu_arch_spec+=("(${spec_line})")
     # remove comments from spec file
-    done < <(sed -E 's/(^|[\s\t])#.*$//g;/^\s*$/d' "$spec_file")
+    done < <(sed -E 's/(^|[[:space:]])#.*$//g;/^[[:space:]]*$/d' "$spec_file")
 }
 
 # CPU specification of host system
@@ -64,7 +64,7 @@ get_cpuinfo(){
     # 1: string with key pattern
 
     [ -z "$1" ] && log "ERROR" "get_cpuinfo: missing key pattern in argument list"
-    cpuinfo_pattern="^${1}\s*:\s*"
+    cpuinfo_pattern="^${1}[[:space:]]*:[[:space:]]*"
 
     # case insensitive match of key pattern and delete key pattern from result
     grep -i "$cpuinfo_pattern" ${EESSI_PROC_CPUINFO:-/proc/cpuinfo} | tail -n 1 | sed "s/$cpuinfo_pattern//i"
@@ -83,6 +83,29 @@ check_allinfirst(){
         [[ " $reference " == *" $candidate "* ]] || return 1
     done
     return 0
+}
+
+riscv_expand_base(){
+    # Expand compact RISC-V base ISA blobs into per-letter tokens at match time.
+    # Host /proc/cpuinfo and eessi_arch_riscv.spec both use concatenated forms
+    # (e.g. rv64imafdch); without expansion a superset host like rv64imafdcvh
+    # fails a subset spec asking for rv64imafdch because the whole blob is one
+    # token. Expand both sides so specs stay readable and letter-wise subsets match.
+    #   rv64imafdch -> rv64 i m a f d c h
+    #   rv64gc      -> rv64 i m a f d c   (g is the IMAFD shorthand)
+    # Multi-letter extensions (zicsr, zba, sscofpmf, ...) pass through unchanged.
+    local out="" tok letters
+    for tok in "$@"; do
+        if [ "${tok#rv64}" != "${tok}" ]; then
+            # Replace g with imafd before letter-splitting; then split to tokens
+            letters=$(printf '%s' "${tok#rv64}" | sed 's/g/imafd/g; s/./& /g')
+            out="${out} rv64 ${letters}"
+        else
+            out="${out} ${tok}"
+        fi
+    done
+    # Normalise whitespace so callers can word-split safely (no empty tokens)
+    printf '%s' "${out}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;s/[[:space:]]\{1,\}/ /g'
 }
 
 cpupath(){
@@ -154,6 +177,14 @@ cpupath(){
     fi
 
     local cpu_flags=$(get_cpuinfo "$cpu_flag_tag")
+    if [ "${machine_type}" == "riscv64" ]; then
+        # RISC-V ISA strings use '_' as extension separators.
+        # Convert them to space-separated feature tokens so they
+        # can be matched like x86 CPU flags, then expand the compact
+        # base blob (rv64imafdc...) into per-letter tokens.
+        cpu_flags=${cpu_flags//_/ }
+        cpu_flags=$(riscv_expand_base ${cpu_flags})
+    fi
     log "DEBUG" "cpupath: CPU flags of host system: '$cpu_flags'"
 
     # Default to generic CPU
@@ -164,11 +195,19 @@ cpupath(){
     # Order of the specifications matters, the last one to match will be selected
     for arch in "${cpu_arch_spec[@]}"; do
         eval "arch_spec=$arch"
-        if [ "${cpu_vendor}x" == "${arch_spec[1]}x" ]; then
+        # Empty vendor in the spec means "any vendor" (profile paths like riscv64/generic/rva*).
+        # Vendor-specific entries still require an exact match (same as before).
+        if [ -z "${arch_spec[1]}" ] || [ "${cpu_vendor}x" == "${arch_spec[1]}x" ]; then
             # each flag in this CPU specification must be found in the list of flags of the host
-            check_allinfirst "${cpu_flags[*]}" ${arch_spec[2]} && best_arch_match=${arch_spec[0]} && \
-                all_arch_matches="$best_arch_match:$all_arch_matches" && \
-                log "DEBUG" "cpupath: host CPU best match updated to $best_arch_match" 
+            if [ "${machine_type}" == "riscv64" ]; then
+                check_allinfirst "${cpu_flags}" $(riscv_expand_base ${arch_spec[2]}) && best_arch_match=${arch_spec[0]} && \
+                    all_arch_matches="$best_arch_match:$all_arch_matches" && \
+                    log "DEBUG" "cpupath: host CPU best match updated to $best_arch_match"
+            else
+                check_allinfirst "${cpu_flags[*]}" ${arch_spec[2]} && best_arch_match=${arch_spec[0]} && \
+                    all_arch_matches="$best_arch_match:$all_arch_matches" && \
+                    log "DEBUG" "cpupath: host CPU best match updated to $best_arch_match"
+            fi
         fi
     done
 
