@@ -88,11 +88,11 @@ if EASYBUILD_VERSION >= '5.3.1':
     )
 
 # Supported compute capabilities by CUDA toolkit version
-# Obtained by installing all CUDAs from 12.0.0 to 13.1.0, then using:
+# Obtained by installing all CUDAs from 12.0.0 to 13.3.0, then using:
 
 # #!/bin/bash
 #
-# CUDA_VERS=(12.0.0 12.1.0 12.1.1 12.2.0 12.2.2 12.3.0 12.3.2 12.4.0 12.5.0 12.6.0 12.8.0 12.9.0 12.9.1 13.0.0 13.0.1 13.0.2 13.1.0)
+# CUDA_VERS=(12.0.0 12.1.0 12.1.1 12.2.0 12.2.2 12.3.0 12.3.2 12.4.0 12.5.0 12.6.0 12.8.0 12.9.0 12.9.1 13.0.0 13.0.1 13.0.2 13.1.0 13.1.1 13.2.0 13.3.0)
 #
 # for ver in ${CUDA_VERS[@]}; do
 #     module load CUDA/${ver}
