@@ -430,6 +430,15 @@ else
             echo_green "All set, let's start installing some software with EasyBuild v${eb_version} in ${EASYBUILD_INSTALLPATH}..."
 
             if [ -f ${easystack_file} ]; then
+                echo_green "Downloading sources for easystack file ${easystack_file}..."
+                # run eb --help to determine if --fetch-all is supported (available since 5.3.0), otherwise fall back to --fetch
+                fetch_option="--fetch"
+                ${EB} --help | grep -q -e "fetch-all" && fetch_option="--fetch-all"
+                ${EB} ${fetch_option} --easystack ${easystack_file} --robot
+                if [ $? -ne 0 ]; then
+                    fatal_error "Could not download all required source files for this easystack file."
+                fi
+
                 echo_green "Feeding easystack file ${easystack_file} to EasyBuild..."
 
                 if [[ ${easystack_file} == *"/rebuilds/"* ]]; then
