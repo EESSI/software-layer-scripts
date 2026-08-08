@@ -22,7 +22,7 @@
 # B in RVA23 is Zba+Zbb+Zbs; floors require those named extensions, not letter b.
 #
 # Floors (detectable mandatory subset):
-#   rva20u64: rv64imafdc zicsr zicntr
+#   rva20u64: rv64imafdc zicsr zicntr zifencei
 #   rva22u64: + zihpm zihintpause zba zbb zbs zicbom zicbop zicboz zfhmin zkt
 #   rva23u64: + v zihintntl zicond zimop zcmop zcb zfa zawrs zvfhmin zvbb zvkt
 #             and retains zicbo* from RVA22 (still mandatory in RVA23)
@@ -40,9 +40,9 @@
 #   spacemit/x60-k6.6 <- tests/.../spacemit/bananaf3-k6.6.cpuinfo
 
 # Software path in EESSI 	| Vendor ID 	| List of defining CPU features
-"riscv64/generic/rva20u64"	""		"rv64imafdc zicsr zicntr"
-"riscv64/generic/rva22u64"	""		"rv64imafdc zicsr zicntr zihpm zihintpause zba zbb zbs zicbom zicbop zicboz zfhmin zkt"
-"riscv64/generic/rva23u64"	""		"rv64imafdcv zicsr zicntr zihpm zihintpause zihintntl zba zbb zbs zicbom zicbop zicboz zfhmin zkt zicond zimop zcmop zcb zfa zawrs zvfhmin zvbb zvkt"
+"riscv64/generic/rva20u64"	""		"rv64imafdc zicsr zicntr zifencei"
+"riscv64/generic/rva22u64"	""		"rv64imafdc zicsr zicntr zifencei zihpm zihintpause zba zbb zbs zicbom zicbop zicboz zfhmin zkt"
+"riscv64/generic/rva23u64"	""		"rv64imafdcv zicsr zicntr zifencei zihpm zihintpause zihintntl zba zbb zbs zicbom zicbop zicboz zfhmin zkt zicond zimop zcmop zcb zfa zawrs zvfhmin zvbb zvkt"
 "riscv64/sifive/p550"		"0x489"		"rv64imafdch zicsr zifencei zba zbb sscofpmf"	# full measured P550 isa
 "riscv64/sifive/u74-mc"		"0x489"		"rv64imafdc zicntr zicsr zifencei zihpm zca zcd zba zbb"	# full measured VisionFive 2 isa
 "riscv64/spacemit/x60"		"0x710"		"rv64imafdcv sscofpmf sstc svpbmt zicbom zicboz zicbop zihintpause"	# full Armbian-short isa
