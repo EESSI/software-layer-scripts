@@ -1,0 +1,10 @@
+# Synthetic RVA20U64-floor host: unknown vendor so only empty-vendor profile
+# entries can match (not sifive/spacemit vendor lines). Floor is the detectable
+# mandatory RVA20U64 subset: rv64imafdc zicsr zicntr.
+processor	: 0
+hart		: 0
+isa		: rv64imafdc_zicsr_zifencei_zicntr
+mmu		: sv39
+mvendorid	: 0x123
+marchid		: 0x0
+mimpid		: 0x0
