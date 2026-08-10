@@ -325,6 +325,8 @@ echo "DEBUG: after loading EESSI-extend //  EASYBUILD_INSTALLPATH='${EASYBUILD_I
 # Allow skipping CUDA SDK install in e.g. CI environments
 echo "Going to install full CUDA SDK and cu* libraries under host_injections if necessary"
 temp_install_storage=${TMPDIR}/temp_install_storage
+# Make sure that we use the easystack files from the git repository, which has an additional subdirectory ${EESSI_VERSION} at the end
+NVIDIA_EASYSTACKS_DIRECTORY=${TOPDIR}/scripts/gpu_support/nvidia/easystacks/${EESSI_VERSION}
 mkdir -p ${temp_install_storage}
 if [ -z "${skip_cuda_install}" ] || [ ! "${skip_cuda_install}" ]; then
     ${TOPDIR}/scripts/gpu_support/nvidia/install_cuda_and_libraries.sh \
