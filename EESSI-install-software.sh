@@ -316,6 +316,7 @@ fi
 
 # Make sure we use the hooks from the local software-layer-scripts clone:
 export EESSI_EASYBUILD_HOOKS_OVERRIDE=$TOPDIR/eb_hooks.py
+echo "Set EESSI_EASYBUILD_HOOKS_OVERRIDE to ${EESSI_EASYBUILD_HOOKS_OVERRIDE}"
 
 echo "DEBUG: before loading EESSI-extend // EASYBUILD_INSTALLPATH='${EASYBUILD_INSTALLPATH}'"
 source $TOPDIR/load_eessi_extend_module.sh ${EESSI_VERSION}
@@ -427,10 +428,6 @@ else
 
             # load EasyBuild module (will be installed if it's not available yet)
             source ${TOPDIR}/load_easybuild_module.sh ${eb_version}
-
-            # Set EASYBUILD_HOOKS to use the hooks from the software-layer-scripts, to make it easier to use updated hooks
-            export EASYBUILD_HOOKS=$TOPDIR/eb_hooks.py
-            echo "Overwrite EASYBUILD_HOOKS to use the eb_hooks from software-layer-scripts: EASYBUILD_HOOKS=${EASYBUILD_HOOKS}"
 
             ${EB} --show-config
 
