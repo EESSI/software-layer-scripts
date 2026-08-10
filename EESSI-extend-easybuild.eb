@@ -206,7 +206,7 @@ setenv ("EASYBUILD_PREFIX", pathJoin(working_dir, "easybuild"))
 setenv ("EASYBUILD_INSTALLPATH", easybuild_installpath)
 eessi_init_prefix = os.getenv("EESSI_INIT_PREFIX") or pathJoin(os.getenv("EESSI_PREFIX"), "init")
 eessi_easybuild_hooks_override = os.getenv("EESSI_EASYBUILD_HOOKS_OVERRIDE")
-if eessi_easybuild_hooks_override ~= nil) then
+if (eessi_easybuild_hooks_override ~= nil) then
   setenv ("EASYBUILD_HOOKS", eessi_easybuild_hooks_override)
 else
   setenv ("EASYBUILD_HOOKS", pathJoin(eessi_init_prefix, "easybuild", "eb_hooks.py"))
