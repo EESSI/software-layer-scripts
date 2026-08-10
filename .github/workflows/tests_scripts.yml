@@ -85,7 +85,7 @@ jobs:
 
           # run wrapper script + capture & check output
           out="${PWD}/eb-${EB_VERSION}.out"
-          ./eessi_container.sh --access rw --mode run --verbose /software-layer-scripts/run_in_compat_layer_env.sh /software-layer-scripts/eb-${EB_VERSION}.sh 2>&1 | tee ${out}
+          ./eessi_container.sh --access rw --mode exec --verbose /software-layer-scripts/run_in_compat_layer_env.sh /software-layer-scripts/eb-${EB_VERSION}.sh 2>&1 | tee ${out}
           pattern="^This is EasyBuild ${EB_VERSION} "
           grep "${pattern}" ${out} || (echo "Pattern '${pattern}' not found in output!" && exit 1)
         done
@@ -103,7 +103,7 @@ jobs:
           # make sure that correct EESSI version is used (required because default is a placeholder version)
           export EESSI_VERSION_OVERRIDE="${{matrix.EESSI_VERSION}}"
 
-          ./eessi_container.sh --mode run --verbose /software-layer-scripts/install_software_layer.sh
+          ./eessi_container.sh --mode exec --verbose /software-layer-scripts/install_software_layer.sh
 
     - name: test create_directory_tarballs.sh script
       run: |
@@ -116,7 +116,7 @@ jobs:
 
           # scripts need to be copied to /tmp,
           # since create_directory_tarballs.sh must be accessible from within build container
-          ./eessi_container.sh --mode run --verbose /software-layer-scripts/create_directory_tarballs.sh "${{matrix.EESSI_VERSION}}"
+          ./eessi_container.sh --mode exec --verbose /software-layer-scripts/create_directory_tarballs.sh "${{matrix.EESSI_VERSION}}"
           # check if tarballs have been produced
           ls -l *.tar.gz
 
@@ -140,7 +140,7 @@ jobs:
           export EESSI_VERSION_OVERRIDE="${{matrix.EESSI_VERSION}}"
 
           out="${PWD}/test_create_lmodsitepackage.out"
-          ./eessi_container.sh --mode run --verbose /software-layer-scripts/run_in_compat_layer_env.sh /software-layer-scripts/test_lmod_sitepackage.sh 2>&1 | tee ${out}
+          ./eessi_container.sh --mode exec --verbose /software-layer-scripts/run_in_compat_layer_env.sh /software-layer-scripts/test_lmod_sitepackage.sh 2>&1 | tee ${out}
           for pattern in "^Site Pkg location.*/software-layer-scripts/.lmod/SitePackage.lua" "LMOD_SITEPACKAGE_LOCATION.*/software-layer-scripts/.lmod/SitePackage.lua"; do
             grep "${pattern}" ${out} || (echo "Pattern '${pattern}' not found in output!" && exit 1)
           done
@@ -160,6 +160,6 @@ jobs:
           export EESSI_VERSION_OVERRIDE="${{matrix.EESSI_VERSION}}"
 
           out="${PWD}/eb-${EB_VERSION}.out"
-          ./eessi_container.sh --repository software.eessi.io,access=rw,mount=bind --mode run --verbose /software-layer-scripts/run_in_compat_layer_env.sh ls 2>&1 | tee ${out}
+          ./eessi_container.sh --repository software.eessi.io,access=rw,mount=bind --mode exec --verbose /software-layer-scripts/run_in_compat_layer_env.sh ls 2>&1 | tee ${out}
           echo $(grep "SINGULARITY_BIND" ${out})
           grep "SINGULARITY_BIND" ${out} | grep "software.eessi.io" || (echo "software.eessi.io did not seem to be bind mounted!" && exit 1)

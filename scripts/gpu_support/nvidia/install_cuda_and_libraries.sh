@@ -92,8 +92,19 @@ echo "Created temporary directory '${tmpdir}'"
 # Store MODULEPATH so it can be restored at the end of each loop iteration
 SAVE_MODULEPATH=${MODULEPATH}
 
-for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
-    echo -e "Processing easystack file ${easystack_file}...\n\n"
+# Check if NVIDIA_EASYSTACKS_DIRECTORY is already set and not empty
+if [ -n "${NVIDIA_EASYSTACKS_DIRECTORY}" ]; then
+    echo_yellow "Using environment override NVIDIA_EASYSTACKS_DIRECTORY: ${NVIDIA_EASYSTACKS_DIRECTORY}"
+else
+    NVIDIA_EASYSTACKS_DIRECTORY="${TOPDIR}/easystacks"
+    echo_green "NVIDIA_EASYSTACKS_DIRECTORY environment variable override is not set, using default ${NVIDIA_EASYSTACKS_DIRECTORY}"
+fi
+# Initialize an empty array to store the processed easystack paths
+PROCESSED_EASYSTACK_FILES=()
+for EASYSTACK_FILE in ${NVIDIA_EASYSTACKS_DIRECTORY}/eessi-*CUDA*.yml; do
+    # The file must exist
+    [ -e "${EASYSTACK_FILE}" ] || continue
+    echo -e "Processing easystack file ${EASYSTACK_FILE}...\n\n"
 
     # determine version of EasyBuild module to load based on EasyBuild version included in name of easystack file
     eb_version=$(echo ${EASYSTACK_FILE} | sed 's/.*eb-\([0-9.]*\).*.yml/\1/g')
@@ -104,9 +115,11 @@ for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
     if [[ $? -eq 0 ]]; then
         echo_green ">> Found an EasyBuild/${eb_version} module"
     else
-        echo_yellow ">> No EasyBuild/${eb_version} module found: skipping step to install easystack file ${easystack_file} (see output in ${module_avail_out})"
+        echo_yellow ">> No EasyBuild/${eb_version} module found: skipping step to install easystack file ${EASYSTACK_FILE} (see output in ${module_avail_out})"
         continue
     fi
+    # Safer to unload EESSI-extend before loading an EasyBuild version, in case unload behavior ever becomes dependent on EasyBuild version
+    module unload EESSI-extend
     module load EasyBuild/${eb_version}
 
     # Make sure EESSI-extend does a site install here
@@ -115,7 +128,6 @@ for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
     unset EESSI_PROJECT_INSTALL
     unset EESSI_USER_INSTALL
     export EESSI_SITE_INSTALL=1
-    module unload EESSI-extend
     ml_av_eessi_extend_out=${tmpdir}/ml_av_eessi_extend.out
     # need to use --ignore_cache to avoid the case that the module was removed (to be
     # rebuilt) but it is still in the cache and the rebuild failed
@@ -149,10 +161,9 @@ for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
     MODULEPATH=${EASYBUILD_INSTALLPATH}/.modules/all
     echo "set MODULEPATH=${MODULEPATH}"
 
-    # We don't want hooks used in this install, we need vanilla installations
-    touch "${tmpdir}"/none.py
-    export EASYBUILD_HOOKS="${tmpdir}/none.py"
-    
+    # We need to skip the hook that checks if CUDA software installed in an accelerator-specific prefix
+    export EESSI_OVERRIDE_STRICT_INSTALLPATH_CHECK=1
+
     # show EasyBuild configuration
     echo "Show EasyBuild configuration"
     eb --show-config
@@ -225,9 +236,9 @@ for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
     fi
     avail_space=$(df --output=avail "${tmpdir}"/ | tail -n 1 | awk '{print $1}')
     if (( avail_space < required_space_in_tmpdir )); then
-      error="Need at least $(echo "${required_space_in_tmpdir} / 1000000" | bc) temporary disk space under ${tmpdir}.\n"
-      error="${error}Set the environment variable TEMP_DIR to a location with adequate space to pass this check."
-      error="${error}You can alternatively set EASYBUILD_BUILDPATH and/or EASYBUILD_SOURCEPATH"
+      error="Need at least $(echo "${required_space_in_tmpdir} / 1000000" | bc) GB temporary disk space under ${tmpdir}.\n"
+      error="${error}Provide a location with adequate space via the argument '--temp-dir /path/to/tmpdir' to pass this check. "
+      error="${error}You can alternatively set EASYBUILD_BUILDPATH and/or EASYBUILD_SOURCEPATH "
       error="${error}to reduce this requirement. Exiting now..."
       fatal_error "${error}"
     fi
@@ -238,8 +249,6 @@ for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
     #        is run, it is not reinstalled.
     #  - ${accept_eula_opt}: We only set the --accept-eula-for=CUDA option if CUDA will be installed and if
     #        this script was called with the argument --accept-cuda-eula.
-    #  - hooks: We don't want hooks used in this install, we need vanilla
-    #        installations of CUDA and/or other libraries
     #  - easystack: Path to easystack file that defines which packages shall be
     #        installed
     accept_eula_opt=
@@ -256,7 +265,6 @@ for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
     touch "$tmpdir"/none.py
     eb_args="--prefix=$tmpdir"
     eb_args="$eb_args --installpath-modules=${EASYBUILD_INSTALLPATH}/.modules"
-    eb_args="$eb_args --hooks="$tmpdir"/none.py"
     eb_args="$eb_args --easystack ${EASYSTACK_FILE}"
     if [[ ! -z ${accept_eula_opt} ]]; then
         eb_args="$eb_args --accept-eula-for=$accept_eula_opt"
@@ -270,6 +278,7 @@ for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
       fatal_error "some installation failed, please check EasyBuild logs ${PWD}/$(basename ${eb_last_log})..."
     else
       echo_green "all installations at ${EASYBUILD_INSTALLPATH}/software/... succeeded!"
+      PROCESSED_EASYSTACK_FILES+=("${EASYSTACK_FILE}")
     fi
 
     # clean up tmpdir content
@@ -278,5 +287,16 @@ for EASYSTACK_FILE in ${TOPDIR}/easystacks/eessi-*CUDA*.yml; do
     # Restore MODULEPATH for next loop iteration
     MODULEPATH=${SAVE_MODULEPATH}
 done
+
+# Check that we processed at least one easystack file
+if [ ${#PROCESSED_EASYSTACK_FILES[@]} -gt 0 ]; then
+    echo_green "${#PROCESSED_EASYSTACK_FILES[@]} easystack files processed:"
+    for EASYSTACK_FILE in "${PROCESSED_EASYSTACK_FILES[@]}"; do
+        echo_green "- ${EASYSTACK_FILE}"
+    done
+else
+    echo_yellow "Warning: No matching CUDA easystack files were successfully found/processed in ${NVIDIA_EASYSTACKS_DIRECTORY}!"
+fi
+
 # Remove the temporary directory
 rm -rf "${tmpdir}"

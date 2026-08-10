@@ -110,8 +110,8 @@ get_nvlib_list() {
 
     # see https://apptainer.org/docs/admin/1.0/configfiles.html#nvidia-gpus-cuda
     # https://github.com/apptainer/apptainer/commits/main/etc/nvliblist.conf
-    # This default_nvlib_list is based on this commit on Oct 1, 2024:
-    # https://github.com/apptainer/apptainer/commit/a19fa01527a8914839b8d1649688f83c61ba9ad2
+    # This default_nvlib_list is based on this commit on July 24, 2026:
+    # https://github.com/apptainer/apptainer/commit/b86c0aa171357c7be265d3130ab4f13a4061422f
     # TODO: driver version which corresponds to?
     local default_nvlib_list=(
         "libcuda.so"
@@ -130,6 +130,9 @@ get_nvlib_list() {
         "libglx.so"
         "libGLX.so"
         "libnvcuvid.so"
+        "libnvcucompat.so"
+        "libnvcudla.so"
+        "libnvcuextend.so"
         "libnvidia-cbl.so"
         "libnvidia-cfg.so"
         "libnvidia-compiler.so"
@@ -150,10 +153,23 @@ get_nvlib_list() {
         "libnvidia-opencl.so"
         "libnvidia-opticalflow.so"
         "libnvidia-ptxjitcompiler.so"
+        "libnvidia-rmapi-tegra.so"
         "libnvidia-rtcore.so"
         "libnvidia-tls.so"
         "libnvidia-wfb.so"
         "libnvoptix.so"
+        "libnvos.so"
+        "libnvosd.so"
+        "libnvrm_chip.so"
+        "libnvrm_gpu.so"
+        "libnvrm_host1x.so"
+        "libnvrm_mem.so"
+        "libnvrm_stream.so"
+        "libnvrm_surface.so"
+        "libnvrm_sync.so"
+        "libnvsciipc.so"
+        "libnvsocsys.so"
+        "libnvtegrahv.so"
         "libOpenCL.so"
         "libOpenGL.so"
         "libvdpau_nvidia.so"
@@ -447,9 +463,10 @@ find_cuda_libraries_on_host() {
     fi
 }
 
+# Symlink structure changed from 2025.06 onwards. This function reflects the symlinking as it was done for EESSI 2023.06
 # Actually symlinks the Matched libraries to correct folders.
 # Then also creates "host" and "latest" folder symlinks
-symlink_mode () {
+symlink_mode_202306 () {
     # First let's make sure the driver libraries are not already in place
     # Have to link drivers = True
     link_drivers=1
@@ -617,6 +634,132 @@ symlink_mode () {
 
 }
 
+
+# Symlink structure changed from 2025.06 onwards. This function reflects the new symlinking
+# Actually symlinks the Matched libraries to correct folders.
+symlink_mode () {
+    # First let's make sure the driver libraries are not already in place
+    # Have to link drivers = True
+    link_drivers=1
+
+    # Do some checks on existence of links and that we don't end up at /dev/null (the default), so we can print some informative information
+    # One downside is that we can't explicitely check if something is a variant symlink, so we'll just assume that if it's a link AND it
+    # lives in our CVMFS repository, it must be a variant symlink
+    nvidia_trusted_dir="${EESSI_EPREFIX}/lib/nvidia"
+    if [[ -L "$nvidia_trusted_dir" ]]; then
+        target1=$(readlink "$nvidia_trusted_dir")
+        log_verbose "$nvidia_trusted_dir is a CVMFS variant symlink (EESSI_${EESSI_VERSION//./}_NVIDIA_OVERRIDE) currently pointing to $target1"
+        # If this is a link, and if it lives in the EESSI_CVMFS_REPO, we assume this is a variant symlink
+        if [[ -L "$target1" && "$target1" == "$EESSI_CVMFS_REPO"/* ]]; then
+            target2=$(readlink "$target1")
+            msg="${target1} appears to be a CVMFS variant symlink (EESSI_NVIDIA_OVERRIDE_DEFAULT) currently pointing to ${target2}."
+            msg="${msg} Proceeding to install host symlinks in ${target2}."
+            log_verbose "${msg}"
+    
+            # Check if target2 isn't /dev/null (the default target of the EESSI_NVIDIA_OVERRIDE_DEFAULT variant symlink)
+            # If it is, suggest setting EESSI_NVIDIA_OVERRIDE_DEFAULT or EESSI_${EESSI_VERSION//./}_NVIDIA_OVERRIDE
+            if [[ $target2 == /dev/null ]]; then
+                msg="${nvidia_trusted_dir} is a symlink pointing to ${target1}, which is a symlink pointing to ${target2}\n"
+                msg="${msg}If you want to symlink the drivers in a single location for all EESSI versions, please define"
+                msg="${msg} the EESSI_NVIDIA_OVERRIDE_DEFAULT variant symlink in your local CVMFS configuration to point to"
+                msg="${msg} writeable location. This will change the target of symlink ${target1}.\n"
+                msg="${msg}If you want to symlink the drivers only for this version of EESSI (${EESSI_VERSION}), please define"
+                msg="${msg} the EESSI_${EESSI_VERSION//./}_NVIDIA_OVERRIDE variant symlink in your local CVMFS configuration to point to"
+                msg="${msg} writeable location. This will change the target of symlink ${nvidia_trusted_dir}.\n"
+                fatal_error "${msg}"
+            fi
+        else
+            msg="$target1 does not seem to be a CVMFS variant symlink, suggesting that EESSI_${EESSI_VERSION//./}_NVIDIA_OVERRIDE"
+            msg="${msg} was set in the CVMFS config. Proceeding to install host symlinks in $target1."
+            log_verbose "${msg}"
+        fi
+    else
+        msg="$nvidia_trusted_dir is expected to be a symlink, but it's not. This will likely fail"
+        msg="${msg} as CVMFS repositories are read-only. Proceeding anyway, but expect this to fail."
+        echo_yellow "${msg}"
+    fi
+
+    # Make sure that target of nvidia_trusted_dir variant symlink is an existing directory
+    install_target=$(readlink -f "$nvidia_trusted_dir")
+    echo "Ensure the final target of ${nvidia_trusted_dir} (${install_target}) exists"
+    log_verbose "Target directory in which driver symlinks will be installed: ${install_target}"
+    if [ ! -d "$install_target" ]; then
+        check_global_read
+        if ! create_directory_structure "$install_target"; then
+            fatal_error "No write permissions to directory ${install_target}"
+        fi
+    fi
+
+    # Define file to store driver version that was symlinked
+    host_injection_driver_version_file="${install_target}/driver_version.txt"
+    log_verbose "host_injection_driver_version_file: ${host_injection_driver_version_file}"
+
+    # Check if drivers are already linked with correct version
+    # This is done by comparing host_injection_driver_version_file (driver_version.txt)
+    # This is needed when updating GPU drivers.
+    if [ -e "$host_injection_driver_version_file" ]; then
+        if grep -q "$HOST_GPU_DRIVER_VERSION" "$host_injection_driver_version_file"; then
+            echo_green "The host GPU driver libraries (v${HOST_GPU_DRIVER_VERSION}) have already been linked! (based on ${host_injection_driver_version_file})"
+            # The GPU libraries were already linked for this version of CUDA driver
+            # Have to link drivers = False
+            link_drivers=0
+        else
+            # There's something there but it is out of date
+            echo_yellow "The host GPU driver libraries version have changed. Now its: (v${HOST_GPU_DRIVER_VERSION})"
+            echo_yellow "Cleaning out outdated symlinks."
+            rm "${install_target}"/* || fatal_error "Unable to remove files under '${install_target}'."
+        fi
+    fi
+
+    # Link all matched_libraries from Nvidia to correct host_injection folder
+    # This step is only run, when linking of drivers is needed (eg. link_drivers==1)
+    # Setup variable to track if some drivers were actually linked this run.  
+    drivers_linked=0
+
+    # Have to link drivers
+    if [ "$link_drivers" -eq 1 ]; then
+        # Link the matched libraries
+
+        cd "${install_target}" || fatal_error "Failed to cd to ${install_target}"
+        log_verbose "Changed directory to: $PWD"
+
+        # Make symlinks to all the interesting libraries
+        # Loop over each matched library
+        for library in "${MATCHED_LIBRARIES[@]}"; do
+            log_verbose "Linking library: ${library}"
+            
+            # Get just the library filename
+            lib_name=$(basename "$library")
+            
+            # Check if the symlink already exists
+            if [ -L "$lib_name" ]; then
+                # Check if it's pointing to the same target
+                target=$(readlink "$lib_name")
+                if [ "$target" = "$library" ]; then
+                    log_verbose "Symlink for $lib_name already exists and points to correct target"
+                    continue
+                else
+                    log_verbose "Symlink for $lib_name exists but points to wrong target: $target, updating..."
+                    rm "$lib_name"
+                fi
+            fi
+    
+            # Create a symlink in the current directory
+            # and check if the symlink was created successfully
+            if ! ln -s "$library" .
+            then
+                fatal_error "Error: Failed to create symlink for library $library in $PWD"
+            fi
+        done
+
+        # Inject driver and CUDA versions into the directory
+        echo "$HOST_GPU_DRIVER_VERSION" > driver_version.txt
+        echo "$HOST_GPU_CUDA_VERSION" > cuda_version.txt
+
+        drivers_linked=1
+    fi
+}
+
 # Logging function for verbose mode
 # TODO: move to utils?
 log_verbose() {
@@ -635,7 +778,7 @@ check_eessi_initialised
 
 # Verify nvidia-smi availability
 log_verbose "Checking for nvidia-smi command..."
-command -v nvidia-smi >/dev/null 2>&1 || { echo_yellow "nvidia-smi not found, this script won't do anything useful"; return 1; }
+command -v nvidia-smi >/dev/null 2>&1 || { echo_yellow "nvidia-smi not found, this script won't do anything useful"; exit 1; }
 
 # Parse command line arguments
 while [[ "$#" -gt 0 ]]; do
@@ -685,8 +828,11 @@ fi
 
 # === 5b. Symlink Mode ===
 # If we haven't already exited, we may need to create the symlinks
-symlink_mode
+if [ "$EESSI_VERSION" == '2023.06' ]; then
+    symlink_mode_202306
+else
+    symlink_mode
+fi
 
 # If everything went OK, show success message
 echo_green "Host NVIDIA GPU drivers linked successfully for EESSI"
-

@@ -80,8 +80,8 @@ compare_and_copy() {
           else
             echo "File has changed in the PR"
           fi
-          # Use cat to retain existing permissions, set umask to world readable in case the target file does not yet exist.
-          (umask 022 && cat "$source_file" > "$destination_file")
+          # Use cp --preserve=mode to preserve the permissions as they are defined in the GH repo
+          cp --preserve=mode "$source_file" "$destination_file"
           echo "File $source_file copied to $destination_file"
         else
           case $? in
@@ -196,7 +196,7 @@ copy_files_by_list ${TOPDIR}/init/modules/EESSI ${INSTALL_PREFIX}/init/modules/E
 
 # Copy for init/lmod directory
 init_script_files=(
-    bash zsh ksh fish csh    
+    bash zsh ksh fish csh sh
 )
 copy_files_by_list ${TOPDIR}/init/lmod ${INSTALL_PREFIX}/init/lmod "${init_script_files[@]}"
 
@@ -211,6 +211,7 @@ nvidia_files=(
     install_cuda_and_libraries.sh
     install_cuda_host_injections.sh
     link_nvidia_host_libraries.sh
+    get_cuda_driver_version.sh
 )
 copy_files_by_list ${TOPDIR}/scripts/gpu_support/nvidia ${INSTALL_PREFIX}/scripts/gpu_support/nvidia "${nvidia_files[@]}"
 

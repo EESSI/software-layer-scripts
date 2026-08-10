@@ -166,3 +166,65 @@ function nvidia_gpu_available {
 	return 2
     fi
 }
+
+function nvidia_gpu_has_compute_capability {
+  # Ensure we are given a single compute capability argument
+  if [ $# -ne 1 ]; then
+    echo_red "Function requires a single compute capability argument" >&2
+    return $ANY_ERROR_EXITCODE
+  fi
+  # Remove period (if present) from the given compute capability, i.e. 8.0 -> 80
+  requested_cc=${1//./}
+  # We are careful here in case we are running in a container and LD_LIBARY_PATH has been wiped.
+  mapfile -t gpu_ccs < <(LD_LIBRARY_PATH="/.singularity.d/libs:${LD_LIBRARY_PATH}" nvidia-smi --query-gpu=compute_cap --format=noheader)
+  # Remove the periods from all compute capabilities
+  gpu_ccs=("${gpu_ccs[@]//./}")
+  # On a multi-GPU system we may get the compute capabilities of all GPUs, one per line.
+  # In that case we print a warning and check the first GPU.
+  if [ ${#gpu_ccs[@]} -eq 0 ]; then
+    echo_red "ERROR: querying for the GPU's compute capability did not return anything."
+    return 1
+  else
+    if [ ${#gpu_ccs[@]} -gt 1 ]; then
+      echo_yellow "Warning: multiple GPUs detected, checking the compute capability of the first GPU".
+    fi
+    if [ "$requested_cc" == "${gpu_ccs[0]}" ]; then
+      echo_green "Requested compute capability matches the one from the GPU."
+      return 0
+    else
+      echo_yellow "Warning: the compute capability of the GPU (${gpu_ccs[0]}) does not match the requested compute capability ($requested_cc)."
+      return 2
+    fi
+  fi
+}
+
+function copy_build_log() {
+    # copy specified build log to specified directory, with some context added
+    build_log=${1}
+    build_logs_dir=${2}
+
+    # also copy to build logs directory, if specified
+    if [ ! -z "${build_logs_dir}" ]; then
+        log_filename="$(basename ${build_log})"
+        if [ ! -z "${SLURM_JOB_ID}" ]; then
+            # use subdirectory for build log in context of a Slurm job
+            build_log_path="${build_logs_dir}/jobs/${SLURM_JOB_ID}/${log_filename}"
+        else
+            build_log_path="${build_logs_dir}/non-jobs/${log_filename}"
+        fi
+        mkdir -p $(dirname ${build_log_path})
+        cp -a ${build_log} ${build_log_path}
+        chmod 0644 ${build_log_path}
+
+        # add context to end of copied log file
+        echo >> ${build_log_path}
+        echo "Context from which build log was copied:" >> ${build_log_path}
+        echo "- original path of build log: ${build_log}" >> ${build_log_path}
+        echo "- working directory: ${PWD}" >> ${build_log_path}
+        echo "- Slurm job ID: ${SLURM_JOB_ID}" >> ${build_log_path}
+        echo "- EasyBuild version: ${eb_version}" >> ${build_log_path}
+        echo "- easystack file: ${easystack_file}" >> ${build_log_path}
+
+        echo "EasyBuild log file ${build_log} copied to ${build_log_path} (with context appended)"
+    fi
+}
