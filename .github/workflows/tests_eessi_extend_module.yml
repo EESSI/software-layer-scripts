@@ -28,7 +28,7 @@ jobs:
           eessi_stack_version: ${{matrix.eessi_version}}
           use_eessi_module: true
 
-      - name: Install the EESSI-extend shipped with the repository and verify it is consistent with the CVMFS repo
+      - name: Install the EESSI-extend shipped with the repository
         run: |
           # Define a function to check the values of environment variables
           # and another that checks an environment does not contain environment 
@@ -51,30 +51,6 @@ jobs:
           export EASYBUILD_PREFIX=$MY_INSTALLATION_PATH
           eb EESSI-extend-easybuild.eb --rebuild
           module unload EasyBuild
-
-          # Verify that we can pick the installed version up
-          module use $MY_INSTALLATION_PATH/modules/all
-          # Verify we can run "module show" on the module
-          module show EESSI-extend/${{matrix.eessi_version}}-easybuild
-          # Now load it and run additional checks
-          module load EESSI-extend/${{matrix.eessi_version}}-easybuild
-          echo $EBROOTEESSIMINEXTEND | grep $MY_INSTALLATION_PATH || { echo "ERROR: Installed version of EESSI-extend not picked up (loaded $EBROOTEESSIMINEXTEND)" >&2; exit 1; }
-          # Do a test rebuild (with default and local hooks)
-          echo "Testing a rebuild using the hooks shipped with EESSI"
-          eb --rebuild ${{matrix.rebuild_software}}
-          echo "Testing a rebuild using the hooks in the current branch"
-          eb --rebuild --hooks=./eb_hooks.py ${{matrix.rebuild_software}}
-          
-          # First, check if it differs against what is currently shipped by CVMFS
-          diff   <(grep -v '^local root = ' /cvmfs/software.eessi.io/versions/${{matrix.eessi_version}}/software/linux/$(uname -m)/generic/modules/all/EESSI-extend/${{matrix.eessi_version}}-easybuild.lua)   <(grep -v '^local root = ' $MY_INSTALLATION_PATH/modules/all/EESSI-extend/${{matrix.eessi_version}}-easybuild.lua)
-          # Then do a consistency check in CVMFS for all architectures
-          .github/workflows/scripts/diff_eessi_extend.sh
-
-          # Proceed with unload and checking the environment variables
-          module unload EESSI-extend
-          # That should have unset all EasyBuild envvars (including EASYBUILD_PREFIX)
-          check_disallowed_env_prefix EASYBUILD_
-          module unuse $MY_INSTALLATION_PATH/modules/all
 
       - name: Run tests for EESSI-extend in the various CPU-only scenarios
         run: |
@@ -169,6 +145,15 @@ jobs:
           module unload EESSI-extend
           check_disallowed_env_prefix EASYBUILD_
           unset EESSI_USER_INSTALL
+
+          # Now test overriding the EasyBuild hooks
+          echo "Checking EESSI-extend EasyBuild hooks override"
+          export EESSI_EASYBUILD_HOOKS_OVERRIDE="$GITHUB_WORKSPACE/eb_hooks.py"
+          module load EESSI-extend/${{matrix.eessi_version}}-easybuild
+          check_env_var "EASYBUILD_HOOKS" "$EESSI_EASYBUILD_HOOKS_OVERRIDE"
+          module unload EESSI-extend
+          check_disallowed_env_prefix EASYBUILD_
+          unset EESSI_EASYBUILD_HOOKS_OVERRIDE
 
       - name: Run tests for EESSI-extend in the various GPU scenarios
         run: |
@@ -270,4 +255,40 @@ jobs:
           module unload EESSI-extend
           check_disallowed_env_prefix EASYBUILD_
           unset EESSI_ACCELERATOR_INSTALL
-          unset EESSI_USER_INSTALL     
+          unset EESSI_USER_INSTALL
+
+      - name: Verify the EESSI-extend module is consistent with the CVMFS repo
+        run: |
+          # Define a function to check the values of environment variables
+          # and another that checks an environment does not contain environment 
+          # variables matching a certain pattern
+          source .github/workflows/scripts/test_utils.sh
+          export MY_INSTALLATION_PATH=/tmp/easybuild
+
+          # Let's start from a clean slate
+          module --force purge
+          module load EESSI/${{matrix.eessi_version}}
+
+          # Verify that we can pick the installed version up
+          module use $MY_INSTALLATION_PATH/modules/all
+          # Verify we can run "module show" on the module
+          module show EESSI-extend/${{matrix.eessi_version}}-easybuild
+          # Now load it and run additional checks
+          module load EESSI-extend/${{matrix.eessi_version}}-easybuild
+          echo $EBROOTEESSIMINEXTEND | grep $MY_INSTALLATION_PATH || { echo "ERROR: Installed version of EESSI-extend not picked up (loaded $EBROOTEESSIMINEXTEND)" >&2; exit 1; }
+          # Do a test rebuild (with default and local hooks)
+          echo "Testing a rebuild using the hooks shipped with EESSI"
+          eb --rebuild ${{matrix.rebuild_software}}
+          echo "Testing a rebuild using the hooks in the current branch"
+          eb --rebuild --hooks=./eb_hooks.py ${{matrix.rebuild_software}}
+
+          # First, check if it differs against what is currently shipped by CVMFS
+          diff   <(grep -v '^local root = ' /cvmfs/software.eessi.io/versions/${{matrix.eessi_version}}/software/linux/$(uname -m)/generic/modules/all/EESSI-extend/${{matrix.eessi_version}}-easybuild.lua)   <(grep -v '^local root = ' $MY_INSTALLATION_PATH/modules/all/EESSI-extend/${{matrix.eessi_version}}-easybuild.lua)
+          # Then do a consistency check in CVMFS for all architectures
+          .github/workflows/scripts/diff_eessi_extend.sh
+
+          # Proceed with unload and checking the environment variables
+          module unload EESSI-extend
+          # That should have unset all EasyBuild envvars (including EASYBUILD_PREFIX)
+          check_disallowed_env_prefix EASYBUILD_
+          module unuse $MY_INSTALLATION_PATH/modules/all     
