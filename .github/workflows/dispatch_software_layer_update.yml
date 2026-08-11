@@ -1,0 +1,34 @@
+# IMPORTANT: This workflow belongs in EESSI/software-layer-scripts, NOT in EESSI/software-layer.
+# Move this file to EESSI/software-layer-scripts/.github/workflows/ (e.g. as
+# .github/workflows/dispatch_software_layer_update.yml). It fires whenever
+# software-layer-scripts/main gets a new commit and asks EESSI/software-layer to
+# re-evaluate bot/software_layer_scripts_commit.
+#
+# One-time setup:
+#   1. Create a fine-grained PAT (https://github.com/settings/personal-access-tokens):
+#        - Repository access: Only select repositories -> EESSI/software-layer
+#        - Repository permissions -> Actions: Read and write   (NOT contents!)
+#      This token can only start/stop/inspect CI runs in software-layer; it cannot
+#      push code, modify files, or open pull requests.
+#   2. Add it as a repository secret named SOFTWARE_LAYER_ACTIONS_TOKEN in
+#      EESSI/software-layer-scripts.
+#
+# The triggered workflow (update_software_layer_scripts_commit.yml) in EESSI/software-layer
+# does the actual branch push + PR using its own ephemeral GITHUB_TOKEN.
+name: Notify software-layer of new scripts commit
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  dispatch:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Trigger update workflow in EESSI/software-layer
+        env:
+          GH_TOKEN: ${{ secrets.SOFTWARE_LAYER_ACTIONS_TOKEN }}
+        run: |
+          gh api -X POST \
+            repos/EESSI/software-layer/actions/workflows/update_software_layer_scripts_commit.yml/dispatches \
+            -f ref=main
