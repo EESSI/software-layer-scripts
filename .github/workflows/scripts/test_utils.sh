@@ -45,3 +45,58 @@ check_disallowed_env_prefix() {
     echo "✅ No disallowed environment variables with prefix '$prefix' found."
   fi
 }
+
+init_eessi_environment() {
+  # Helper function to initialize the EESSI environment, and optionally add
+  # a path to the modulepath in which EESSI-extend has made local installs
+  # Expected usage:
+  #  init_eessi_environment --eessi-version <version> [--installation-path <path>] \
+  #                         [--accelerator-target <target>] [--cuda-cc <n>]
+  local eessi_version=""
+  local eessi_extend_installation_path=""
+  local accelerator_target_override=""
+  local cuda_cc=""
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --eessi-version)
+        eessi_version="$2"
+        shift 2
+        ;;
+      --installation-path)
+        eessi_extend_installation_path="$2"
+        shift 2
+        ;;
+      --accelerator-target)
+        accelerator_target_override="$2"
+        shift 2
+        ;;
+      --cuda-cc)
+        cuda_cc="$2"
+        shift 2
+        ;;
+      *)
+        echo "ERROR: Unknown option '$1' passed to init_eessi_environment" >&2
+        return 1
+        ;;
+    esac
+  done
+
+  if [ -z "$eessi_version" ]; then
+    echo "ERROR: --eessi-version is required" >&2
+    return 1
+  fi
+
+  # Let's start from a clean slate
+  module --force purge
+  if [ -n "$accelerator_target_override" ]; then
+    export EESSI_ACCELERATOR_TARGET_OVERRIDE="$accelerator_target_override"
+  fi
+  # Load the EESSI module
+  module load EESSI/$eessi_version
+  # Access the installed EESSI-extend (if an installation path was provided)
+  if [ -n "$eessi_extend_installation_path" ]; then
+    module use "$eessi_extend_installation_path"/modules/all
+  fi
+  check_disallowed_env_prefix EASYBUILD_
+}
