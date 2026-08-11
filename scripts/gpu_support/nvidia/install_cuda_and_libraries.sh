@@ -81,7 +81,7 @@ check_eessi_initialised
 # CUDA on RISC-V is not supported yet.
 [[ -z "${EESSI_CPU_FAMILY}" ]] && export EESSI_CPU_FAMILY=$(uname -m)
 if [[ "${EESSI_CPU_FAMILY}" != "x86_64" && "${EESSI_CPU_FAMILY}" != "aarch64" ]]; then
-    fatal_error "Unsupported CPU family: $EESSI_CPU_FAMILY"
+    fatal_error "CUDA does not support CPU family: $EESSI_CPU_FAMILY"
 fi
 
 # we need a directory we can use for temporary storage
