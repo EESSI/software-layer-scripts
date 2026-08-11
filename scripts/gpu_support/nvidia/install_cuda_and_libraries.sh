@@ -77,6 +77,13 @@ done
 # Make sure EESSI is initialised
 check_eessi_initialised
 
+# Check if this script is run on a supported architecture,
+# CUDA on RISC-V is not supported yet.
+[[ -z "${EESSI_CPU_FAMILY}" ]] && export EESSI_CPU_FAMILY=$(uname -m)
+if [[ "${EESSI_CPU_FAMILY}" != "x86_64" && "${EESSI_CPU_FAMILY}" != "aarch64" ]]; then
+    fatal_error "CUDA does not support CPU family: $EESSI_CPU_FAMILY"
+fi
+
 # we need a directory we can use for temporary storage
 if [[ -z "${TEMP_DIR}" ]]; then
     tmpdir=$(mktemp -d)
