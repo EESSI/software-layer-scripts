@@ -303,7 +303,7 @@ jobs:
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild
 
           # First, check if it differs against what is currently shipped by CVMFS
-          diff   <(grep -v '^local root = ' /cvmfs/software.eessi.io/versions/${{matrix.eessi_version}}/software/linux/$(uname -m)/generic/modules/all/EESSI-extend/${{matrix.eessi_version}}-easybuild.lua)   <(grep -v '^local root = ' $MY_INSTALLATION_PATH/modules/all/EESSI-extend/${{matrix.eessi_version}}-easybuild.lua)
+          diff   <(grep -v '^local root = \|^-- Built with EasyBuild version' /cvmfs/software.eessi.io/versions/${{matrix.eessi_version}}/software/linux/$(uname -m)/generic/modules/all/EESSI-extend/${{matrix.eessi_version}}-easybuild.lua)   <(grep -v '^local root = \|^-- Built with EasyBuild version' $MY_INSTALLATION_PATH/modules/all/EESSI-extend/${{matrix.eessi_version}}-easybuild.lua)
           # Then do a consistency check in CVMFS for all architectures
           .github/workflows/scripts/diff_eessi_extend.sh
 
