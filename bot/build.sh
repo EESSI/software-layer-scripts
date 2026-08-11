@@ -246,9 +246,9 @@ COMMON_ARGS+=("--pass-through" "--contain")
 # make sure to use the same parent dir for storing tarballs of tmp
 PREVIOUS_TMP_DIR=${PWD}/previous_tmp
 
-# Skip CUDA installation for riscv.eessi.io
-if [[ "${REPOSITORY_NAME}" == "riscv.eessi.io" ]]; then
-    echo "bot/build.sh: disabling CUDA installation for RISC-V repository (${REPOSITORY_NAME})"
+# Skip CUDA installation for RISC-V builds
+if [[ "${REPOSITORY_NAME}" == "riscv.eessi.io" || "${EESSI_SOFTWARE_SUBDIR_OVERRIDE}" =~ ^riscv64/.* ]]; then
+    echo "bot/build.sh: disabling CUDA installation for RISC-V builds"
     INSTALL_SCRIPT_ARGS+=("--skip-cuda-install")
 fi
 
