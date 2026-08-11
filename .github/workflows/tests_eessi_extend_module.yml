@@ -291,7 +291,6 @@ jobs:
           # unload and check the environment is clean again
           module unload EESSI-extend
           check_disallowed_env_prefix EASYBUILD_
-          module unuse $MY_INSTALLATION_PATH/modules/all
 
       - name: Verify the EESSI-extend module is consistent with the CVMFS repo
         run: |
@@ -312,4 +311,3 @@ jobs:
           module unload EESSI-extend
           # That should have unset all EasyBuild envvars (including EASYBUILD_PREFIX)
           check_disallowed_env_prefix EASYBUILD_
-          module unuse $MY_INSTALLATION_PATH/modules/all
