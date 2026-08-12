@@ -989,9 +989,9 @@ def pre_sanitycheck_hook_cuda(self, *args, **kwargs):
                 cuobjdump_path = shutil.which('cuobjdump')
                 cuobjdump_dir = os.path.dirname(cuobjdump_path)
                 self.cuobjdump_dir = cuobjdump_dir
+                self.modules_tool.unload([dep['full_mod_name']])
                 os.environ['PATH'] = os.environ.get('PATH', '') + os.pathsep + cuobjdump_dir
                 print_msg(f"Adding location of cuobjdump_dir ({cuobjdump_dir}) to the PATH so that we can execute the CUDA sanity check")
-                self.modules_tool.unload([dep['full_mod_name']])
                 break
 
 
