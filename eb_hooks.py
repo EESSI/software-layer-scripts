@@ -49,6 +49,7 @@ EESSI_MODULE_ONLY_ATTR = 'orig_module_only'
 EESSI_FORCE_ATTR = 'orig_force'
 EESSI_SUPPORTED_MODULE_ATTR = 'eessi_supported_module'
 EESSI_UNSUPPORTED_MODULE_ATTR = 'eessi_unsupported_module'
+EESSI_SANITYCHECK_CUDA_ATTR = 'eessi_sanitycheck_cuda_dep'
 
 SYSTEM = EASYCONFIG_CONSTANTS['SYSTEM'][0]
 
@@ -955,6 +956,52 @@ def post_module_hook_unsupported_module(self, *args, **kwargs):
             if self.initial_environ.get(unsup_mod.envvar, False):
                 print_msg(f"Removing {unsup_mod.envvar} in initial environment")
                 del self.initial_environ[unsup_mod.envvar]
+
+
+def pre_sanitycheck_hook(self, *args, **kwargs):
+    """Main pre-sanitycheck hook: trigger custom functions."""
+    pre_sanitycheck_hook_cuda(self, *args, **kwargs)
+
+
+def post_sanitycheck_hook(self, *args, **kwargs):
+    """Main post-sanitycheck hook: trigger custom functions."""
+    post_sanitycheck_hook_cuda(self, *args, **kwargs)
+
+
+def pre_sanitycheck_hook_cuda(self, *args, **kwargs):
+    """
+    If CUDA is a build-only dependency (demoted to build dep by inject_gpu_property),
+    temporarily promote it to a runtime dependency so CUDA tools (cuobjdump, nvcc)
+    are available during the sanity check step.
+    This is needed since EasyBuild 5.4.0 where build deps are no longer available
+    during the sanity check.
+    """
+    cudaver = get_dependency_software_version("CUDA", ec=self.cfg, check_deps=False, check_builddeps=True)
+    if cudaver and EASYBUILD_VERSION >= '5.4.0':
+        # Get the CUDA dependency info from builddependencies
+        build_deps = self.cfg.get_ref('builddependencies')
+        for dep in build_deps:
+            if dep['name'] == 'CUDA':
+                # Store the dependency for removal in post hook
+                setattr(self, EESSI_SANITYCHECK_CUDA_ATTR, dep)
+                # Add to runtime dependencies so fake module includes CUDA
+                self.cfg['dependencies'].append(dep)
+                print_msg(f"CUDA (dep) is a build-only dependency; temporarily making available for sanity check")
+                break
+
+
+def post_sanitycheck_hook_cuda(self, *args, **kwargs):
+    """
+    Reverse the temporary CUDA dependency promotion from pre_sanitycheck_hook_cuda.
+    """
+    if hasattr(self, EESSI_SANITYCHECK_CUDA_ATTR):
+        cuda_dep = getattr(self, EESSI_SANITYCHECK_CUDA_ATTR)
+        # Remove from runtime dependencies
+        for dep in self.cfg['dependencies']:
+            if dep['name'] == 'CUDA':
+                self.cfg['dependencies'].remove(dep)
+                break
+        delattr(self, EESSI_SANITYCHECK_CUDA_ATTR)
 
 
 def post_easyblock_hook_copy_easybuild_subdir(self, *args, **kwargs):
