@@ -246,12 +246,6 @@ COMMON_ARGS+=("--pass-through" "--contain")
 # make sure to use the same parent dir for storing tarballs of tmp
 PREVIOUS_TMP_DIR=${PWD}/previous_tmp
 
-# Skip CUDA installation for riscv.eessi.io
-if [[ "${REPOSITORY_NAME}" == "riscv.eessi.io" ]]; then
-    echo "bot/build.sh: disabling CUDA installation for RISC-V repository (${REPOSITORY_NAME})"
-    INSTALL_SCRIPT_ARGS+=("--skip-cuda-install")
-fi
-
 # prepare directory to store tarball of tmp for build step
 TARBALL_TMP_BUILD_STEP_DIR=${PREVIOUS_TMP_DIR}/build_step
 mkdir -p ${TARBALL_TMP_BUILD_STEP_DIR}
@@ -274,6 +268,11 @@ if [[ ${EESSI_SOFTWARE_SUBDIR_OVERRIDE} =~ .*/generic$ ]]; then
 fi
 [[ ! -z ${BUILD_LOGS_DIR} ]] && INSTALL_SCRIPT_ARGS+=("--build-logs-dir" "${BUILD_LOGS_DIR}")
 [[ ! -z ${SHARED_FS_PATH} ]] && INSTALL_SCRIPT_ARGS+=("--shared-fs-path" "${SHARED_FS_PATH}")
+# Skip CUDA installation for RISC-V builds
+if [[ "${REPOSITORY_NAME}" == "riscv.eessi.io" || "${EESSI_SOFTWARE_SUBDIR_OVERRIDE}" =~ ^riscv64/.* ]]; then
+    echo "bot/build.sh: disabling CUDA installation for RISC-V builds"
+    INSTALL_SCRIPT_ARGS+=("--skip-cuda-install")
+fi
 
 # create tmp file for output of build step
 build_outerr=$(mktemp build.outerr.XXXX)

@@ -314,6 +314,10 @@ elif [[ -n "$EESSI_ACCELERATOR_TARGET_OVERRIDE" ]]; then
   export EESSI_ACCELERATOR_INSTALL=1
 fi
 
+# Make sure we use the hooks from the local software-layer-scripts clone:
+export EESSI_EASYBUILD_HOOKS_OVERRIDE=$TOPDIR/eb_hooks.py
+echo "Set EESSI_EASYBUILD_HOOKS_OVERRIDE to ${EESSI_EASYBUILD_HOOKS_OVERRIDE}"
+
 echo "DEBUG: before loading EESSI-extend // EASYBUILD_INSTALLPATH='${EASYBUILD_INSTALLPATH}'"
 source $TOPDIR/load_eessi_extend_module.sh ${EESSI_VERSION}
 echo "DEBUG: after loading EESSI-extend //  EASYBUILD_INSTALLPATH='${EASYBUILD_INSTALLPATH}'"
@@ -325,6 +329,8 @@ echo "DEBUG: after loading EESSI-extend //  EASYBUILD_INSTALLPATH='${EASYBUILD_I
 # Allow skipping CUDA SDK install in e.g. CI environments
 echo "Going to install full CUDA SDK and cu* libraries under host_injections if necessary"
 temp_install_storage=${TMPDIR}/temp_install_storage
+# Make sure that we use the easystack files from the git repository, which has an additional subdirectory ${EESSI_VERSION} at the end
+export NVIDIA_EASYSTACKS_DIRECTORY=${TOPDIR}/scripts/gpu_support/nvidia/easystacks/${EESSI_VERSION}
 mkdir -p ${temp_install_storage}
 if [ -z "${skip_cuda_install}" ] || [ ! "${skip_cuda_install}" ]; then
     ${TOPDIR}/scripts/gpu_support/nvidia/install_cuda_and_libraries.sh \
