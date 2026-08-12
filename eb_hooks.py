@@ -986,7 +986,12 @@ def pre_sanitycheck_hook_cuda(self, *args, **kwargs):
                 setattr(self, EESSI_SANITYCHECK_CUDA_ATTR, dep)
                 # Load CUDA module
                 self.modules_tool.load([dep['full_mod_name']])
-                print_msg(f"Loading CUDA module '{dep['full_mod_name']}', temporarily making available for the (CUDA) sanity check")
+                cuobjdump_path = shutil.which('cuobjdump')
+                cuobjdump_dir = os.path.dirname(cuobjdump_path)
+                self.cuobjdump_dir = cuobjdump_dir
+                os.environ['PATH'] = os.environ.get('PATH', '') + os.pathsep + cuobjdump_dir
+                print_msg(f"Adding location of cuobjdump_dir ({cuobjdump_dir}) to the PATH so that we can execute the CUDA sanity check")
+                self.modules_tool.unload([dep['full_mod_name']])
                 break
 
 
@@ -995,13 +1000,10 @@ def post_sanitycheck_hook_cuda(self, *args, **kwargs):
     Reverse the temporary CUDA dependency promotion from pre_sanitycheck_hook_cuda.
     """
     if hasattr(self, EESSI_SANITYCHECK_CUDA_ATTR):
-        cuda_dep = getattr(self, EESSI_SANITYCHECK_CUDA_ATTR)
-        # Remove from runtime dependencies
-        for dep in self.cfg['dependencies']:
-            if dep['name'] == 'CUDA':
-                self.modules_tool.unload([dep['full_mod_name']])
-                print_msg(f"Unloading CUDA module '{dep['full_mod_name']}', temporarily making available for the (CUDA) sanity check")
-                break
+        # Technically, we should probably remove the cuobjdump_dir from the path
+        # for now, we do nothing, let's first check this works.
+        # TODO: cleanup
+        # print_msg(f"Remove {self.cuobjdump_dir} from the PATH")
         delattr(self, EESSI_SANITYCHECK_CUDA_ATTR)
 
 
