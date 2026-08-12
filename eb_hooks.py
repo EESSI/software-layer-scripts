@@ -984,9 +984,9 @@ def pre_sanitycheck_hook_cuda(self, *args, **kwargs):
             if dep['name'] == 'CUDA':
                 # Store the dependency for removal in post hook
                 setattr(self, EESSI_SANITYCHECK_CUDA_ATTR, dep)
-                # Add to runtime dependencies so fake module includes CUDA
-                self.cfg['dependencies'].append(dep)
-                print_msg(f"CUDA (dep) is a build-only dependency; temporarily making available for sanity check")
+                # Load CUDA module
+                self.modules_tool.load([dep['full_mod_name']])
+                print_msg(f"Loading CUDA module '{dep['full_mod_name']}', temporarily making available for the (CUDA) sanity check")
                 break
 
 
@@ -999,7 +999,8 @@ def post_sanitycheck_hook_cuda(self, *args, **kwargs):
         # Remove from runtime dependencies
         for dep in self.cfg['dependencies']:
             if dep['name'] == 'CUDA':
-                self.cfg['dependencies'].remove(dep)
+                self.modules_tool.unload([dep['full_mod_name']])
+                print_msg(f"Unloading CUDA module '{dep['full_mod_name']}', temporarily making available for the (CUDA) sanity check")
                 break
         delattr(self, EESSI_SANITYCHECK_CUDA_ATTR)
 
