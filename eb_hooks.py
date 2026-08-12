@@ -971,7 +971,7 @@ def post_sanitycheck_hook(self, *args, **kwargs):
 def pre_sanitycheck_hook_cuda(self, *args, **kwargs):
     """
     If CUDA is a build-only dependency (demoted to build dep by inject_gpu_property),
-    temporarily promote it to a runtime dependency so CUDA tools (cuobjdump, nvcc)
+    temporarily load the module so CUDA tools (cuobjdump, nvcc)
     are available during the sanity check step.
     This is needed since EasyBuild 5.4.0 where build deps are no longer available
     during the sanity check.
