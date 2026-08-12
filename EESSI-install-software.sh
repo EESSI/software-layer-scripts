@@ -314,6 +314,10 @@ elif [[ -n "$EESSI_ACCELERATOR_TARGET_OVERRIDE" ]]; then
   export EESSI_ACCELERATOR_INSTALL=1
 fi
 
+# Make sure we use the hooks from the local software-layer-scripts clone:
+export EESSI_EASYBUILD_HOOKS_OVERRIDE=$TOPDIR/eb_hooks.py
+echo "Set EESSI_EASYBUILD_HOOKS_OVERRIDE to ${EESSI_EASYBUILD_HOOKS_OVERRIDE}"
+
 echo "DEBUG: before loading EESSI-extend // EASYBUILD_INSTALLPATH='${EASYBUILD_INSTALLPATH}'"
 source $TOPDIR/load_eessi_extend_module.sh ${EESSI_VERSION}
 echo "DEBUG: after loading EESSI-extend //  EASYBUILD_INSTALLPATH='${EASYBUILD_INSTALLPATH}'"
