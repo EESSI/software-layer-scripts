@@ -2381,7 +2381,7 @@ PARALLELISM_LIMITS = {
     CPU_TARGET_A64FX: (divide_by_factor, 4),
     # software-specific limits
     'hipBLASLt': {
-        '*': (divide_by_factor, 2),
+        '*': (divide_by_factor, 4),
     },
     'libxc': {
         '*': (divide_by_factor, 2),
