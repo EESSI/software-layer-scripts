@@ -1890,6 +1890,23 @@ def pre_single_extension_numpy(ext, *args, **kwargs):
             update_build_option('optarch', 'march=armv8.2-a')
 
 
+def pre_single_extension_hf_xet(ext, *args, **kwargs):
+    """
+    Replace -mcpu=generic with -mtune=generic in $CFLAGS,
+    so that the sha2 asm crate can successfully compile
+    sha256_aarch64.S with -march=armv8-a+crypto.
+    see https://github.com/huggingface/xet-core/issues/582
+    """
+    if ext.name == 'hf_xet':
+        cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+        if cpu_target == CPU_TARGET_AARCH64_GENERIC:
+            cflags = os.getenv('CFLAGS', '')
+            mcpu_generic = '-mcpu=generic'
+            if mcpu_generic in cflags:
+                cflags = cflags.replace(mcpu_generic, '-mtune=generic')
+                ext.cfg['preinstallopts'] = "export CFLAGS='%s' && " % cflags
+
+
 def post_single_extension_numpy(ext, *args, **kwargs):
     """
     Post-extension hook for numpy, to reset 'optarch' build option.
@@ -2342,6 +2359,7 @@ PRE_SINGLE_EXTENSION_HOOKS = {
     'isoband': pre_single_extension_isoband,
     'numpy': pre_single_extension_numpy,
     'testthat': pre_single_extension_testthat,
+    'hf_xet': pre_single_extension_hf_xet,
 }
 
 POST_SINGLE_EXTENSION_HOOKS = {
