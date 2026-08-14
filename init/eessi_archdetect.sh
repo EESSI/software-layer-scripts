@@ -195,7 +195,7 @@ cpupath(){
     # Order of the specifications matters, the last one to match will be selected
     for arch in "${cpu_arch_spec[@]}"; do
         eval "arch_spec=$arch"
-        # Empty vendor in the spec means "any vendor" (profile paths like riscv64/generic/rva*).
+        # Empty vendor in the spec means "any vendor" (profile paths like riscv64/rva*).
         # Vendor-specific entries still require an exact match (same as before).
         if [ -z "${arch_spec[1]}" ] || [ "${cpu_vendor}x" == "${arch_spec[1]}x" ]; then
             # each flag in this CPU specification must be found in the list of flags of the host

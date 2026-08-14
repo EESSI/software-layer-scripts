@@ -31,9 +31,9 @@ jobs:
           - riscv64/sifive/u74-mc/starvision-Ubuntu24
           - riscv64/spacemit/bananaf3-Armbian
           - riscv64/spacemit/bananaf3-k6.6
-          - riscv64/generic/rva20u64/synthetic
-          - riscv64/generic/rva22u64/synthetic
-          - riscv64/generic/rva23u64/synthetic
+          - riscv64/rva20u64
+          - riscv64/rva22u64
+          - riscv64/rva23u64
           # commented out since these targets are currently not supported in software.eessi.io repo
           # (and some tests assume that the corresponding subdirectory in software layer is there)
           # - ppc64le/power9le/unknown-power9le

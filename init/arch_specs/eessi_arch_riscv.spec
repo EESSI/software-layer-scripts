@@ -2,8 +2,10 @@
 # CPU vendors: SiFive (0x489), Spacemit (0x710)
 # Spec lines must not use parentheses in trailing comments: update_arch_specs evals each line.
 #
-# Profile paths generic/rva*: empty Vendor ID means any vendor. Compact base ISA
+# Profile paths riscv64/rva*: empty Vendor ID means any vendor. Compact base ISA
 # blobs like rv64imafdc are letter-expanded at match time in eessi_archdetect.sh.
+# Catch-all riscv64/generic (rv64gc floor) is the hardcoded fallback in
+# eessi_archdetect.sh, not a profile spec line.
 #
 # Matching floors ≈ detectable mandatory userspace ISA subset of the official
 # RVA*U64 profiles — not optarch/-march assumptions. Sources:
@@ -30,7 +32,7 @@
 # archdetect fixture, not a truncated userspace subset. That includes S-mode
 # tokens when the board advertises them, e.g. sscofpmf / sstc / sv*. A host
 # whose kernel drops any required vendor token will miss that path and may fall
-# through to generic/rva* — intentional for vendor-specific software trees.
+# through to rva* / generic — intentional for vendor-specific software trees.
 # SpacemiT AI / custom bits such as xsmtvdot are omitted until a fixture isa
 # line advertises them. x60 vs x60-k6.6 are two kernel views of the same SoC;
 # neither is a clean rva22u64 host. Fixture sources:
@@ -40,9 +42,9 @@
 #   spacemit/x60-k6.6 <- tests/.../spacemit/bananaf3-k6.6.cpuinfo
 
 # Software path in EESSI 	| Vendor ID 	| List of defining CPU features
-"riscv64/generic/rva20u64"	""		"rv64imafdc zicsr zicntr zifencei"
-"riscv64/generic/rva22u64"	""		"rv64imafdc zicsr zicntr zifencei zihpm zihintpause zba zbb zbs zicbom zicbop zicboz zfhmin zkt"
-"riscv64/generic/rva23u64"	""		"rv64imafdcv zicsr zicntr zifencei zihpm zihintpause zihintntl zba zbb zbs zicbom zicbop zicboz zfhmin zkt zicond zimop zcmop zcb zfa zawrs zvfhmin zvbb zvkt"
+"riscv64/rva20u64"	""		"rv64imafdc zicsr zicntr zifencei"
+"riscv64/rva22u64"	""		"rv64imafdc zicsr zicntr zifencei zihpm zihintpause zba zbb zbs zicbom zicbop zicboz zfhmin zkt"
+"riscv64/rva23u64"	""		"rv64imafdcv zicsr zicntr zifencei zihpm zihintpause zihintntl zba zbb zbs zicbom zicbop zicboz zfhmin zkt zicond zimop zcmop zcb zfa zawrs zvfhmin zvbb zvkt"
 "riscv64/sifive/p550"		"0x489"		"rv64imafdch zicsr zifencei zba zbb sscofpmf"	# full measured P550 isa
 "riscv64/sifive/u74-mc"		"0x489"		"rv64imafdc zicntr zicsr zifencei zihpm zca zcd zba zbb"	# full measured VisionFive 2 isa
 "riscv64/spacemit/x60"		"0x710"		"rv64imafdcv sscofpmf sstc svpbmt zicbom zicboz zicbop zihintpause"	# full Armbian-short isa

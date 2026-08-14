@@ -1,6 +1,5 @@
-# Synthetic RVA22U64-floor host: unknown vendor; ISA tokens match the
-# detectable mandatory RVA22U64 subset (base + zihpm/zihintpause/bitmanip/
-# zfhmin/zicbo*/zkt).
+# RVA22U64-floor host: unknown vendor; ISA tokens match the detectable
+# mandatory RVA22U64 subset (base + zihpm/zihintpause/bitmanip/zfhmin/zicbo*/zkt).
 processor	: 0
 hart		: 0
 isa		: rv64imafdc_zicsr_zifencei_zicntr_zihpm_zihintpause_zba_zbb_zbs_zicbom_zicbop_zicboz_zfhmin_zkt
