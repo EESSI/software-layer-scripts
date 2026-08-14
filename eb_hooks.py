@@ -17,6 +17,7 @@ from easybuild.framework.easyconfig.easyconfig import (
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option, install_path, update_build_option
+from easybuild.tools.config import ERROR
 from easybuild.tools.filetools import apply_regex_substitutions, copy_dir, copy_file, remove_file, symlink, which
 from easybuild.tools.modules import get_software_root, get_software_root_env_var_name
 from easybuild.tools.run import run_cmd
@@ -49,7 +50,7 @@ EESSI_MODULE_ONLY_ATTR = 'orig_module_only'
 EESSI_FORCE_ATTR = 'orig_force'
 EESSI_SUPPORTED_MODULE_ATTR = 'eessi_supported_module'
 EESSI_UNSUPPORTED_MODULE_ATTR = 'eessi_unsupported_module'
-EESSI_SANITYCHECK_CUDA_ATTR = 'eessi_sanitycheck_cuda_dep'
+EESSI_SANITYCHECK_CUDA_ATTR = 'eessi_sanitycheck_initial_env_path'
 
 SYSTEM = EASYCONFIG_CONSTANTS['SYSTEM'][0]
 
@@ -971,8 +972,8 @@ def post_sanitycheck_hook(self, *args, **kwargs):
 def pre_sanitycheck_hook_cuda(self, *args, **kwargs):
     """
     If CUDA is a build-only dependency (demoted to build dep by inject_gpu_property),
-    temporarily load the module so CUDA tools (cuobjdump, nvcc)
-    are available during the sanity check step.
+    temporarily load the module so CUDA tool cuobjdump path can be made
+    available during the sanity check step.
     This is needed since EasyBuild 5.4.0 where build deps are no longer available
     during the sanity check.
     """
@@ -982,16 +983,18 @@ def pre_sanitycheck_hook_cuda(self, *args, **kwargs):
         build_deps = self.cfg.get_ref('builddependencies')
         for dep in build_deps:
             if dep['name'] == 'CUDA':
-                # Store the dependency for removal in post hook
-                setattr(self, EESSI_SANITYCHECK_CUDA_ATTR, dep)
                 # Load CUDA module
                 self.modules_tool.load([dep['full_mod_name']])
-                cuobjdump_path = shutil.which('cuobjdump')
+                cuobjdump_path = which('cuobjdump', on_error=ERROR)
                 cuobjdump_dir = os.path.dirname(cuobjdump_path)
                 self.cuobjdump_dir = cuobjdump_dir
                 self.modules_tool.unload([dep['full_mod_name']])
-                os.environ['PATH'] = os.environ.get('PATH', '') + os.pathsep + cuobjdump_dir
-                print_msg(f"Adding location of cuobjdump_dir ({cuobjdump_dir}) to the PATH so that we can execute the CUDA sanity check")
+                # Store the original PATH for restoration in post hook
+                original_initial_environ_path = self.initial_environ['PATH']
+                setattr(self, EESSI_SANITYCHECK_CUDA_ATTR, original_initial_environ_path)
+                # Modify stored initial environment (restored during the sanity check), not the current environment
+                self.initial_environ['PATH'] = original_initial_environ_path + os.pathsep + cuobjdump_dir
+                print_msg(f"Add location of cuobjdump ({cuobjdump_dir}) to initial environ PATH for CUDA sanity check")
                 break
 
 
@@ -1000,10 +1003,17 @@ def post_sanitycheck_hook_cuda(self, *args, **kwargs):
     Reverse the temporary CUDA dependency promotion from pre_sanitycheck_hook_cuda.
     """
     if hasattr(self, EESSI_SANITYCHECK_CUDA_ATTR):
-        # Technically, we should probably remove the cuobjdump_dir from the path
-        # for now, we do nothing, let's first check this works.
-        # TODO: cleanup
-        # print_msg(f"Remove {self.cuobjdump_dir} from the PATH")
+        original_path = getattr(self, EESSI_SANITYCHECK_CUDA_ATTR)
+
+        if not isinstance(original_path, str) or os.pathsep not in original_path:
+            raise EasyBuildError(
+                f"Expected {EESSI_SANITYCHECK_CUDA_ATTR} attribute to contain a PATH-like "
+                f"value, but got: {original_path}"
+            )
+
+        # Restore the original initial environ PATH
+        print_msg(f"Restoring stored initial environ PATH after CUDA sanity check")
+        self.initial_environ['PATH'] = original_path
         delattr(self, EESSI_SANITYCHECK_CUDA_ATTR)
 
 
