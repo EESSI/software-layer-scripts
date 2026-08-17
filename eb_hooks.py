@@ -587,6 +587,13 @@ def parse_hook_cgal_toolchainopts_precise(ec, eprefix):
         raise EasyBuildError("CGAL-specific hook triggered for non-CGAL easyconfig?!")
 
 
+def parse_hook_hipblaslt_single_core_build(ec, eprefix):
+    """Inject -DTensile_CPU_THREADS=1 to force Tensile to use a single core."""
+    # todo: if this works, only do it for certain gfx targets
+    if ec.name == 'hipBLASLt':
+        ec.update('configopts', '-DTensile_CPU_THREADS=1')
+
+
 def parse_hook_fontconfig_add_fonts(ec, eprefix):
     """Inject --with-add-fonts configure option for fontconfig."""
     if ec.name == 'fontconfig':
@@ -2272,6 +2279,7 @@ PARSE_HOOKS = {
     'fontconfig': parse_hook_fontconfig_add_fonts,
     'FreeImage': parse_hook_freeimage_aarch64,
     'grpcio': parse_hook_grpcio_zlib,
+    'hipBLASLt': parse_hook_hipblaslt_single_core_build,
     'maturin': parse_hook_maturin,
     'Mesa': parse_hook_mesa_use_llvm_minimal,
     'OpenBLAS': parse_hook_openblas_relax_lapack_tests_num_errors,
