@@ -1952,19 +1952,21 @@ def pre_single_extension_numpy(ext, *args, **kwargs):
 
 def pre_single_extension_hf_xet(ext, *args, **kwargs):
     """
-    Replace -mcpu=generic with -mtune=generic in $CFLAGS,
-    so that the sha2 asm crate can successfully compile
-    sha256_aarch64.S with -march=armv8-a+crypto.
-    see https://github.com/huggingface/xet-core/issues/582
+    Pre-single-extension hook for hf_xet (extension of huggingface-hub) on aarch64/generic:
+    - inject a sed command into preinstallopts that patches data/Cargo.toml in the hf_xet
+      source to remove the "asm" feature from the sha2 dependency.
+      see https://github.com/huggingface/xet-core/issues/582
     """
     if ext.name == 'hf_xet':
         cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
         if cpu_target == CPU_TARGET_AARCH64_GENERIC:
-            cflags = os.getenv('CFLAGS', '')
-            mcpu_generic = '-mcpu=generic'
-            if mcpu_generic in cflags:
-                cflags = cflags.replace(mcpu_generic, '-mtune=generic')
-                ext.cfg['preinstallopts'] = "export CFLAGS='%s' && " % cflags
+            sed_cmd = (
+                r"""sed -i '/^sha2 = / s/, features = \["asm"\]//' data/Cargo.toml && """
+            )
+            ext.cfg['preinstallopts'] = sed_cmd + ext.cfg.get('preinstallopts', '')
+            ext.log.info("Injected data/Cargo.toml sha2 asm patch into preinstallopts for hf_xet on %s", cpu_target)
+    else:
+        raise EasyBuildError("hf_xet-specific extension hook triggered for non-hf_xet extension?!")
 
 
 def post_single_extension_numpy(ext, *args, **kwargs):
