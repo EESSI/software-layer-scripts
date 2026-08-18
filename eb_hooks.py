@@ -17,6 +17,7 @@ from easybuild.framework.easyconfig.easyconfig import (
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option, install_path, update_build_option
+from easybuild.tools.config import ERROR
 from easybuild.tools.filetools import apply_regex_substitutions, copy_dir, copy_file, remove_file, symlink, which
 from easybuild.tools.modules import get_software_root, get_software_root_env_var_name
 from easybuild.tools.run import run_cmd
@@ -49,6 +50,7 @@ EESSI_MODULE_ONLY_ATTR = 'orig_module_only'
 EESSI_FORCE_ATTR = 'orig_force'
 EESSI_SUPPORTED_MODULE_ATTR = 'eessi_supported_module'
 EESSI_UNSUPPORTED_MODULE_ATTR = 'eessi_unsupported_module'
+EESSI_SANITYCHECK_CUDA_ATTR = 'eessi_sanitycheck_initial_env_path'
 
 SYSTEM = EASYCONFIG_CONSTANTS['SYSTEM'][0]
 
@@ -88,11 +90,11 @@ if EASYBUILD_VERSION >= '5.3.1':
     )
 
 # Supported compute capabilities by CUDA toolkit version
-# Obtained by installing all CUDAs from 12.0.0 to 13.1.0, then using:
+# Obtained by installing all CUDAs from 12.0.0 to 13.3.0, then using:
 
 # #!/bin/bash
 #
-# CUDA_VERS=(12.0.0 12.1.0 12.1.1 12.2.0 12.2.2 12.3.0 12.3.2 12.4.0 12.5.0 12.6.0 12.8.0 12.9.0 12.9.1 13.0.0 13.0.1 13.0.2 13.1.0)
+# CUDA_VERS=(12.0.0 12.1.0 12.1.1 12.2.0 12.2.2 12.3.0 12.3.2 12.4.0 12.5.0 12.6.0 12.8.0 12.9.0 12.9.1 13.0.0 13.0.1 13.0.2 13.1.0 13.1.1 13.2.0 13.3.0)
 #
 # for ver in ${CUDA_VERS[@]}; do
 #     module load CUDA/${ver}
@@ -120,6 +122,9 @@ CUDA_SUPPORTED_CCS = {
     '13.0.1': ['75', '80', '86', '87', '88', '89', '90', '100', '110', '103', '120', '121'],
     '13.0.2': ['75', '80', '86', '87', '88', '89', '90', '100', '110', '103', '120', '121'],
     '13.1.0': ['75', '80', '86', '87', '88', '89', '90', '100', '110', '103', '120', '121'],
+    '13.1.1': ['75', '80', '86', '87', '88', '89', '90', '100', '110', '103', '120', '121'],
+    '13.2.0': ['75', '80', '86', '87', '88', '89', '90', '100', '110', '103', '120', '121'],
+    '13.3.0': ['75', '80', '86', '87', '88', '89', '90', '100', '110', '103', '120', '121'],
 }
 
 # Ensure that we don't print any messages in --terse mode
@@ -952,6 +957,64 @@ def post_module_hook_unsupported_module(self, *args, **kwargs):
             if self.initial_environ.get(unsup_mod.envvar, False):
                 print_msg(f"Removing {unsup_mod.envvar} in initial environment")
                 del self.initial_environ[unsup_mod.envvar]
+
+
+def pre_sanitycheck_hook(self, *args, **kwargs):
+    """Main pre-sanitycheck hook: trigger custom functions."""
+    pre_sanitycheck_hook_cuda(self, *args, **kwargs)
+
+
+def post_sanitycheck_hook(self, *args, **kwargs):
+    """Main post-sanitycheck hook: trigger custom functions."""
+    post_sanitycheck_hook_cuda(self, *args, **kwargs)
+
+
+def pre_sanitycheck_hook_cuda(self, *args, **kwargs):
+    """
+    If CUDA is a build-only dependency (demoted to build dep by inject_gpu_property),
+    temporarily load the module so CUDA tool cuobjdump path can be made
+    available during the sanity check step.
+    This is needed since EasyBuild 5.4.0 where build deps are no longer available
+    during the sanity check.
+    """
+    cudaver = get_dependency_software_version("CUDA", ec=self.cfg, check_deps=False, check_builddeps=True)
+    if cudaver and EASYBUILD_VERSION >= '5.4.0':
+        # Get the CUDA dependency info from builddependencies
+        build_deps = self.cfg.get_ref('builddependencies')
+        for dep in build_deps:
+            if dep['name'] == 'CUDA':
+                # Load CUDA module
+                self.modules_tool.load([dep['full_mod_name']])
+                cuobjdump_path = which('cuobjdump', on_error=ERROR)
+                cuobjdump_dir = os.path.dirname(cuobjdump_path)
+                self.cuobjdump_dir = cuobjdump_dir
+                self.modules_tool.unload([dep['full_mod_name']])
+                # Store the original PATH for restoration in post hook
+                original_initial_environ_path = self.initial_environ['PATH']
+                setattr(self, EESSI_SANITYCHECK_CUDA_ATTR, original_initial_environ_path)
+                # Modify stored initial environment (restored during the sanity check), not the current environment
+                self.initial_environ['PATH'] = original_initial_environ_path + os.pathsep + cuobjdump_dir
+                print_msg(f"Add location of cuobjdump ({cuobjdump_dir}) to initial environ PATH for CUDA sanity check")
+                break
+
+
+def post_sanitycheck_hook_cuda(self, *args, **kwargs):
+    """
+    Reverse the temporary CUDA dependency promotion from pre_sanitycheck_hook_cuda.
+    """
+    if hasattr(self, EESSI_SANITYCHECK_CUDA_ATTR):
+        original_path = getattr(self, EESSI_SANITYCHECK_CUDA_ATTR)
+
+        if not isinstance(original_path, str) or os.pathsep not in original_path:
+            raise EasyBuildError(
+                f"Expected {EESSI_SANITYCHECK_CUDA_ATTR} attribute to contain a PATH-like "
+                f"value, but got: {original_path}"
+            )
+
+        # Restore the original initial environ PATH
+        print_msg(f"Restoring stored initial environ PATH after CUDA sanity check")
+        self.initial_environ['PATH'] = original_path
+        delattr(self, EESSI_SANITYCHECK_CUDA_ATTR)
 
 
 def post_easyblock_hook_copy_easybuild_subdir(self, *args, **kwargs):

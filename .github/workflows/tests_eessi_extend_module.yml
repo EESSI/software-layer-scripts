@@ -28,7 +28,13 @@ jobs:
           eessi_stack_version: ${{matrix.eessi_version}}
           use_eessi_module: true
 
-      - name: Install the EESSI-extend shipped with the repository and verify it is consistent with the CVMFS repo
+      - name: Set the installation path for EESSI-extend
+        run: |
+          # Configuration item used throughout this workflow:
+          # adjust this to change where EESSI-extend is (re)built and picked up from
+          echo "MY_INSTALLATION_PATH=/tmp/easybuild" >> "$GITHUB_ENV"
+
+      - name: Install the EESSI-extend shipped with the repository
         run: |
           # Define a function to check the values of environment variables
           # and another that checks an environment does not contain environment 
@@ -46,56 +52,19 @@ jobs:
 
           # Load EasyBuild to install EESSI-extend
           module load EasyBuild
-          # Set an installation path
-          export MY_INSTALLATION_PATH=/tmp/easybuild
           export EASYBUILD_PREFIX=$MY_INSTALLATION_PATH
           eb EESSI-extend-easybuild.eb --rebuild
           module unload EasyBuild
 
-          # Verify that we can pick the installed version up
-          module use $MY_INSTALLATION_PATH/modules/all
-          # Verify we can run "module show" on the module
-          module show EESSI-extend/${{matrix.eessi_version}}-easybuild
-          # Now load it and run additional checks
-          module load EESSI-extend/${{matrix.eessi_version}}-easybuild
-          echo $EBROOTEESSIMINEXTEND | grep $MY_INSTALLATION_PATH || { echo "ERROR: Installed version of EESSI-extend not picked up (loaded $EBROOTEESSIMINEXTEND)" >&2; exit 1; }
-          # Do a test rebuild (with default and local hooks)
-          echo "Testing a rebuild using the hooks shipped with EESSI"
-          eb --rebuild ${{matrix.rebuild_software}}
-          echo "Testing a rebuild using the hooks in the current branch"
-          eb --rebuild --hooks=./eb_hooks.py ${{matrix.rebuild_software}}
-          
-          # First, check if it differs against what is currently shipped by CVMFS
-          diff   <(grep -v '^local root = ' /cvmfs/software.eessi.io/versions/${{matrix.eessi_version}}/software/linux/$(uname -m)/generic/modules/all/EESSI-extend/${{matrix.eessi_version}}-easybuild.lua)   <(grep -v '^local root = ' $MY_INSTALLATION_PATH/modules/all/EESSI-extend/${{matrix.eessi_version}}-easybuild.lua)
-          # Then do a consistency check in CVMFS for all architectures
-          .github/workflows/scripts/diff_eessi_extend.sh
-
-          # Proceed with unload and checking the environment variables
-          module unload EESSI-extend
-          # That should have unset all EasyBuild envvars (including EASYBUILD_PREFIX)
-          check_disallowed_env_prefix EASYBUILD_
-          module unuse $MY_INSTALLATION_PATH/modules/all
-
-      - name: Run tests for EESSI-extend in the various CPU-only scenarios
+      - name: Run tests for EESSI-extend in the CVMFS install scenario
         run: |
-          export MY_INSTALLATION_PATH=/tmp/easybuild
-
-          # Define a function to check the values of environment variables
-          # and another that checks an environment does not contain environment 
-          # variables matching a certain pattern
           source .github/workflows/scripts/test_utils.sh
-
-          # Let's start from a clean slate
-          module --force purge
-          module load EESSI/${{matrix.eessi_version}}
-          # Access the installed EESSI-extend
-          module use "$MY_INSTALLATION_PATH"/modules/all
-          check_disallowed_env_prefix EASYBUILD_
+          init_eessi_environment --eessi-version ${{matrix.eessi_version}} --installation-path "$MY_INSTALLATION_PATH"
 
           # Configure for CVMFS install
-          echo "Checking EESSI-extend CVMFS install"
           export EESSI_CVMFS_INSTALL=1
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild
+          echo $EBROOTEESSIMINEXTEND | grep $MY_INSTALLATION_PATH || { echo "ERROR: Installed version of EESSI-extend not picked up (loaded $EBROOTEESSIMINEXTEND)" >&2; exit 1; }
           # check some common EasyBuild settings
           check_env_var "EASYBUILD_READ_ONLY_INSTALLDIR" "1"
           check_env_var "EASYBUILD_ALLOW_LOADED_MODULES" "EasyBuild,EESSI-extend"
@@ -124,8 +93,12 @@ jobs:
           check_disallowed_env_prefix EASYBUILD_
           unset EESSI_CVMFS_INSTALL
 
-          # Now configure for a site
-          echo "Checking EESSI-extend site install"
+      - name: Run tests for EESSI-extend in the site install scenario
+        run: |
+          source .github/workflows/scripts/test_utils.sh
+          init_eessi_environment --eessi-version ${{matrix.eessi_version}} --installation-path "$MY_INSTALLATION_PATH"
+
+          # Configure for a site install
           export EESSI_SITE_INSTALL=1
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild
           # check some specific envvars
@@ -138,8 +111,12 @@ jobs:
           check_disallowed_env_prefix EASYBUILD_
           unset EESSI_SITE_INSTALL
 
-          # Now for a project
-          echo "Checking EESSI-extend project install"
+      - name: Run tests for EESSI-extend in the project install scenario
+        run: |
+          source .github/workflows/scripts/test_utils.sh
+          init_eessi_environment --eessi-version ${{matrix.eessi_version}} --installation-path "$MY_INSTALLATION_PATH"
+
+          # Configure for a project install
           export EESSI_PROJECT_INSTALL="$MY_INSTALLATION_PATH"
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild
           # check some specific envvars
@@ -154,8 +131,12 @@ jobs:
           check_disallowed_env_prefix EASYBUILD_
           unset EESSI_PROJECT_INSTALL
 
-          # Now for a user
-          echo "Checking EESSI-extend user install"
+      - name: Run tests for EESSI-extend in the user install scenario
+        run: |
+          source .github/workflows/scripts/test_utils.sh
+          init_eessi_environment --eessi-version ${{matrix.eessi_version}} --installation-path "$MY_INSTALLATION_PATH"
+
+          # Configure for a user install
           export EESSI_USER_INSTALL="$MY_INSTALLATION_PATH/$USER"
           mkdir -p $EESSI_USER_INSTALL  # must exist
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild
@@ -170,29 +151,33 @@ jobs:
           check_disallowed_env_prefix EASYBUILD_
           unset EESSI_USER_INSTALL
 
-      - name: Run tests for EESSI-extend in the various GPU scenarios
+      - name: Run tests for EESSI-extend in the EasyBuild hooks override scenario
         run: |
-          export MY_INSTALLATION_PATH=/tmp/easybuild
-
-          # Define a function to check the values of environment variables
-          # and another that checks an environment does not contain environment 
-          # variables matching a certain pattern
           source .github/workflows/scripts/test_utils.sh
-          
-          # Set an environment variable to use when we want to target accelerators
-          export STORED_EESSI_ACCELERATOR_TARGET_OVERRIDE="accel/nvidia/cc80"
-          export STORED_CUDA_CC="8.0"
+          init_eessi_environment --eessi-version ${{matrix.eessi_version}} --installation-path "$MY_INSTALLATION_PATH"
 
-          # Let's start from a clean slate
-          module --force purge
-          export EESSI_ACCELERATOR_TARGET_OVERRIDE=$STORED_EESSI_ACCELERATOR_TARGET_OVERRIDE
-          module load EESSI/${{matrix.eessi_version}}
-          # Access the installed EESSI-extend
-          module use "$MY_INSTALLATION_PATH"/modules/all
+          # Test overriding the EasyBuild hooks
+          export EESSI_EASYBUILD_HOOKS_OVERRIDE="$GITHUB_WORKSPACE/eb_hooks.py"
+          module load EESSI-extend/${{matrix.eessi_version}}-easybuild
+          check_env_var "EASYBUILD_HOOKS" "$EESSI_EASYBUILD_HOOKS_OVERRIDE"
+          module unload EESSI-extend
           check_disallowed_env_prefix EASYBUILD_
+          unset EESSI_EASYBUILD_HOOKS_OVERRIDE
+
+      - name: Set accelerator target override environment variables for GPU tests
+        run: |
+          echo "STORED_EESSI_ACCELERATOR_TARGET_OVERRIDE=accel/nvidia/cc80" >> "$GITHUB_ENV"
+          echo "STORED_CUDA_CC=8.0" >> "$GITHUB_ENV"
+
+      - name: Run tests for EESSI-extend with accelerators in the CVMFS install scenario
+        run: |
+          source .github/workflows/scripts/test_utils.sh
+          init_eessi_environment --eessi-version ${{matrix.eessi_version}} \
+                                 --installation-path "$MY_INSTALLATION_PATH" \
+                                 --accelerator-target "$STORED_EESSI_ACCELERATOR_TARGET_OVERRIDE" \
+                                 --cuda-cc "$STORED_CUDA_CC"
 
           # Configure for CVMFS install
-          echo "Checking EESSI-extend CVMFS install"
           export EESSI_CVMFS_INSTALL=1
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild
           check_env_var "EASYBUILD_INSTALLPATH" "$EESSI_SOFTWARE_PATH"  # installation path should be the same unless we ask for an explicit GPU installation
@@ -210,8 +195,15 @@ jobs:
           unset EESSI_ACCELERATOR_INSTALL
           unset EESSI_CVMFS_INSTALL
 
-          # Now configure for a site
-          echo "Checking EESSI-extend site install"
+      - name: Run tests for EESSI-extend with accelerators in the site install scenario
+        run: |
+          source .github/workflows/scripts/test_utils.sh
+          init_eessi_environment --eessi-version ${{matrix.eessi_version}} \
+                                 --installation-path "$MY_INSTALLATION_PATH" \
+                                 --accelerator-target "$STORED_EESSI_ACCELERATOR_TARGET_OVERRIDE" \
+                                 --cuda-cc "$STORED_CUDA_CC"
+
+          # Configure for a site install
           export EESSI_SITE_INSTALL=1
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild
           check_env_var "EASYBUILD_INSTALLPATH" "$EESSI_SITE_SOFTWARE_PATH"  # installation path should be the same unless we ask for an explicit GPU installation
@@ -229,8 +221,15 @@ jobs:
           unset EESSI_ACCELERATOR_INSTALL
           unset EESSI_SITE_INSTALL
 
-          # Now for a project
-          echo "Checking EESSI-extend project install"
+      - name: Run tests for EESSI-extend with accelerators in the project install scenario
+        run: |
+          source .github/workflows/scripts/test_utils.sh
+          init_eessi_environment --eessi-version ${{matrix.eessi_version}} \
+                                 --installation-path "$MY_INSTALLATION_PATH" \
+                                 --accelerator-target "$STORED_EESSI_ACCELERATOR_TARGET_OVERRIDE" \
+                                 --cuda-cc "$STORED_CUDA_CC"
+
+          # Configure for a project install
           export EESSI_PROJECT_INSTALL="$MY_INSTALLATION_PATH"
           export EXPECTED_INSTALLATION_PATH="$MY_INSTALLATION_PATH/versions/$EESSI_VERSION/software/linux/$EESSI_SOFTWARE_SUBDIR"
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild
@@ -239,7 +238,7 @@ jobs:
           check_env_var "EASYBUILD_CUDA_COMPUTE_CAPABILITIES" "$STORED_CUDA_CC"
           module unload EESSI-extend
           export EESSI_ACCELERATOR_INSTALL=1
-          module load EESSI-extend/${{matrix.eessi_version}}-easybuild # reload for an GPU actual installation
+          module load EESSI-extend/${{matrix.eessi_version}}-easybuild # reload for an actual GPU installation
           check_env_var "EASYBUILD_INSTALLPATH" "$EXPECTED_INSTALLATION_PATH"  # installation path should be the same for project case
           check_env_var "EESSI_ACCELERATOR_TARGET" "$STORED_EESSI_ACCELERATOR_TARGET_OVERRIDE"
           check_env_var "EASYBUILD_CUDA_COMPUTE_CAPABILITIES" "$STORED_CUDA_CC"
@@ -249,14 +248,20 @@ jobs:
           unset EESSI_ACCELERATOR_INSTALL
           unset EESSI_PROJECT_INSTALL
 
-          # Now for a user
-          echo "Checking EESSI-extend user install"
+      - name: Run tests for EESSI-extend with accelerators in the user install scenario
+        run: |
+          source .github/workflows/scripts/test_utils.sh
+          init_eessi_environment --eessi-version ${{matrix.eessi_version}} \
+                                 --installation-path "$MY_INSTALLATION_PATH" \
+                                 --accelerator-target "$STORED_EESSI_ACCELERATOR_TARGET_OVERRIDE" \
+                                 --cuda-cc "$STORED_CUDA_CC"
+
+          # Configure for a user install
           export EESSI_USER_INSTALL="$MY_INSTALLATION_PATH/$USER"
           mkdir -p $EESSI_USER_INSTALL  # must exist
           module load EESSI-extend/${{matrix.eessi_version}}-easybuild
           # check some specific envvars
           export EXPECTED_INSTALLATION_PATH="$MY_INSTALLATION_PATH/$USER/versions/$EESSI_VERSION/software/linux/$EESSI_SOFTWARE_SUBDIR"
-          module load EESSI-extend/${{matrix.eessi_version}}-easybuild
           check_env_var "EASYBUILD_INSTALLPATH" "$EXPECTED_INSTALLATION_PATH"  # installation path should be the same unless we ask for an explicit GPU installation
           check_env_var "EESSI_ACCELERATOR_TARGET" "$STORED_EESSI_ACCELERATOR_TARGET_OVERRIDE"
           check_env_var "EASYBUILD_CUDA_COMPUTE_CAPABILITIES" "$STORED_CUDA_CC"
@@ -270,4 +275,39 @@ jobs:
           module unload EESSI-extend
           check_disallowed_env_prefix EASYBUILD_
           unset EESSI_ACCELERATOR_INSTALL
-          unset EESSI_USER_INSTALL     
+          unset EESSI_USER_INSTALL
+
+      - name: Dryrun tests with hooks from github and hooks from the CVMFS repo
+        run: |
+          source .github/workflows/scripts/test_utils.sh
+          init_eessi_environment --eessi-version ${{matrix.eessi_version}} --installation-path "$MY_INSTALLATION_PATH"
+
+          module load EESSI-extend/${{matrix.eessi_version}}-easybuild
+          # Do a test rebuild (with default and local hooks)
+          echo "Testing a rebuild using the hooks shipped with EESSI"
+          eb --rebuild ${{matrix.rebuild_software}}
+          echo "Testing a rebuild using the hooks in the current branch"
+          eb --rebuild --hooks=./eb_hooks.py ${{matrix.rebuild_software}}
+          # unload and check the environment is clean again
+          module unload EESSI-extend
+          check_disallowed_env_prefix EASYBUILD_
+
+      - name: Verify the EESSI-extend module is consistent with the CVMFS repo
+        run: |
+          source .github/workflows/scripts/test_utils.sh
+          init_eessi_environment --eessi-version ${{matrix.eessi_version}} --installation-path "$MY_INSTALLATION_PATH"
+
+          # Verify we can run "module show" on the module
+          module show EESSI-extend/${{matrix.eessi_version}}-easybuild
+          # Now load it and run additional checks
+          module load EESSI-extend/${{matrix.eessi_version}}-easybuild
+
+          # First, check if it differs against what is currently shipped by CVMFS
+          diff   <(grep -v '^local root = \|^-- Built with EasyBuild version' /cvmfs/software.eessi.io/versions/${{matrix.eessi_version}}/software/linux/$(uname -m)/generic/modules/all/EESSI-extend/${{matrix.eessi_version}}-easybuild.lua)   <(grep -v '^local root = \|^-- Built with EasyBuild version' $MY_INSTALLATION_PATH/modules/all/EESSI-extend/${{matrix.eessi_version}}-easybuild.lua)
+          # Then do a consistency check in CVMFS for all architectures
+          .github/workflows/scripts/diff_eessi_extend.sh
+
+          # Proceed with unload and checking the environment variables
+          module unload EESSI-extend
+          # That should have unset all EasyBuild envvars (including EASYBUILD_PREFIX)
+          check_disallowed_env_prefix EASYBUILD_
