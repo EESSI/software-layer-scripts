@@ -1950,6 +1950,25 @@ def pre_single_extension_numpy(ext, *args, **kwargs):
             update_build_option('optarch', 'march=armv8.2-a')
 
 
+def pre_single_extension_hf_xet(ext, *args, **kwargs):
+    """
+    Pre-single-extension hook for hf_xet (extension of huggingface-hub) on aarch64/generic:
+    - inject a sed command into preinstallopts that patches data/Cargo.toml in the hf_xet
+      source to remove the "asm" feature from the sha2 dependency.
+      see https://github.com/huggingface/xet-core/issues/582
+    """
+    if ext.name in ['hf_xet', 'hf-xet'] and ext.version in ['1.1.7', '1.2.0']:
+        cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+        if cpu_target == CPU_TARGET_AARCH64_GENERIC:
+            sed_cmd = (
+                r"""sed -i '/^sha2 = / s/, features = \["asm"\]//' data/Cargo.toml && """
+            )
+            ext.cfg['preinstallopts'] = sed_cmd + ext.cfg.get('preinstallopts', '')
+            ext.log.info("Injected data/Cargo.toml sha2 asm patch into preinstallopts for hf_xet on %s", cpu_target)
+    else:
+        raise EasyBuildError("hf_xet-specific extension hook triggered for non-hf_xet extension?!")
+
+
 def post_single_extension_numpy(ext, *args, **kwargs):
     """
     Post-extension hook for numpy, to reset 'optarch' build option.
@@ -2402,6 +2421,7 @@ PRE_SINGLE_EXTENSION_HOOKS = {
     'isoband': pre_single_extension_isoband,
     'numpy': pre_single_extension_numpy,
     'testthat': pre_single_extension_testthat,
+    'hf_xet': pre_single_extension_hf_xet,
 }
 
 POST_SINGLE_EXTENSION_HOOKS = {
