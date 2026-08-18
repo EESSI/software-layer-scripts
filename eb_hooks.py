@@ -1957,7 +1957,7 @@ def pre_single_extension_hf_xet(ext, *args, **kwargs):
       source to remove the "asm" feature from the sha2 dependency.
       see https://github.com/huggingface/xet-core/issues/582
     """
-    if ext.name == 'hf_xet':
+    if ext.name in ['hf_xet', 'hf-xet'] and ext.version in ['1.1.7', '1.2.0']:
         cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
         if cpu_target == CPU_TARGET_AARCH64_GENERIC:
             sed_cmd = (
