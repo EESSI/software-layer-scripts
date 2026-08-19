@@ -1960,9 +1960,14 @@ def pre_single_extension_hf_xet(ext, *args, **kwargs):
     if ext.name in ['hf_xet', 'hf-xet'] and ext.version in ['1.1.7', '1.2.0']:
         cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
         if cpu_target == CPU_TARGET_AARCH64_GENERIC:
-            sed_cmd = (
+            if ext.version == '1.1.7':
+                sed_cmd = (
                 r"""sed -i '/^sha2 = / s/, features = \["asm"\]//' data/Cargo.toml && """
-            )
+                )
+            else:
+                sed_cmd = (
+                r"""sed -i '/^sha2 = / s/, features = \["asm"\]//' ../data/Cargo.toml && """
+                )
             ext.cfg['preinstallopts'] = sed_cmd + ext.cfg.get('preinstallopts', '')
             ext.log.info("Injected data/Cargo.toml sha2 asm patch into preinstallopts for hf_xet on %s", cpu_target)
     else:
@@ -2422,6 +2427,7 @@ PRE_SINGLE_EXTENSION_HOOKS = {
     'numpy': pre_single_extension_numpy,
     'testthat': pre_single_extension_testthat,
     'hf_xet': pre_single_extension_hf_xet,
+    'hf-xet': pre_single_extension_hf_xet,
 }
 
 POST_SINGLE_EXTENSION_HOOKS = {
