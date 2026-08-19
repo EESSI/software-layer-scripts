@@ -1462,6 +1462,20 @@ def pre_configure_hook_llvm(self, *args, **kwargs):
                     item.deps.append(sftw)
 
         recursive_set_deps(self, softwares=('zlib', 'ncurses'))
+
+        # More ignorable tests and patch to avoid treating `__unused` as a non-reserved name
+        # https://github.com/EESSI/software-layer/pull/1583
+        if self.version == '21.1.8':
+            self.cfg.update('test_suite_ignore_patterns', 'Clang :: Driver/aarch64-toolchain-extra.c')
+            self.cfg.update('test_suite_ignore_patterns', 'Clang :: Driver/arm-toolchain-extra.c')
+            self.cfg.update('test_suite_ignore_patterns', 'libFuzzer-x86_64-default-Linux :: stack-overflow-with-asan.test')
+            self.cfg.update('test_suite_ignore_patterns', 'libFuzzer-x86_64-libcxx-Linux :: stack-overflow-with-asan.test')
+            self.cfg.update('test_suite_ignore_patterns', 'libFuzzer-x86_64-static-libcxx-Linux :: stack-overflow-with-asan.test')
+
+            # libcxx/test/libcxx/system_reserved_names.gen.py
+            sys_res_names_file = os.path.join(self.start_dir, 'libcxx', 'test', 'libcxx', 'system_reserved_names.gen.py')
+            #define __unused SYSTEM_RESERVED_NAME
+            apply_regex_substitutions(sys_res_names_file, [(r'^#define __unused SYSTEM_RESERVED_NAME', '')])
     else:
         raise EasyBuildError("LLVM-specific hook triggered for non-LLVM easyconfig?!")
 
