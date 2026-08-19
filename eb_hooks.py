@@ -1472,9 +1472,7 @@ def pre_configure_hook_llvm(self, *args, **kwargs):
             self.cfg.update('test_suite_ignore_patterns', 'libFuzzer-x86_64-libcxx-Linux :: stack-overflow-with-asan.test')
             self.cfg.update('test_suite_ignore_patterns', 'libFuzzer-x86_64-static-libcxx-Linux :: stack-overflow-with-asan.test')
 
-            # libcxx/test/libcxx/system_reserved_names.gen.py
             sys_res_names_file = os.path.join(self.start_dir, 'libcxx', 'test', 'libcxx', 'system_reserved_names.gen.py')
-            #define __unused SYSTEM_RESERVED_NAME
             apply_regex_substitutions(sys_res_names_file, [(r'^#define __unused SYSTEM_RESERVED_NAME', '')])
     else:
         raise EasyBuildError("LLVM-specific hook triggered for non-LLVM easyconfig?!")
