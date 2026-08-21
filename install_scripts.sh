@@ -225,6 +225,7 @@ fi
 # Copy over EasyBuild hooks file used for installations
 hook_files=(
     eb_hooks.py
+    testfile
 )
 copy_files_by_list ${TOPDIR} ${INSTALL_PREFIX}/init/easybuild "${hook_files[@]}"
 
