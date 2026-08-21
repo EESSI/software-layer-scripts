@@ -186,6 +186,7 @@ echo "bot/build.sh: EESSI_SOFTWARE_SUBDIR_OVERRIDE='${EESSI_SOFTWARE_SUBDIR_OVER
 # Log the full lscpu, ulimits, and os-release info:
 lscpu > _bot_job${SLURM_JOB_ID}.lscpu
 ulimit -a > _bot_job${SLURM_JOB_ID}.ulimits
+umask > _bot_job${SLURM_JOB_ID}.umask
 cat /etc/os-release > _bot_job${SLURM_JOB_ID}.os
 
 # Also: fetch CPU flags into an array, so that we can implement a hard check against a reference
