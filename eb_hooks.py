@@ -688,7 +688,7 @@ def parse_hook_qt6_libinput(ec, eprefix):
     Add dependency on libinput to Qt6.
     This is not included in upstream EasyBuild as it brings a dependency on system-d
     """
-    qt6_toolchain_version_to_libinput_version_map = {'14.3.0': '1.30.1'}
+    qt6_toolchain_version_to_libinput_version_map = {'14.3.0': '1.30.1', '15.2.0': '1.31.3'}
     if ec.name == 'Qt6':
         # Only enforcing from GCCcore 14.3.0 onwards for Qt6 6.9.3 onwards
         if ec.toolchain.version >= LooseVersion('14.3.0'):
