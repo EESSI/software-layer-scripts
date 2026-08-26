@@ -147,11 +147,7 @@ echo "bot/build.sh: EESSI_VERSION_OVERRIDE='${EESSI_VERSION_OVERRIDE}'"
 # determine CVMFS repo to be used from .repository.repo_name in ${JOB_CFG_FILE}
 # here, just set EESSI_CVMFS_REPO_OVERRIDE, a bit further down
 # "source init/eessi_defaults" via sourcing init/minimal_eessi_env
-# Note: iff ${EESSI_DEV_PROJECT} is defined (building for dev.eessi.io), then we 
-# append the project subdirectory to ${EESSI_CVMFS_REPO_OVERRIDE}
-# TODO: is appending the dev project name to EESSI_CVMFS_REPO_OVERRIDE still required?
-# Probably not for creating tarballs, but maybe still in checking the easystack file location in the repo in EESSI-install-software.sh?
-export EESSI_CVMFS_REPO_OVERRIDE=/cvmfs/${REPOSITORY_NAME}${EESSI_DEV_PROJECT:+/$EESSI_DEV_PROJECT}
+export EESSI_CVMFS_REPO_OVERRIDE=/cvmfs/${REPOSITORY_NAME}
 echo "bot/build.sh: EESSI_CVMFS_REPO_OVERRIDE='${EESSI_CVMFS_REPO_OVERRIDE}'"
 
 # If we're not building for software.eessi.io, then consider this a site install
