@@ -149,6 +149,8 @@ echo "bot/build.sh: EESSI_VERSION_OVERRIDE='${EESSI_VERSION_OVERRIDE}'"
 # "source init/eessi_defaults" via sourcing init/minimal_eessi_env
 # Note: iff ${EESSI_DEV_PROJECT} is defined (building for dev.eessi.io), then we 
 # append the project subdirectory to ${EESSI_CVMFS_REPO_OVERRIDE}
+# TODO: is appending the dev project name to EESSI_CVMFS_REPO_OVERRIDE still required?
+# Probably not for creating tarballs, but maybe still in checking the easystack file location in the repo in EESSI-install-software.sh?
 export EESSI_CVMFS_REPO_OVERRIDE=/cvmfs/${REPOSITORY_NAME}${EESSI_DEV_PROJECT:+/$EESSI_DEV_PROJECT}
 echo "bot/build.sh: EESSI_CVMFS_REPO_OVERRIDE='${EESSI_CVMFS_REPO_OVERRIDE}'"
 
@@ -172,6 +174,17 @@ if [[ "${EESSI_CVMFS_REPO_OVERRIDE}" != "/cvmfs/software.eessi.io" && "${REPOSIT
     # Make sure that the compatibility layer is still used from software.eessi.io
     export EESSI_CVMFS_COMPAT_REPO=/cvmfs/software.eessi.io
     echo "EESSI_CVMFS_COMPAT_REPO=${EESSI_CVMFS_COMPAT_REPO}"
+
+    # Determine the relative path to the versions subdir for site installations
+    # by removing the /cvmfs/some.repo.tld part and appending /versions at the end
+    # E.g. EESSI_SITE_SOFTWARE_PREFIX=/cvmfs/my.site.tld/eessi/builds would result in eessi/builds/versions
+    export EESSI_VERSIONS_SUBPATH="${EESSI_SITE_SOFTWARE_PREFIX#/cvmfs/${REPOSITORY_NAME}}/versions"
+elif [[ "${REPOSITORY_NAME}" != "dev.eessi.io" ]]; then
+    # For dev.eessi.io the versions directory is a subdir of the project directory, e.g. /cvmfs/dev.eessi.io/example/versions
+    export EESSI_VERSIONS_SUBPATH=${EESSI_DEV_PROJECT}/versions
+else
+    # For software.eessi.io the versions dir is always in the root of the repository
+    export EESSI_VERSIONS_SUBPATH=versions
 fi
 
 # determine CPU architecture to be used from entry .architecture in ${JOB_CFG_FILE}
@@ -371,8 +384,8 @@ TMP_IN_CONTAINER=/tmp
 tarball_accelerators=$(IFS=+; echo "${EESSI_ACCELERATOR_TARGET_OVERRIDES[*]}")
 echo "Executing command to create tarball:"
 echo "$software_layer_dir/eessi_container.sh ${COMMON_ARGS[@]} ${TARBALL_STEP_ARGS[@]}"
-echo "                     -- $software_layer_dir/create_tarball.sh ${TMP_IN_CONTAINER} ${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE} \"$tarball_accelerators\" /eessi_bot_job/${TARBALL} 2>&1 | tee -a ${tar_outerr}"
+echo "                     -- $software_layer_dir/create_tarball.sh ${TMP_IN_CONTAINER} ${EESSI_VERSIONS_SUBPATH} ${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE} \"$tarball_accelerators\" /eessi_bot_job/${TARBALL} 2>&1 | tee -a ${tar_outerr}"
 $software_layer_dir/eessi_container.sh "${COMMON_ARGS[@]}" "${TARBALL_STEP_ARGS[@]}" \
-                     -- $software_layer_dir/create_tarball.sh ${TMP_IN_CONTAINER} ${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE} "$tarball_accelerators" /eessi_bot_job/${TARBALL} 2>&1 | tee -a ${tar_outerr}
+                     -- $software_layer_dir/create_tarball.sh ${TMP_IN_CONTAINER} ${EESSI_VERSIONS_SUBPATH} ${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE} "$tarball_accelerators" /eessi_bot_job/${TARBALL} 2>&1 | tee -a ${tar_outerr}
 
 exit 0
