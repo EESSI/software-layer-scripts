@@ -38,6 +38,7 @@ CPU_TARGET_NEOVERSE_V1 = 'aarch64/neoverse_v1'
 CPU_TARGET_AARCH64_GENERIC = 'aarch64/generic'
 CPU_TARGET_A64FX = 'aarch64/a64fx'
 CPU_TARGET_NVIDIA_GRACE = 'aarch64/nvidia/grace'
+CPU_TARGET_AWS_GRAVITON4 = 'aarch64/aws/graviton4'
 
 CPU_TARGET_CASCADELAKE = 'x86_64/intel/cascadelake'
 CPU_TARGET_ICELAKE = 'x86_64/intel/icelake'
@@ -2498,6 +2499,7 @@ PARALLELISM_LIMITS = {
     'Qt6': {
         CPU_TARGET_A64FX: (set_maximum, 8),
         CPU_TARGET_AARCH64_GENERIC: (divide_by_factor, 2),
+        CPU_TARGET_AWS_GRAVITON4: (divide_by_factor, 2),
         CPU_TARGET_NEOVERSE_N1: (divide_by_factor, 2),
         CPU_TARGET_NEOVERSE_V1: (divide_by_factor, 2),
     },
