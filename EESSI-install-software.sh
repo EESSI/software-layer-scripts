@@ -185,9 +185,9 @@ fi
 pr_diff=$(ls [0-9]*.diff | head -n 1)
 export PR_DIFF="$PWD/$pr_diff"
 
-# Only run install_scripts.sh if not in dev.eessi.io (for security)
-# Also skip installing scripts for site-installs
-if [[ -z ${EESSI_DEV_PROJECT} && -z "${EESSI_SITE_INSTALL_FORCE}" ]]; then
+# Only run install_scripts.sh for software.eessi.io builds,
+# i.e. skip it for site-installs (which also includes builds for dev.eessi.io)
+if [[ -z "${EESSI_SITE_INSTALL_FORCE}" ]]; then
     ${TOPDIR}/install_scripts.sh --prefix ${EESSI_CVMFS_REPO}/versions/${EESSI_VERSION} --eessi-version ${EESSI_VERSION}
 fi
 
@@ -293,16 +293,6 @@ fi
 #   EESSI-extend module itself needs to be installed.
 export EASYBUILD_INSTALLPATH=${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}
 echo "EASYBUILD_INSTALLPATH set to $EASYBUILD_INSTALLPATH"
-
-# If in dev.eessi.io, allow building on top of software.eessi.io via EESSI-extend
-if [[ ! -z ${EESSI_DEV_PROJECT} ]]; then
-    # We keep track of the old install path for settings paths to SitePackage.lua and .lmodrc later
-    EASYBUILD_INSTALLPATH_STANDARD=${EASYBUILD_INSTALLPATH}
-    # Need to unset $EESSI_CVMFS_INSTALL to use $EESSI_PROJECT_INSTALL
-    unset EESSI_CVMFS_INSTALL
-    export EESSI_PROJECT_INSTALL=${EESSI_CVMFS_REPO_OVERRIDE}
-    echo ">> \$EESSI_PROJECT_INSTALL set to ${EESSI_PROJECT_INSTALL}"
-fi
 
 # If we have EESSI_ACCELERATOR_TARGET_OVERRIDE set (and non-empty), then this implies building for a GPU target
 # (this must be set _before_ we load EESSI-extend).
@@ -469,14 +459,8 @@ else
 fi
 
 echo "DEBUG: before creating/updating lmod config files // EASYBUILD_INSTALLPATH='${EASYBUILD_INSTALLPATH}'"
-if [[ ! -z ${EESSI_DEV_PROJECT} ]]; then
-    # Make sure .lmod files are not checked for dev.eeessi.io
-    export LMOD_CONFIG_DIR="${EASYBUILD_INSTALLPATH_STANDARD}/.lmod"
-    export LMOD_PACKAGE_PATH="${EASYBUILD_INSTALLPATH_STANDARD}/.lmod"
-else
-    export LMOD_CONFIG_DIR="${EASYBUILD_INSTALLPATH}/.lmod"
-    export LMOD_PACKAGE_PATH="${EASYBUILD_INSTALLPATH}/.lmod"
-fi
+export LMOD_CONFIG_DIR="${EASYBUILD_INSTALLPATH}/.lmod"
+export LMOD_PACKAGE_PATH="${EASYBUILD_INSTALLPATH}/.lmod"
 
 # If this is a site install, the old method of checking if lmodrc.lua was updated doesn't work
 # We simply skip that step for now - it's hardly ever changed anyway
