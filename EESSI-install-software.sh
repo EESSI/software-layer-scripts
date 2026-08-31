@@ -349,7 +349,7 @@ if [[ ! -z "${EESSI_SITE_INSTALL}" && ! -z "${EESSI_SITE_SOFTWARE_PREFIX}" ]]; t
     module load EESSI/${EESSI_VERSION_BACKUP}
     # Use --ignore_cache in case the current build was the one that installed this EESSI-extend module
     echo "Loading EESSI-extend/${EESSI_VERSION}"
-    module load --ignore_cache EESSI-extend/${EESSI_VERSION}-easybuild
+    module --ignore_cache load EESSI-extend/${EESSI_VERSION}-easybuild
     echo "EASYBUILD_INSTALLPATH=${EASYBUILD_INSTALLPATH}"
 fi
 
