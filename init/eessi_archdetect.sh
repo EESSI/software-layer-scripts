@@ -17,7 +17,7 @@ else
     exit 1
 fi
 
-VERSION="1.2.0"
+VERSION="1.3.0"
 
 # default log level: only emit warnings or errors
 LOG_LEVEL="WARN"
@@ -171,6 +171,24 @@ cpupath(){
                 log "DEBUG" "cpupath: host CPU best match updated to $best_arch_match" 
         fi
     done
+
+    # Some Intel microarchitectures are flag-indistinguishable from an older one because their
+    # new features are not exposed in /proc/cpuinfo. Granite Rapids (Xeon 6) shows the exact same
+    # visible flags as Sapphire/Emerald Rapids (its extras like amx_fp16 are hidden by the kernel),
+    # so the flag match above lands on 'sapphirerapids'. Refine using the CPU model number - the
+    # only reliable discriminator on Linux. If no dedicated graniterapids subdir is shipped yet,
+    # downstream subdir resolution falls back to the next entry in the chain, so prepending is safe.
+    if [ "${best_arch_match}" == "x86_64/intel/sapphirerapids" ]; then
+        local cpu_family=$(get_cpuinfo "cpu[ _]family")
+        local cpu_model=$(get_cpuinfo "model")
+        log "DEBUG" "cpupath: refining Sapphire Rapids match (family='$cpu_family', model='$cpu_model')"
+        # Intel family 6 models: 173 (0xAD) = Granite Rapids-SP/AP, 174 (0xAE) = Granite Rapids-D
+        if [ "${cpu_family}" == "6" ] && { [ "${cpu_model}" == "173" ] || [ "${cpu_model}" == "174" ]; }; then
+            best_arch_match="x86_64/intel/graniterapids"
+            all_arch_matches="$best_arch_match:$all_arch_matches"
+            log "DEBUG" "cpupath: model $cpu_model identifies Granite Rapids; best match upgraded to $best_arch_match"
+        fi
+    fi
 
     if [ "allx" == "${CPUPATH_RESULT}x" ]; then
         log "INFO" "cpupath: all matches for host CPU: $all_arch_matches"
