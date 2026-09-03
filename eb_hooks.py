@@ -1533,7 +1533,8 @@ def pre_configure_hook_petsc(self, *args, **kwargs):
     if self.name == 'PETSc':
         # only necessary for PETSc 3.24.0+
         if LooseVersion(self.version) >= LooseVersion('3.24.0'):
-            self.cfg.update('configopts', '--with-zlib-dir=${EESSI_EPREFIX}/usr')
+            compat_layer_topdir = get_eessi_envvar('EESSI_EPREFIX')
+            self.cfg.update('configopts', f'--with-zlib-dir={compat_layer_topdir}/usr')
     else:
         raise EasyBuildError("PETSc-specific hook triggered for non-PETSc easyconfig?!")
 
