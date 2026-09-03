@@ -182,7 +182,11 @@ cpupath(){
         local cpu_family=$(get_cpuinfo "cpu[ _]family")
         local cpu_model=$(get_cpuinfo "model")
         log "DEBUG" "cpupath: refining Sapphire Rapids match (family='$cpu_family', model='$cpu_model')"
-        # Intel family 6 models: 173 (0xAD) = Granite Rapids-SP/AP, 174 (0xAE) = Granite Rapids-D
+        # Intel family 6 model numbers below come from the kernel's authoritative table
+        # arch/x86/include/asm/intel-family.h (what the kernel itself uses for model dispatch):
+        #   INTEL_GRANITERAPIDS_X = IFM(6, 0xAD) -> family 6, model 173 (Granite Rapids-SP/AP)
+        #   INTEL_GRANITERAPIDS_D = IFM(6, 0xAE) -> family 6, model 174 (Granite Rapids-D)
+        # (cf. INTEL_SAPPHIRERAPIDS_X = 0x8F/143, INTEL_EMERALDRAPIDS_X = 0xCF/207)
         if [ "${cpu_family}" == "6" ] && { [ "${cpu_model}" == "173" ] || [ "${cpu_model}" == "174" ]; }; then
             best_arch_match="x86_64/intel/graniterapids"
             all_arch_matches="$best_arch_match:$all_arch_matches"
