@@ -1730,11 +1730,23 @@ def pre_test_hook_c_ares(self, *args, **kwargs):
     if self.name == 'c-ares':
         # Check if the tests are enabled (older versions don't run them) and if IPv6 is available
         if self.cfg['test_cmd'] and not is_ipv6_available():
+            ipv6_tests_filter = '*ipv6*'
+            # Depending on the version/easyconfig, we have to be careful and check how to set/override runtest
             if self.cfg.get('runtest'):
-                # Append ipv6 tests to the list of tests to be filtered
-                self.cfg['runtest'] = self.cfg['runtest'][:-1] + ':*ipv6*"'
+                if re.search(r'--gtest_filter="([^"]*)"', self.cfg['runtest']):
+                    # Append ipv6 tests to the list of tests to be filtered with --gtest_filter
+                    self.cfg['runtest'] = re.sub(
+                        r'(--gtest_filter="[^"]*)(")',
+                        rf'\1:{ipv6_tests_filter}\2',
+                        self.cfg['runtest'],
+                        count=1,
+                    )
+                else:
+                    # There was a runtest parameter defined, but with a --gtest_filter option: append it
+                    self.cfg['runtest'] += f' --gtest_filter="{ipv6_tests_filter}"'
             else:
-                self.cfg['runtest'] = '--gtest_filter="*ipv6*"'
+                # No runtest defined at all: simply set it to filter the IPv6 tests
+                self.cfg['runtest'] = f'--gtest_filter="{ipv6_tests_filter}"'
             print_msg("No IPv6 functionality on this system, disabling all IPv6 tests.")
     else:
         raise EasyBuildError("c-ares-specific hook triggered for non-c-ares easyconfig?!")
