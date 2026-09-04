@@ -6,6 +6,7 @@ import glob
 import json
 import os
 import re
+import socket
 from typing import NamedTuple
 
 import easybuild.tools.environment as env
@@ -274,6 +275,15 @@ def get_rpath_override_dirs(software_name=None, stub_suffix=""):
     rpath_injection_dirs = [os.path.join(rpath_injection_stub, x) for x in ('lib', 'lib64')]
 
     return rpath_injection_dirs
+
+
+def is_ipv6_available():
+    try:
+        with socket.socket(socket.AF_INET6, socket.SOCK_DGRAM) as sock:
+            sock.bind(("::1", 0))
+        return True
+    except OSError:
+        return False
 
 
 def parse_hook(ec, *args, **kwargs):
@@ -1713,6 +1723,23 @@ def pre_test_hook_exclude_failing_test_Highway(self, *args, **kwargs):
         self.cfg['runtest'] += ' ARGS="-E TestAllSumOfLanes"'
 
 
+def pre_test_hook_c_ares(self, *args, **kwargs):
+    """
+    Pre-test hook for c-ares: disable IPv6 tests on systems that have IPv6 disabled
+    """
+    if self.name == 'c-ares':
+        # Check if the tests are enabled (older versions don't run them) and if IPv6 is available
+        if self.cfg['test_cmd'] and not is_ipv6_available():
+            if self.cfg.get('runtest'):
+                # Append ipv6 tests to the list of tests to be filtered
+                self.cfg['runtest'] = self.cfg['runtest'][:-1] + ':*ipv6*"'
+            else:
+                self.cfg['runtest'] = '--gtest_filter="*ipv6*"'
+            print_msg("No IPv6 functionality on this system, disabling all IPv6 tests.")
+    else:
+        raise EasyBuildError("c-ares-specific hook triggered for non-c-ares easyconfig?!")
+
+
 def pre_test_hook_gromacs(self, *args, **kwargs):
     """
     Solve GROMACS test failure on NVIDIA Grace CPUs when hwloc support is enabled.
@@ -2421,6 +2448,7 @@ PRE_CONFIGURE_HOOKS = {
 }
 
 PRE_TEST_HOOKS = {
+    'c-ares': pre_test_hook_c_ares,
     'ESPResSo': pre_test_hook_ignore_failing_tests_ESPResSo,
     'FFTW.MPI': pre_test_hook_ignore_failing_tests_FFTWMPI,
     'GROMACS': pre_test_hook_gromacs,
