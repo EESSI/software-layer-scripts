@@ -147,13 +147,11 @@ echo "bot/build.sh: EESSI_VERSION_OVERRIDE='${EESSI_VERSION_OVERRIDE}'"
 # determine CVMFS repo to be used from .repository.repo_name in ${JOB_CFG_FILE}
 # here, just set EESSI_CVMFS_REPO_OVERRIDE, a bit further down
 # "source init/eessi_defaults" via sourcing init/minimal_eessi_env
-# Note: iff ${EESSI_DEV_PROJECT} is defined (building for dev.eessi.io), then we 
-# append the project subdirectory to ${EESSI_CVMFS_REPO_OVERRIDE}
-export EESSI_CVMFS_REPO_OVERRIDE=/cvmfs/${REPOSITORY_NAME}${EESSI_DEV_PROJECT:+/$EESSI_DEV_PROJECT}
+export EESSI_CVMFS_REPO_OVERRIDE=/cvmfs/${REPOSITORY_NAME}
 echo "bot/build.sh: EESSI_CVMFS_REPO_OVERRIDE='${EESSI_CVMFS_REPO_OVERRIDE}'"
 
 # If we're not building for software.eessi.io, then consider this a site install
-if [[ "${EESSI_CVMFS_REPO_OVERRIDE}" != "/cvmfs/software.eessi.io" && "${REPOSITORY_NAME}" != "dev.eessi.io" ]]; then
+if [[ "${EESSI_CVMFS_REPO_OVERRIDE}" != "/cvmfs/software.eessi.io" ]]; then
     # To build on top of EESSI, we need the software.eessi.io repository to be mounted next to the target repository
     # The bot/build.sh script does this when the EESSI_SITE_INSTALL_FORCE environment variable is set
     # Other build scripts will also respect this variable where needed in order to make sure that 'building on top'
@@ -172,6 +170,15 @@ if [[ "${EESSI_CVMFS_REPO_OVERRIDE}" != "/cvmfs/software.eessi.io" && "${REPOSIT
     # Make sure that the compatibility layer is still used from software.eessi.io
     export EESSI_CVMFS_COMPAT_REPO=/cvmfs/software.eessi.io
     echo "EESSI_CVMFS_COMPAT_REPO=${EESSI_CVMFS_COMPAT_REPO}"
+
+    # Determine the relative path to the versions subdir for site installations
+    # by removing the /cvmfs/some.repo.tld part and appending /versions at the end
+    # E.g. EESSI_SITE_SOFTWARE_PREFIX=/cvmfs/my.site.tld/eessi/builds would result in eessi/builds/versions
+    # Note that this also works for dev.eessi.io builds, as these are configured as site installations
+    export EESSI_VERSIONS_SUBPATH="${EESSI_SITE_SOFTWARE_PREFIX#/cvmfs/${REPOSITORY_NAME}}/versions"
+else
+    # For software.eessi.io the versions dir is always in the root of the repository
+    export EESSI_VERSIONS_SUBPATH=versions
 fi
 
 # determine CPU architecture to be used from entry .architecture in ${JOB_CFG_FILE}
@@ -216,16 +223,17 @@ COMMON_ARGS+=("--mode" "exec")
 [[ ! -z ${REPOSITORY_ID} ]] && COMMON_ARGS+=("--repository" "${REPOSITORY_ID}")
 
 # Also expose software.eessi.io when building on top of EESSI (i.e. when EESSI_SITE_INSTALL_FORCE is set)
-# or on top of the EESSI compat layer (i.e. for dev.eessi.io)
-if [[ "${REPOSITORY_NAME}" == "dev.eessi.io" || -n "${EESSI_SITE_INSTALL_FORCE}" ]]; then
+if [[ -n "${EESSI_SITE_INSTALL_FORCE}" ]]; then
     COMMON_ARGS+=("--repository" "software.eessi.io,access=ro")
 fi
 
 # Override the compat layer if EESSI_CVMFS_COMPAT_REPO is defined. This allows using a different repo for the
 # compatibility layer compared to the EESSI_CVMFS_REPO (in which things will be installed)
-# (this is already done for dev.eessi.io through a customized SLURM script but that could probably be removed then)
 if [[ -n "${EESSI_CVMFS_COMPAT_REPO}" && -n "${EESSI_VERSION_OVERRIDE:-$EESSI_VERSION}" ]]; then
-    export EESSI_COMPAT_LAYER_DIR_OVERRIDE="${EESSI_CVMFS_COMPAT_REPO}/versions/${EESSI_VERSION_OVERRIDE:-$EESSI_VERSION}/compat/linux/$(uname -m)"
+    EESSI_COMPAT_VERSION=${EESSI_VERSION_OVERRIDE:-$EESSI_VERSION}
+    # Cut off any version suffix (2025.06-001 -> 2025.06)
+    EESSI_COMPAT_VERSION=${EESSI_COMPAT_VERSION%-*}
+    export EESSI_COMPAT_LAYER_DIR_OVERRIDE="${EESSI_CVMFS_COMPAT_REPO}/versions/${EESSI_COMPAT_VERSION}/compat/linux/$(uname -m)"
     msg="bot:build.sh: Set EESSI_COMPAT_LAYER_DIR_OVERRIDE to $EESSI_COMPAT_LAYER_DIR_OVERRIDE since both EESSI_CVMFS_COMPAT_REPO"
     msg="$msg (${EESSI_CVMFS_COMPAT_REPO}) and EESSI_VERSION_OVERRIDE (${EESSI_VERSION_OVERRIDE}) are defined"
     echo "$msg"
@@ -359,10 +367,6 @@ else
     export TARBALL=$(printf "eessi-%s-software-%s-%s-%s-%b%d.${tarball_extension}" ${EESSI_VERSION} ${EESSI_OS_TYPE} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE//\//-} ${filename_accelerators} ${EESSI_DEV_PROJECT:+$EESSI_DEV_PROJECT-} ${timestamp})
 fi
 
-# Export EESSI_DEV_PROJECT to use it (if needed) when making tarball
-echo "bot/build.sh: EESSI_DEV_PROJECT='${EESSI_DEV_PROJECT}'"
-export EESSI_DEV_PROJECT=${EESSI_DEV_PROJECT}
-
 # value of first parameter to create_tarball.sh - TMP_IN_CONTAINER - needs to be
 # synchronised with setting of TMP_IN_CONTAINER in eessi_container.sh
 # TODO should we make this a configurable parameter of eessi_container.sh using
@@ -371,8 +375,8 @@ TMP_IN_CONTAINER=/tmp
 tarball_accelerators=$(IFS=+; echo "${EESSI_ACCELERATOR_TARGET_OVERRIDES[*]}")
 echo "Executing command to create tarball:"
 echo "$software_layer_dir/eessi_container.sh ${COMMON_ARGS[@]} ${TARBALL_STEP_ARGS[@]}"
-echo "                     -- $software_layer_dir/create_tarball.sh ${TMP_IN_CONTAINER} ${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE} \"$tarball_accelerators\" /eessi_bot_job/${TARBALL} 2>&1 | tee -a ${tar_outerr}"
+echo "                     -- $software_layer_dir/create_tarball.sh ${TMP_IN_CONTAINER} ${EESSI_VERSIONS_SUBPATH} ${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE} \"$tarball_accelerators\" /eessi_bot_job/${TARBALL} 2>&1 | tee -a ${tar_outerr}"
 $software_layer_dir/eessi_container.sh "${COMMON_ARGS[@]}" "${TARBALL_STEP_ARGS[@]}" \
-                     -- $software_layer_dir/create_tarball.sh ${TMP_IN_CONTAINER} ${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE} "$tarball_accelerators" /eessi_bot_job/${TARBALL} 2>&1 | tee -a ${tar_outerr}
+                     -- $software_layer_dir/create_tarball.sh ${TMP_IN_CONTAINER} ${EESSI_VERSIONS_SUBPATH} ${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE} "$tarball_accelerators" /eessi_bot_job/${TARBALL} 2>&1 | tee -a ${tar_outerr}
 
 exit 0

@@ -4,15 +4,16 @@ set -e
 
 base_dir=$(dirname $(realpath $0))
 
-if [ $# -ne 5 ]; then
-    echo "ERROR: Usage: $0 <EESSI tmp dir (example: /tmp/$USER/EESSI)> <version (example: 2023.06)> <CPU arch subdir (example: x86_64/amd/zen2)> <accelerator subdir (example: accel/nvidia/cc80)> <path to tarball>" >&2
+if [ $# -ne 6 ]; then
+    echo "ERROR: Usage: $0 <EESSI tmp dir (example: /tmp/$USER/EESSI)> <relative path to versions subdir> <version (example: 2023.06)> <CPU arch subdir (example: x86_64/amd/zen2)> <accelerator subdir (example: accel/nvidia/cc80)> <path to tarball>" >&2
     exit 1
 fi
 eessi_tmpdir=$1
-eessi_version=$2
-cpu_arch_subdir=$3
-accel_subdirs="$4"
-target_tarball=$5
+eessi_versions_subpath=$2
+eessi_version=$3
+cpu_arch_subdir=$4
+accel_subdirs="$5"
+target_tarball=$6
 
 tmpdir=`mktemp -d`
 echo ">> tmpdir: $tmpdir"
@@ -20,7 +21,7 @@ echo ">> tmpdir: $tmpdir"
 os="linux"
 source ${base_dir}/init/eessi_defaults
 cvmfs_repo=${EESSI_CVMFS_REPO}
-software_dir="${cvmfs_repo}/versions/${eessi_version}/software/${os}/${cpu_arch_subdir}"
+software_dir="${cvmfs_repo}/${eessi_versions_subpath}/${eessi_version}/software/${os}/${cpu_arch_subdir}"
 if [ ! -d ${software_dir} ]; then
     echo "Software directory ${software_dir} does not exist?!" >&2
     exit 2
@@ -29,18 +30,18 @@ fi
 # Need to extract the cvmfs_repo_name from the cvmfs_repo variable
 # - remove /${EESSI_DEV_PROJECT} from the end (if it exists)
 # - remove /cvmfs/ from the beginning
-cvmfs_repo_name=${cvmfs_repo%"/${EESSI_DEV_PROJECT}"}
+cvmfs_repo_name=${cvmfs_repo%"/${eessi_versions_subpath}"}
 cvmfs_repo_name=${cvmfs_repo_name#/cvmfs/}
-overlay_upper_dir="${eessi_tmpdir}/${cvmfs_repo_name}/overlay-upper${EESSI_DEV_PROJECT:+/$EESSI_DEV_PROJECT}"
+overlay_upper_dir="${eessi_tmpdir}/${cvmfs_repo_name}/overlay-upper${eessi_versions_subpath:+/$eessi_versions_subpath}"
 
-software_dir_overlay="${overlay_upper_dir}/versions/${eessi_version}"
+software_dir_overlay="${overlay_upper_dir}/${eessi_version}"
 if [ ! -d ${software_dir_overlay} ]; then
     echo "Software directory overlay ${software_dir_overlay} does not exist?!" >&2
     exit 3
 fi
 
 current_workdir=${PWD}
-cd ${overlay_upper_dir}/versions/
+cd ${overlay_upper_dir}
 echo ">> Collecting list of files/directories to include in tarball via ${PWD}..."
 
 files_list=${tmpdir}/files.list.txt
@@ -115,7 +116,7 @@ if [ -r ${module_files_list} ]; then
     cp ${module_files_list} ${current_workdir}/module_files.list.txt
 fi
 
-topdir=${cvmfs_repo}/versions/
+topdir=${cvmfs_repo}/${eessi_versions_subpath}
 
 echo ">> Creating tarball ${target_tarball} from ${topdir}..."
 tar cavf ${target_tarball} -C ${topdir} --files-from=${files_list}

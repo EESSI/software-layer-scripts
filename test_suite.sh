@@ -99,17 +99,17 @@ else
     fatal_error "Failed to load the ReFrame module"
 fi
 
-# Check that a system python3 is available
+# Check that a python3 executable is available
 python3_found=$(command -v python3)
 if [ -z ${python3_found} ]; then
-    fatal_error "No system python3 found"
+    fatal_error "No python3 executable found"
 else
-    echo_green "System python3 found:"
+    echo_green "Executable python3 found:"
     python3 -V
 fi
 
-# Check ReFrame came with the hpctestlib and we can import it
-reframe_import="hpctestlib.sciapps.gromacs"
+# Check that ReFrame can be imported
+reframe_import="reframe"
 python3 -c "import ${reframe_import}"
 if [[ $? -eq 0 ]]; then
     echo_green "Succesfully found and imported ${reframe_import}"
