@@ -167,13 +167,13 @@ jobs:
         EESSI_ACCELERATOR_TARGET_OVERRIDE:
           - none
           - accel/nvidia/cc80
-          - accel/nvidia/cc77
+          - accel/nvidia/cc97
         include:
           # For each override we expect a specific path (which may differ from the original due to overrides)
         - EESSI_ACCELERATOR_TARGET_OVERRIDE: accel/nvidia/cc80
           FINAL_ACCELERATOR_TARGET_EXPECTED: accel/nvidia/cc80
-        - EESSI_ACCELERATOR_TARGET_OVERRIDE: accel/nvidia/cc77  # deliberately chose a non-existent CUDA capability
-          FINAL_ACCELERATOR_TARGET_EXPECTED: accel/nvidia/cc70  # this reverts to the fallback case (which does exist)
+        - EESSI_ACCELERATOR_TARGET_OVERRIDE: accel/nvidia/cc97  # deliberately chose a non-existent CUDA capability
+          FINAL_ACCELERATOR_TARGET_EXPECTED: accel/nvidia/cc90  # this reverts to the fallback case (which does exist)
           # Test if setting an EESSI_SITE_SOFTWARE_PREFIX works by setting that for the zen4 target
         - EESSI_SOFTWARE_SUBDIR_OVERRIDE: x86_64/amd/zen4
           EESSI_SITE_SOFTWARE_PREFIX: /tmp/site_prefix
