@@ -2475,6 +2475,9 @@ PARALLELISM_LIMITS = {
     # Deucalion has 32GB HBM for 48 cores per node
     CPU_TARGET_A64FX: (divide_by_factor, 4),
     # software-specific limits
+    'hipBLASLt': {
+        '*': (set_maximum, 4),
+    },
     'libxc': {
         '*': (divide_by_factor, 2),
         CPU_TARGET_A64FX: (set_maximum, 6),
