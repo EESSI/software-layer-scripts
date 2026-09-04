@@ -1731,23 +1731,29 @@ def pre_test_hook_c_ares(self, *args, **kwargs):
         # Check if the tests are enabled (older versions don't run them) and if IPv6 is available
         if self.cfg['test_cmd'] and not is_ipv6_available():
             ipv6_tests_filter = '*ipv6*'
+            print_msg(f"No IPv6 functionality on this system, disabling all IPv6 tests by filtering {ipv6_tests_filter} with --gtest_filter.")
             # Depending on the version/easyconfig, we have to be careful and check how to set/override runtest
             if self.cfg.get('runtest'):
-                if re.search(r'--gtest_filter="([^"]*)"', self.cfg['runtest']):
-                    # Append ipv6 tests to the list of tests to be filtered with --gtest_filter
+                if '--gtest_filter=' in self.cfg['runtest']:
+                    # Append ipv6 tests to the list of tests to be filtered (i.e. the negative patterns starting with a minus) with --gtest_filter
+                    # The value of --gtest_filter looks like:
+                    # PositivePattern1:PositivePattern2-NegativePattern1:NegativePattern2
                     self.cfg['runtest'] = re.sub(
-                        r'(--gtest_filter="[^"]*)(")',
-                        rf'\1:{ipv6_tests_filter}\2',
-                        self.cfg['runtest'],
-                        count=1,
+                        r'(--gtest_filter=")([^\s"]*)(")',
+                        lambda m: (
+                            m.group(1) +
+                            (m.group(2) + ':' if '-' in m.group(2) else m.group(2) + '-') +
+                            ipv6_tests_filter +
+                            m.group(3)
+                        ),
+                        self.cfg['runtest']
                     )
                 else:
-                    # There was a runtest parameter defined, but with a --gtest_filter option: append it
-                    self.cfg['runtest'] += f' --gtest_filter="{ipv6_tests_filter}"'
+                    # There was a runtest parameter defined, but without a --gtest_filter option: append it
+                    self.cfg['runtest'] += f' --gtest_filter="-{ipv6_tests_filter}"'
             else:
                 # No runtest defined at all: simply set it to filter the IPv6 tests
-                self.cfg['runtest'] = f'--gtest_filter="{ipv6_tests_filter}"'
-            print_msg("No IPv6 functionality on this system, disabling all IPv6 tests.")
+                self.cfg['runtest'] = f'--gtest_filter="-{ipv6_tests_filter}"'
     else:
         raise EasyBuildError("c-ares-specific hook triggered for non-c-ares easyconfig?!")
 
