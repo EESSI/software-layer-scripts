@@ -455,6 +455,7 @@ else
                     if [ $? -ne 0 ]; then
                         fatal_error "Could not download all required source files for this easystack file."
                     fi
+                    rm ${easystack_additions}
                 fi
 
                 echo_green "Feeding easystack file ${easystack_file} to EasyBuild..."
