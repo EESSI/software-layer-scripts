@@ -1676,12 +1676,19 @@ def pre_configure_hook_visit(self, *args, **kwargs):
     - make sure that zlib is found in compat layer
     """
     if self.name == 'Visit':
-        compat_layer_topdir = get_eessi_envvar('EESSI_EPREFIX')
-        configopts = self.cfg['configopts']
-        self.cfg['configopts'] = configopts.replace(
-            '$EBROOTZLIB',
-            os.path.join(compat_layer_topdir, 'usr'),
-        )
+        if 'zlib' in build_option('filter_deps'):
+            compat_layer_topdir = get_eessi_envvar('EESSI_EPREFIX')
+            zlib_dir = os.path.join(compat_layer_topdir, 'usr')
+            zlib_opt = f'-DVISIT_ZLIB_DIR={zlib_dir}'
+
+            if '-DVISIT_ZLIB_DIR' in self.cfg['configopts']:
+                self.cfg['configopts'] = re.sub(
+                    r'-DVISIT_ZLIB_DIR=\S*',
+                    zlib_opt,
+                    self.cfg['configopts'],
+                )
+            else:
+                self.cfg.update('configopts', zlib_opt)
     else:
         raise EasyBuildError("Visit-specific hook triggered for non-Visit easyconfig?!")
 
