@@ -441,7 +441,7 @@ else
                     fetch_option="--fetch"
                     ${EB} --help | grep -q -e "fetch-all" && fetch_option="--fetch-all"
                     echo_green "Downloading sources for easystack file ${easystack_file} using eb ${fetch_option}..."
-                    echo "(note: this step can be skipped by setting $EESSI_SKIP_FETCH_EASYSTACK_SOURCES to a non-empty value)"
+                    echo '(note: this step can be skipped by setting $EESSI_SKIP_FETCH_EASYSTACK_SOURCES to a non-empty value)'
                     ${EB} ${fetch_option} --easystack ${easystack_file} --robot
                     if [ $? -ne 0 ]; then
                         fatal_error "Could not download all required source files for this easystack file."
