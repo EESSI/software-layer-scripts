@@ -440,9 +440,18 @@ else
                     # run eb --help to determine if --fetch-all is supported (available since 5.3.0), otherwise fall back to --fetch
                     fetch_option="--fetch"
                     ${EB} --help | grep -q -e "fetch-all" && fetch_option="--fetch-all"
-                    echo_green "Downloading sources for easystack file ${easystack_file} using eb ${fetch_option}..."
+                    easystack_additions=$(mktemp --suffix=.yml)
+                    echo "easyconfigs: " > ${easystack_additions}
+                    # use the PR diff file to find which items have been added to this particular easystack file
+                    # and dump that to a temporary easystack file that we can use to fetch the sources for only these added items
+                    awk -v file="${easystack_file}" '
+                        /^diff --git / { found=0 }
+                        $0 == "+++ b/" file { found=1; next }
+                        found && /^\+/ && !/^\+\+\+/ { sub(/^\+/, ""); print }
+                    ' "${diff_file}" >> ${easystack_additions}
+                    echo_green "Downloading sources for added items in easystack file ${easystack_file} using eb ${fetch_option}..."
                     echo '(note: this step can be skipped by setting $EESSI_SKIP_FETCH_EASYSTACK_SOURCES to a non-empty value)'
-                    ${EB} ${fetch_option} --easystack ${easystack_file} --robot
+                    ${EB} ${fetch_option} --easystack ${easystack_additions} --robot
                     if [ $? -ne 0 ]; then
                         fatal_error "Could not download all required source files for this easystack file."
                     fi
