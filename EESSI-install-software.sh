@@ -441,10 +441,10 @@ else
                     fetch_option="--fetch"
                     ${EB} --help | grep -q -e "fetch-all" && fetch_option="--fetch-all"
                     easystack_additions=$(mktemp --suffix=.yml)
-                    echo "easyconfigs: " > ${easystack_additions}
                     # use the PR diff file to find which items have been added to this particular easystack file
                     # and dump that to a temporary easystack file that we can use to fetch the sources for only these added items
                     awk -v file="${easystack_file}" '
+                        BEGIN { print "easyconfigs:" }
                         /^diff --git / { found=0 }
                         $0 == "+++ b/" file { found=1; next }
                         found && /^\+/ && !/^\+\+\+/ { sub(/^\+/, ""); print }
