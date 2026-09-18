@@ -614,7 +614,7 @@ def parse_hook_fontconfig_add_fonts(ec, eprefix):
 def parse_hook_grpcio_zlib(ec, ecprefix):
     """Adjust preinstallopts to use ZLIB from compat layer."""
     if ec.name == 'grpcio':
-        target_list = ['1.57.0', '1.67.1', '1.70.0']
+        target_list = ['1.57.0', '1.67.1', '1.70.0', '1.76.0']
         if ec.version in target_list:
             exts_list = ec['exts_list']
             original_preinstallopts = (exts_list[0][2])['preinstallopts']
