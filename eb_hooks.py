@@ -41,6 +41,7 @@ CPU_TARGET_A64FX = 'aarch64/a64fx'
 CPU_TARGET_NVIDIA_GRACE = 'aarch64/nvidia/grace'
 CPU_TARGET_AWS_GRAVITON4 = 'aarch64/aws/graviton4'
 
+CPU_TARGET_X86_64_GENERIC = 'x86_64/generic'
 CPU_TARGET_CASCADELAKE = 'x86_64/intel/cascadelake'
 CPU_TARGET_ICELAKE = 'x86_64/intel/icelake'
 CPU_TARGET_SAPPHIRE_RAPIDS = 'x86_64/intel/sapphirerapids'
@@ -1111,6 +1112,20 @@ def pre_prepare_hook_highway_handle_test_compilation_issues(self, *args, **kwarg
                 update_build_option('optarch', OPTARCH_GENERIC)
     else:
         raise EasyBuildError("Highway-specific hook triggered for non-Highway easyconfig?!")
+
+
+def post_prepare_hook_AITW_olb_permeability(self, *args, **kwargs):
+    """
+    Post-prepare hook for AITW-olb_permeability
+    This is not run as a pre-configure hook since the configure step is skipped and the hook would be skipped as well.
+    - Ensure the `CPU_SIMD` flag is not set when building on x86_64 with generic optimization
+    """
+    if self.name == 'AITW-olb_permeability':
+        optarch = build_option('optarch')
+        cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+        if optarch == OPTARCH_GENERIC:
+            if cpu_target == CPU_TARGET_X86_64_GENERIC:
+                self.cfg.update('buildopts', 'PLATFORMS="CPU_SISD"')
 
 
 def post_prepare_hook_highway_handle_test_compilation_issues(self, *args, **kwargs):
@@ -2462,6 +2477,7 @@ POST_PREPARE_HOOKS = {
     'Highway': post_prepare_hook_highway_handle_test_compilation_issues,
     'LLVM': post_prepare_hook_llvm_a64fx,
     'Rust': post_prepare_hook_llvm_a64fx,
+    'AITW-olb_permeability': post_prepare_hook_AITW_olb_permeability,
 }
 
 PRE_CONFIGURE_HOOKS = {
