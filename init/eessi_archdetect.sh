@@ -70,6 +70,24 @@ get_cpuinfo(){
     grep -i "$cpuinfo_pattern" ${EESSI_PROC_CPUINFO:-/proc/cpuinfo} | tail -n 1 | sed "s/$cpuinfo_pattern//i"
 }
 
+# CPU specification of host system as reported by cpu_features
+get_cpu_features(){
+    # Return the value from list_cpu_features for the matching key
+    # 1: string with key pattern
+
+    [ -z "$1" ] && log "ERROR" "get_cpu_features: missing key pattern in argument list"
+    cpu_features_pattern="^${1}\s*:\s*"
+
+    if [ ! -z ${EESSI_CPU_FEATURES_FILE} ]; then
+        cpu_features_output=$(cat ${EESSI_CPU_FEATURES_FILE})
+    else
+        cpu_features_output=$(list_cpu_features | sed '/^flags[[:space:]]*:/ s/,/ /g' | sed '/^flags[[:space:]]*:/ s/fma3/fma/g') # | grep flags | awk '{print $3}' | sed 's/,/ /g' | sed 's/fma3/fma/'
+    fi
+
+    # case insensitive match of key pattern and delete key pattern from result
+    echo "${cpu_features_output}" | grep -i "$cpu_features_pattern" | tail -n 1 | sed "s/$cpu_features_pattern//i"
+}
+
 check_allinfirst(){
     # Return true if all given arguments after the first are found in the first one
     # 1: reference string of space separated values
@@ -168,26 +186,40 @@ cpupath(){
             # each flag in this CPU specification must be found in the list of flags of the host
             check_allinfirst "${cpu_flags[*]}" ${arch_spec[2]} && best_arch_match=${arch_spec[0]} && \
                 all_arch_matches="$best_arch_match:$all_arch_matches" && \
-                log "DEBUG" "cpupath: host CPU best match updated to $best_arch_match" 
+                log "DEBUG" "cpupath: host CPU best match updated to $best_arch_match"
         fi
     done
 
     # Some Intel microarchitectures are flag-indistinguishable from an older one because their
     # new features are not exposed in /proc/cpuinfo. Granite Rapids (Xeon 6) shows the exact same
     # visible flags as Sapphire/Emerald Rapids (its extras like amx_fp16 are hidden by the kernel),
-    # so the flag match above lands on 'sapphirerapids'. Refine using the CPU model number - the
-    # only reliable discriminator on Linux. If no dedicated graniterapids subdir is shipped yet,
-    # downstream subdir resolution falls back to the next entry in the chain, so prepending is safe.
+    # so the flag match above lands on 'sapphirerapids'.
+    # Refine using the list_cpu_features tool from Google's cpu_features if available,
+    # and otherwise use the CPU model number.
     if [ "${best_arch_match}" == "x86_64/intel/sapphirerapids" ]; then
         local cpu_family=$(get_cpuinfo "cpu[ _]family")
         local cpu_model=$(get_cpuinfo "model")
         log "DEBUG" "cpupath: refining Sapphire Rapids match (family='$cpu_family', model='$cpu_model')"
+        if command -v "list_cpu_features" >/dev/null 2>&1; then
+            log "DEBUG" "Calling list_cpu_features tool to find all relevant CPU flags" >&2
+            # cpu_features uses fma3 instead of fma, we simply replace it to ensure the matching still works
+            cpu_features_flags=$(get_cpu_features "$cpu_flag_tag" | sed 's/fma3/fma/')
+	        log "DEBUG" "Flags reported by list_cpu_features: ${cpu_features_flags}"
+            for arch in "${cpu_arch_spec[@]}"; do
+                eval "arch_spec=$arch"
+                if [ "${cpu_vendor}x" == "${arch_spec[1]}x" ]; then
+                    # each flag in this CPU specification must be found in the list of flags of the host
+                    check_allinfirst "${cpu_features_flags[*]}" ${arch_spec[2]} && best_arch_match=${arch_spec[0]} && \
+                        all_arch_matches="$best_arch_match:$all_arch_matches" && \
+                        log "DEBUG" "cpupath: host CPU best match updated to $best_arch_match"
+                fi
+            done
         # Intel family 6 model numbers below come from the kernel's authoritative table
         # arch/x86/include/asm/intel-family.h (what the kernel itself uses for model dispatch):
         #   INTEL_GRANITERAPIDS_X = IFM(6, 0xAD) -> family 6, model 173 (Granite Rapids-SP/AP)
         #   INTEL_GRANITERAPIDS_D = IFM(6, 0xAE) -> family 6, model 174 (Granite Rapids-D)
         # (cf. INTEL_SAPPHIRERAPIDS_X = 0x8F/143, INTEL_EMERALDRAPIDS_X = 0xCF/207)
-        if [ "${cpu_family}" == "6" ] && { [ "${cpu_model}" == "173" ] || [ "${cpu_model}" == "174" ]; }; then
+        elif [ "${cpu_family}" == "6" ] && { [ "${cpu_model}" == "173" ] || [ "${cpu_model}" == "174" ]; }; then
             best_arch_match="x86_64/intel/graniterapids"
             all_arch_matches="$best_arch_match:$all_arch_matches"
             log "DEBUG" "cpupath: model $cpu_model identifies Granite Rapids; best match upgraded to $best_arch_match"
