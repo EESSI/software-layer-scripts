@@ -81,6 +81,8 @@ get_cpu_features(){
     if [ ! -z ${EESSI_CPU_FEATURES_FILE} ]; then
         cpu_features_output=$(cat ${EESSI_CPU_FEATURES_FILE})
     else
+        # /proc/cpuinfo uses space-separated flags and uses "fma" instead of "fma3",
+        # so we reformat and rename things a bit here to make it easier to do the comparisons
         cpu_features_output=$(list_cpu_features | sed '/^flags[[:space:]]*:/ s/,/ /g' | sed '/^flags[[:space:]]*:/ s/fma3/fma/g') # | grep flags | awk '{print $3}' | sed 's/,/ /g' | sed 's/fma3/fma/'
     fi
 
