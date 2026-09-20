@@ -1684,6 +1684,29 @@ def pre_configure_hook_cmake_system(self, *args, **kwargs):
         raise EasyBuildError("CMake-specific hook triggered for non-CMake easyconfig?!")
 
 
+def pre_configure_hook_visit(self, *args, **kwargs):
+    """
+    Pre-configure hook for Visit
+    - make sure that zlib is found in compat layer
+    """
+    if self.name == 'Visit':
+        if 'zlib' in build_option('filter_deps'):
+            compat_layer_topdir = get_eessi_envvar('EESSI_EPREFIX')
+            zlib_dir = os.path.join(compat_layer_topdir, 'usr')
+            zlib_opt = f'-DVISIT_ZLIB_DIR={zlib_dir}'
+
+            if '-DVISIT_ZLIB_DIR' in self.cfg['configopts']:
+                self.cfg['configopts'] = re.sub(
+                    r'-DVISIT_ZLIB_DIR=\S*',
+                    zlib_opt,
+                    self.cfg['configopts'],
+                )
+            else:
+                self.cfg.update('configopts', zlib_opt)
+    else:
+        raise EasyBuildError("Visit-specific hook triggered for non-Visit easyconfig?!")
+
+
 def pre_configure_hook_Zoltan(self, *args, **kwargs):
     """
     Pre-configure hook for Zoltan to filter out ParMETIS configure options,
@@ -2462,6 +2485,7 @@ PRE_CONFIGURE_HOOKS = {
     'ROCm-LLVM': pre_configure_hook_llvm,
     'Score-P': pre_configure_hook_score_p,
     'SymEngine': pre_configure_hook_symengine,
+    'Visit': pre_configure_hook_visit,
     'WRF': pre_configure_hook_wrf_aarch64,
     'Zoltan': pre_configure_hook_Zoltan,
 }
