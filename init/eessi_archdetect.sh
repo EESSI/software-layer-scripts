@@ -80,14 +80,18 @@ get_cpu_features(){
 
     if [ ! -z ${EESSI_CPU_FEATURES_FILE} ]; then
         cpu_features_output=$(cat ${EESSI_CPU_FEATURES_FILE})
-    else
+    elif command -v "list_cpu_features" >/dev/null 2>&1; then
         # /proc/cpuinfo uses space-separated flags and uses "fma" instead of "fma3",
         # so we reformat and rename things a bit here to make it easier to do the comparisons
-        cpu_features_output=$(list_cpu_features | sed '/^flags[[:space:]]*:/ s/,/ /g' | sed '/^flags[[:space:]]*:/ s/fma3/fma/g') # | grep flags | awk '{print $3}' | sed 's/,/ /g' | sed 's/fma3/fma/'
+        cpu_features_output=$(list_cpu_features | sed '/^flags[[:space:]]*:/ s/,/ /g' | sed '/^flags[[:space:]]*:/ s/fma3/fma/g')
+    else
+        log "DEBUG" "cpu_features cannot be found"
+        return 1
     fi
 
     # case insensitive match of key pattern and delete key pattern from result
     echo "${cpu_features_output}" | grep -i "$cpu_features_pattern" | tail -n 1 | sed "s/$cpu_features_pattern//i"
+    return 0
 }
 
 check_allinfirst(){
@@ -202,11 +206,8 @@ cpupath(){
         local cpu_family=$(get_cpuinfo "cpu[ _]family")
         local cpu_model=$(get_cpuinfo "model")
         log "DEBUG" "cpupath: refining Sapphire Rapids match (family='$cpu_family', model='$cpu_model')"
-        if command -v "list_cpu_features" >/dev/null 2>&1; then
-            log "DEBUG" "Calling list_cpu_features tool to find all relevant CPU flags" >&2
-            # cpu_features uses fma3 instead of fma, we simply replace it to ensure the matching still works
-            cpu_features_flags=$(get_cpu_features "$cpu_flag_tag" | sed 's/fma3/fma/')
-	        log "DEBUG" "Flags reported by list_cpu_features: ${cpu_features_flags}"
+        if cpu_features_flags=$(get_cpu_features "$cpu_flag_tag"); then
+            log "DEBUG" "Flags reported by list_cpu_features: ${cpu_features_flags}"
             for arch in "${cpu_arch_spec[@]}"; do
                 eval "arch_spec=$arch"
                 if [ "${cpu_vendor}x" == "${arch_spec[1]}x" ]; then
