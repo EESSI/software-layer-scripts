@@ -210,6 +210,11 @@ cpupath(){
         log "DEBUG" "cpupath: refining Sapphire Rapids match (family='$cpu_family', model='$cpu_model')"
         if cpu_features_flags=$(get_cpu_features "$cpu_flag_tag"); then
             log "DEBUG" "Flags reported by list_cpu_features: ${cpu_features_flags}"
+            # Now that we have a (possibly) changed set of flags, reset the results to their defaults and
+            # reiterate over the supported CPU specifications to find the best match for host CPU.
+            # Order of the specifications matters, the last one to match will be selected
+            local best_arch_match="$machine_type/generic"
+            local all_arch_matches=$best_arch_match
             for arch in "${cpu_arch_spec[@]}"; do
                 eval "arch_spec=$arch"
                 if [ "${cpu_vendor}x" == "${arch_spec[1]}x" ]; then
