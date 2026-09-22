@@ -24,6 +24,16 @@ LOG_LEVEL="WARN"
 # Default result type is a best match
 CPUPATH_RESULT="best"
 
+# map CPU flag names from cpu_features to the ones used in /proc/cpuinfo
+declare -A cpu_flags_name_map=(
+    [fma3]=fma
+    [avx512bitalg]=avx512_bitalg
+    [avx512vbmi2]=avx512_vbmi2
+    [avx512vnni]=avx512_vnni
+    [avx512vpopcntdq]=avx512_vpopcntdq
+    [sha]=sha_ni
+)
+
 timestamp () {
     date "+%Y-%m-%d %H:%M:%S"
 }
@@ -87,9 +97,25 @@ get_cpu_features(){
         return 1
     fi
 
-    # /proc/cpuinfo uses space-separated flags and uses "fma" instead of "fma3",
+    # /proc/cpuinfo uses space-separated flags and uses different names for some flags,
     # so we reformat and rename things a bit here to make it easier to do the comparisons
-    cpu_features_reformatted=$(echo "${cpu_features_output}" | sed '/^flags[[:space:]]*:/ s/,/ /g' | sed '/^flags[[:space:]]*:/ s/fma3/fma/g')
+    cpu_features_reformatted=$(
+        while IFS= read -r line; do
+            if [[ $line =~ ^(flags[[:space:]]*:[[:space:]]*)(.*)$ ]]; then
+                prefix=${BASH_REMATCH[1]}
+                flags=${BASH_REMATCH[2]}
+
+                new_flags=""
+                for flag in $flags; do
+                    new_flags+=" ${cpu_flags_name_map[$flag]:-$flag}"
+                done
+
+                printf '%s%s\n' "$prefix" "${new_flags# }"
+            else
+                printf '%s\n' "$line"
+            fi
+        done <<< "${cpu_features_output}"
+    )
 
     # case insensitive match of key pattern and delete key pattern from result
     echo "${cpu_features_reformatted}" | grep -i "$cpu_features_pattern" | tail -n 1 | sed "s/$cpu_features_pattern//i"
