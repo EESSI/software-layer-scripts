@@ -109,11 +109,10 @@ get_cpu_features(){
                 IFS=',' read -ra flag_array <<< "$flags"
 
                 for flag in "${flag_array[@]}"; do
-                    new_flags+="${cpu_flags_name_map[$flag]:-$flag},"
+                    new_flags+=" ${cpu_flags_name_map[$flag]:-$flag}"
                 done
 
-                new_flags=${new_flags%,}
-                printf '%s%s\n' "$prefix" "$new_flags"
+                printf '%s%s\n' "$prefix" "${new_flags# }"
             else
                 printf '%s\n' "$line"
             fi
