@@ -6,6 +6,7 @@ import glob
 import json
 import os
 import re
+import socket
 from typing import NamedTuple
 
 import easybuild.tools.environment as env
@@ -38,6 +39,7 @@ CPU_TARGET_NEOVERSE_V1 = 'aarch64/neoverse_v1'
 CPU_TARGET_AARCH64_GENERIC = 'aarch64/generic'
 CPU_TARGET_A64FX = 'aarch64/a64fx'
 CPU_TARGET_NVIDIA_GRACE = 'aarch64/nvidia/grace'
+CPU_TARGET_AWS_GRAVITON4 = 'aarch64/aws/graviton4'
 
 CPU_TARGET_CASCADELAKE = 'x86_64/intel/cascadelake'
 CPU_TARGET_ICELAKE = 'x86_64/intel/icelake'
@@ -273,6 +275,15 @@ def get_rpath_override_dirs(software_name=None, stub_suffix=""):
     rpath_injection_dirs = [os.path.join(rpath_injection_stub, x) for x in ('lib', 'lib64')]
 
     return rpath_injection_dirs
+
+
+def is_ipv6_available():
+    try:
+        with socket.socket(socket.AF_INET6, socket.SOCK_DGRAM) as sock:
+            sock.bind(("::1", 0))
+        return True
+    except OSError:
+        return False
 
 
 def parse_hook(ec, *args, **kwargs):
@@ -603,7 +614,7 @@ def parse_hook_fontconfig_add_fonts(ec, eprefix):
 def parse_hook_grpcio_zlib(ec, ecprefix):
     """Adjust preinstallopts to use ZLIB from compat layer."""
     if ec.name == 'grpcio':
-        target_list = ['1.57.0', '1.67.1', '1.70.0']
+        target_list = ['1.57.0', '1.67.1', '1.70.0', '1.76.0', '1.81.0']
         if ec.version in target_list:
             exts_list = ec['exts_list']
             original_preinstallopts = (exts_list[0][2])['preinstallopts']
@@ -688,7 +699,10 @@ def parse_hook_qt6_libinput(ec, eprefix):
     Add dependency on libinput to Qt6.
     This is not included in upstream EasyBuild as it brings a dependency on system-d
     """
-    qt6_toolchain_version_to_libinput_version_map = {'14.3.0': '1.30.1'}
+    qt6_toolchain_version_to_libinput_version_map = {
+        '14.3.0': '1.30.1',
+        '15.2.0': '1.31.3',
+    }
     if ec.name == 'Qt6':
         # Only enforcing from GCCcore 14.3.0 onwards for Qt6 6.9.3 onwards
         if ec.toolchain.version >= LooseVersion('14.3.0'):
@@ -1670,6 +1684,29 @@ def pre_configure_hook_cmake_system(self, *args, **kwargs):
         raise EasyBuildError("CMake-specific hook triggered for non-CMake easyconfig?!")
 
 
+def pre_configure_hook_visit(self, *args, **kwargs):
+    """
+    Pre-configure hook for Visit
+    - make sure that zlib is found in compat layer
+    """
+    if self.name == 'Visit':
+        if 'zlib' in build_option('filter_deps'):
+            compat_layer_topdir = get_eessi_envvar('EESSI_EPREFIX')
+            zlib_dir = os.path.join(compat_layer_topdir, 'usr')
+            zlib_opt = f'-DVISIT_ZLIB_DIR={zlib_dir}'
+
+            if '-DVISIT_ZLIB_DIR' in self.cfg['configopts']:
+                self.cfg['configopts'] = re.sub(
+                    r'-DVISIT_ZLIB_DIR=\S*',
+                    zlib_opt,
+                    self.cfg['configopts'],
+                )
+            else:
+                self.cfg.update('configopts', zlib_opt)
+    else:
+        raise EasyBuildError("Visit-specific hook triggered for non-Visit easyconfig?!")
+
+
 def pre_configure_hook_Zoltan(self, *args, **kwargs):
     """
     Pre-configure hook for Zoltan to filter out ParMETIS configure options,
@@ -1708,6 +1745,41 @@ def pre_test_hook_exclude_failing_test_Highway(self, *args, **kwargs):
         self.cfg['runtest'] += ' ARGS="-E TestAllShiftRightLanes/SVE_256"'
     if self.name == 'Highway' and self.version in ['1.0.3'] and cpu_target == CPU_TARGET_NVIDIA_GRACE:
         self.cfg['runtest'] += ' ARGS="-E TestAllSumOfLanes"'
+
+
+def pre_test_hook_c_ares(self, *args, **kwargs):
+    """
+    Pre-test hook for c-ares: disable IPv6 tests on systems that have IPv6 disabled
+    """
+    if self.name == 'c-ares':
+        # Check if the tests are enabled (older versions don't run them) and if IPv6 is available
+        if self.cfg['test_cmd'] and not is_ipv6_available():
+            ipv6_tests_filter = '*ipv6*'
+            print_msg(f"No IPv6 functionality on this system, disabling all IPv6 tests by filtering {ipv6_tests_filter} with --gtest_filter.")
+            # Depending on the version/easyconfig, we have to be careful and check how to set/override runtest
+            if self.cfg.get('runtest'):
+                if '--gtest_filter=' in self.cfg['runtest']:
+                    # Append ipv6 tests to the list of tests to be filtered (i.e. the negative patterns starting with a minus) with --gtest_filter
+                    # The value of --gtest_filter looks like:
+                    # PositivePattern1:PositivePattern2-NegativePattern1:NegativePattern2
+                    self.cfg['runtest'] = re.sub(
+                        r'(--gtest_filter=")([^\s"]*)(")',
+                        lambda m: (
+                            m.group(1) +
+                            (m.group(2) + ':' if '-' in m.group(2) else m.group(2) + '-') +
+                            ipv6_tests_filter +
+                            m.group(3)
+                        ),
+                        self.cfg['runtest']
+                    )
+                else:
+                    # There was a runtest parameter defined, but without a --gtest_filter option: append it
+                    self.cfg['runtest'] += f' --gtest_filter="-{ipv6_tests_filter}"'
+            else:
+                # No runtest defined at all: simply set it to filter the IPv6 tests
+                self.cfg['runtest'] = f'--gtest_filter="-{ipv6_tests_filter}"'
+    else:
+        raise EasyBuildError("c-ares-specific hook triggered for non-c-ares easyconfig?!")
 
 
 def pre_test_hook_gromacs(self, *args, **kwargs):
@@ -2413,11 +2485,13 @@ PRE_CONFIGURE_HOOKS = {
     'ROCm-LLVM': pre_configure_hook_llvm,
     'Score-P': pre_configure_hook_score_p,
     'SymEngine': pre_configure_hook_symengine,
+    'Visit': pre_configure_hook_visit,
     'WRF': pre_configure_hook_wrf_aarch64,
     'Zoltan': pre_configure_hook_Zoltan,
 }
 
 PRE_TEST_HOOKS = {
+    'c-ares': pre_test_hook_c_ares,
     'ESPResSo': pre_test_hook_ignore_failing_tests_ESPResSo,
     'FFTW.MPI': pre_test_hook_ignore_failing_tests_FFTWMPI,
     'GROMACS': pre_test_hook_gromacs,
@@ -2509,9 +2583,7 @@ PARALLELISM_LIMITS = {
     },
     'Qt6': {
         CPU_TARGET_A64FX: (set_maximum, 8),
-        CPU_TARGET_AARCH64_GENERIC: (divide_by_factor, 2),
-        CPU_TARGET_NEOVERSE_N1: (divide_by_factor, 2),
-        CPU_TARGET_NEOVERSE_V1: (divide_by_factor, 2),
+        '*': (divide_by_factor, 2),
     },
     'ROCm-LLVM': {
         '*': (set_maximum, 12),
