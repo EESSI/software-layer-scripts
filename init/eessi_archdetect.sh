@@ -81,16 +81,18 @@ get_cpu_features(){
     if [ ! -z ${EESSI_CPU_FEATURES_FILE} ]; then
         cpu_features_output=$(cat ${EESSI_CPU_FEATURES_FILE})
     elif command -v "list_cpu_features" >/dev/null 2>&1; then
-        # /proc/cpuinfo uses space-separated flags and uses "fma" instead of "fma3",
-        # so we reformat and rename things a bit here to make it easier to do the comparisons
-        cpu_features_output=$(list_cpu_features | sed '/^flags[[:space:]]*:/ s/,/ /g' | sed '/^flags[[:space:]]*:/ s/fma3/fma/g')
+        cpu_features_output=$(list_cpu_features)
     else
         log "DEBUG" "cpu_features cannot be found"
         return 1
     fi
 
+    # /proc/cpuinfo uses space-separated flags and uses "fma" instead of "fma3",
+    # so we reformat and rename things a bit here to make it easier to do the comparisons
+    cpu_features_reformatted=$(echo "${cpu_features_output}" | sed '/^flags[[:space:]]*:/ s/,/ /g' | sed '/^flags[[:space:]]*:/ s/fma3/fma/g')
+
     # case insensitive match of key pattern and delete key pattern from result
-    echo "${cpu_features_output}" | grep -i "$cpu_features_pattern" | tail -n 1 | sed "s/$cpu_features_pattern//i"
+    echo "${cpu_features_reformatted}" | grep -i "$cpu_features_pattern" | tail -n 1 | sed "s/$cpu_features_pattern//i"
     return 0
 }
 
