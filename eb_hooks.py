@@ -1203,6 +1203,29 @@ def pre_configure_hook(self, *args, **kwargs):
     if self.name in ['FreeXL', 'libspatialite', 'VSEARCH']:
         self.cfg.update('configopts', 'CPPFLAGS="-DOF=_Z_OF ${CPPFLAGS}"')
 
+    def pre_prepare_hook_uv_source_date_epoch(self, *args, **kwargs):
+    """
+    Set SOURCE_DATE_EPOCH for uv builds.
+
+    This ensures that maturin uses an explicit timestamp while creating the
+    wheel rather than relying on the ZIP writer's default timestamp handling.
+    Otherwise the builds fail on A64FX.
+    """
+    if self.name != 'uv':
+        raise EasyBuildError(
+            "uv-specific hook triggered for non-uv easyconfig?!"
+        )
+
+    source_date_epoch = str(int(datetime.datetime.now().timestamp()))
+
+    env.setvar('SOURCE_DATE_EPOCH', source_date_epoch)
+
+    print_msg(
+        "Set SOURCE_DATE_EPOCH=%s for %s %s",
+        source_date_epoch,
+        self.name,
+        self.version,
+    )
 
 def pre_configure_hook_BLIS(self, *args, **kwargs):
     """
@@ -2455,6 +2478,7 @@ PRE_PREPARE_HOOKS = {
     'LLVM': pre_prepare_hook_llvm_a64fx,
     'PyTorch': pre_prepare_hook_pytorch,
     'Rust': pre_prepare_hook_llvm_a64fx,
+    'uv': pre_prepare_hook_uv_source_date_epoch,
 }
 
 POST_PREPARE_HOOKS = {
