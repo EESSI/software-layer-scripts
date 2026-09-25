@@ -139,6 +139,30 @@ check_allinfirst(){
     return 0
 }
 
+# Iterate over the supported CPU specifications to find which ones match and
+# which one is the best match for the host CPU.
+# Order of the specifications matters, the last one to match will be selected as best match.
+# Uses machine_type, cpu_vendor and cpu_arch_spec from the calling context, and sets
+# best_arch_match and all_arch_matches in the caller's scope.
+find_arch_matches(){
+    # 1: space separated list of flags of the host system
+    local flags="$1"
+
+    # Default to generic CPU
+    best_arch_match="${machine_type}/generic"
+    all_arch_matches=$best_arch_match
+
+    for arch in "${cpu_arch_spec[@]}"; do
+        eval "arch_spec=$arch"
+        if [ "${cpu_vendor}x" == "${arch_spec[1]}x" ]; then
+            # each flag in this CPU specification must be found in the list of flags of the host
+            check_allinfirst "$flags" ${arch_spec[2]} && best_arch_match=${arch_spec[0]} && \
+                all_arch_matches="$best_arch_match:$all_arch_matches" && \
+                log "DEBUG" "cpupath: host CPU best match updated to $best_arch_match"
+        fi
+    done
+}
+
 cpupath(){
     # If EESSI_SOFTWARE_SUBDIR_OVERRIDE is set, use it
     log "DEBUG" "cpupath: Override variable set as '$EESSI_SOFTWARE_SUBDIR_OVERRIDE' "
@@ -210,21 +234,10 @@ cpupath(){
     local cpu_flags=$(get_cpuinfo "$cpu_flag_tag")
     log "DEBUG" "cpupath: CPU flags of host system: '$cpu_flags'"
 
-    # Default to generic CPU
-    local best_arch_match="$machine_type/generic"
-    local all_arch_matches=$best_arch_match
-
-    # Iterate over the supported CPU specifications to find the best match for host CPU
-    # Order of the specifications matters, the last one to match will be selected
-    for arch in "${cpu_arch_spec[@]}"; do
-        eval "arch_spec=$arch"
-        if [ "${cpu_vendor}x" == "${arch_spec[1]}x" ]; then
-            # each flag in this CPU specification must be found in the list of flags of the host
-            check_allinfirst "${cpu_flags[*]}" ${arch_spec[2]} && best_arch_match=${arch_spec[0]} && \
-                all_arch_matches="$best_arch_match:$all_arch_matches" && \
-                log "DEBUG" "cpupath: host CPU best match updated to $best_arch_match"
-        fi
-    done
+    # Find the best match for host CPU, based on its flags
+    # (find_best_arch_match resets best_arch_match and all_arch_matches, which are set in this scope)
+    local best_arch_match all_arch_matches
+    find_best_arch_match "$cpu_flags"
 
     # Some Intel microarchitectures are flag-indistinguishable from an older one because their
     # new features are not exposed in /proc/cpuinfo. Granite Rapids (Xeon 6) shows the exact same
@@ -237,21 +250,9 @@ cpupath(){
         local cpu_model=$(get_cpuinfo "model")
         log "DEBUG" "cpupath: refining Sapphire Rapids match (family='$cpu_family', model='$cpu_model')"
         if cpu_features_flags=$(get_cpu_features "$cpu_flag_tag"); then
-            log "DEBUG" "Flags reported by list_cpu_features: ${cpu_features_flags}"
-            # Now that we have a (possibly) changed set of flags, reset the results to their defaults and
-            # reiterate over the supported CPU specifications to find the best match for host CPU.
-            # Order of the specifications matters, the last one to match will be selected
-            local best_arch_match="$machine_type/generic"
-            local all_arch_matches=$best_arch_match
-            for arch in "${cpu_arch_spec[@]}"; do
-                eval "arch_spec=$arch"
-                if [ "${cpu_vendor}x" == "${arch_spec[1]}x" ]; then
-                    # each flag in this CPU specification must be found in the list of flags of the host
-                    check_allinfirst "${cpu_features_flags[*]}" ${arch_spec[2]} && best_arch_match=${arch_spec[0]} && \
-                        all_arch_matches="$best_arch_match:$all_arch_matches" && \
-                        log "DEBUG" "cpupath: host CPU best match updated to $best_arch_match"
-                fi
-            done
+            log "DEBUG" "cpupath: flags reported by list_cpu_features: ${cpu_features_flags}"
+            # Now that we have a (possibly) changed set of flags, find the best match for host CPU again
+            find_best_arch_match "$cpu_features_flags"
         # Intel family 6 model numbers below come from the kernel's authoritative table
         # arch/x86/include/asm/intel-family.h (what the kernel itself uses for model dispatch):
         #   INTEL_GRANITERAPIDS_X = IFM(6, 0xAD) -> family 6, model 173 (Granite Rapids-SP/AP)
