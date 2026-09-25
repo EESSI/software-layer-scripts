@@ -24,6 +24,16 @@ LOG_LEVEL="WARN"
 # Default result type is a best match
 CPUPATH_RESULT="best"
 
+# map CPU flag names from cpu_features to the ones used in /proc/cpuinfo
+declare -A cpu_flags_name_map=(
+    [fma3]=fma
+    [avx512bitalg]=avx512_bitalg
+    [avx512vbmi2]=avx512_vbmi2
+    [avx512vnni]=avx512_vnni
+    [avx512vpopcntdq]=avx512_vpopcntdq
+    [sha]=sha_ni
+)
+
 timestamp () {
     date "+%Y-%m-%d %H:%M:%S"
 }
@@ -70,6 +80,50 @@ get_cpuinfo(){
     grep -i "$cpuinfo_pattern" ${EESSI_PROC_CPUINFO:-/proc/cpuinfo} | tail -n 1 | sed "s/$cpuinfo_pattern//i"
 }
 
+# CPU specification of host system as reported by cpu_features
+get_cpu_features(){
+    # Return the value from list_cpu_features for the matching key
+    # 1: string with key pattern
+
+    [ -z "$1" ] && log "ERROR" "get_cpu_features: missing key pattern in argument list"
+    cpu_features_pattern="^${1}\s*:\s*"
+
+    if [ ! -z ${EESSI_CPU_FEATURES_FILE} ]; then
+        cpu_features_output=$(cat ${EESSI_CPU_FEATURES_FILE})
+    elif command -v "list_cpu_features" >/dev/null 2>&1; then
+        cpu_features_output=$(list_cpu_features)
+    else
+        log "DEBUG" "cpu_features cannot be found"
+        return 1
+    fi
+
+    # /proc/cpuinfo uses space-separated flags and uses different names for some flags,
+    # so we reformat and rename things a bit here to make it easier to do the comparisons
+    cpu_features_reformatted=$(
+        while IFS= read -r line; do
+            if [[ $line =~ ^(flags[[:space:]]*:[[:space:]]*)(.*)$ ]]; then
+                prefix=${BASH_REMATCH[1]}
+                flags=${BASH_REMATCH[2]}
+
+                new_flags=""
+                IFS=',' read -ra flag_array <<< "$flags"
+
+                for flag in "${flag_array[@]}"; do
+                    new_flags+=" ${cpu_flags_name_map[$flag]:-$flag}"
+                done
+
+                printf '%s%s\n' "$prefix" "${new_flags# }"
+            else
+                printf '%s\n' "$line"
+            fi
+        done <<< "${cpu_features_output}"
+    )
+
+    # case insensitive match of key pattern and delete key pattern from result
+    echo "${cpu_features_reformatted}" | grep -i "$cpu_features_pattern" | tail -n 1 | sed "s/$cpu_features_pattern//i"
+    return 0
+}
+
 check_allinfirst(){
     # Return true if all given arguments after the first are found in the first one
     # 1: reference string of space separated values
@@ -83,6 +137,30 @@ check_allinfirst(){
         [[ " $reference " == *" $candidate "* ]] || return 1
     done
     return 0
+}
+
+# Iterate over the supported CPU specifications to find which ones match and
+# which one is the best match for the host CPU.
+# Order of the specifications matters, the last one to match will be selected as best match.
+# Uses machine_type, cpu_vendor and cpu_arch_spec from the calling context, and sets
+# best_arch_match and all_arch_matches in the caller's scope.
+find_arch_matches(){
+    # 1: space separated list of flags of the host system
+    local flags="$1"
+
+    # Default to generic CPU
+    best_arch_match="${machine_type}/generic"
+    all_arch_matches=$best_arch_match
+
+    for arch in "${cpu_arch_spec[@]}"; do
+        eval "arch_spec=$arch"
+        if [ "${cpu_vendor}x" == "${arch_spec[1]}x" ]; then
+            # each flag in this CPU specification must be found in the list of flags of the host
+            check_allinfirst "$flags" ${arch_spec[2]} && best_arch_match=${arch_spec[0]} && \
+                all_arch_matches="$best_arch_match:$all_arch_matches" && \
+                log "DEBUG" "cpupath: host CPU best match updated to $best_arch_match"
+        fi
+    done
 }
 
 cpupath(){
@@ -156,38 +234,31 @@ cpupath(){
     local cpu_flags=$(get_cpuinfo "$cpu_flag_tag")
     log "DEBUG" "cpupath: CPU flags of host system: '$cpu_flags'"
 
-    # Default to generic CPU
-    local best_arch_match="$machine_type/generic"
-    local all_arch_matches=$best_arch_match
-
-    # Iterate over the supported CPU specifications to find the best match for host CPU
-    # Order of the specifications matters, the last one to match will be selected
-    for arch in "${cpu_arch_spec[@]}"; do
-        eval "arch_spec=$arch"
-        if [ "${cpu_vendor}x" == "${arch_spec[1]}x" ]; then
-            # each flag in this CPU specification must be found in the list of flags of the host
-            check_allinfirst "${cpu_flags[*]}" ${arch_spec[2]} && best_arch_match=${arch_spec[0]} && \
-                all_arch_matches="$best_arch_match:$all_arch_matches" && \
-                log "DEBUG" "cpupath: host CPU best match updated to $best_arch_match" 
-        fi
-    done
+    # Find the best match for host CPU, based on its flags
+    # (find_best_arch_match resets best_arch_match and all_arch_matches, which are set in this scope)
+    local best_arch_match all_arch_matches
+    find_arch_matches "$cpu_flags"
 
     # Some Intel microarchitectures are flag-indistinguishable from an older one because their
     # new features are not exposed in /proc/cpuinfo. Granite Rapids (Xeon 6) shows the exact same
     # visible flags as Sapphire/Emerald Rapids (its extras like amx_fp16 are hidden by the kernel),
-    # so the flag match above lands on 'sapphirerapids'. Refine using the CPU model number - the
-    # only reliable discriminator on Linux. If no dedicated graniterapids subdir is shipped yet,
-    # downstream subdir resolution falls back to the next entry in the chain, so prepending is safe.
+    # so the flag match above lands on 'sapphirerapids'.
+    # Refine using the list_cpu_features tool from Google's cpu_features if available,
+    # and otherwise use the CPU model number.
     if [ "${best_arch_match}" == "x86_64/intel/sapphirerapids" ]; then
         local cpu_family=$(get_cpuinfo "cpu[ _]family")
         local cpu_model=$(get_cpuinfo "model")
         log "DEBUG" "cpupath: refining Sapphire Rapids match (family='$cpu_family', model='$cpu_model')"
+        if cpu_features_flags=$(get_cpu_features "$cpu_flag_tag"); then
+            log "DEBUG" "cpupath: flags reported by list_cpu_features: ${cpu_features_flags}"
+            # Now that we have a (possibly) changed set of flags, find the best match for host CPU again
+            find_arch_matches "$cpu_features_flags"
         # Intel family 6 model numbers below come from the kernel's authoritative table
         # arch/x86/include/asm/intel-family.h (what the kernel itself uses for model dispatch):
         #   INTEL_GRANITERAPIDS_X = IFM(6, 0xAD) -> family 6, model 173 (Granite Rapids-SP/AP)
         #   INTEL_GRANITERAPIDS_D = IFM(6, 0xAE) -> family 6, model 174 (Granite Rapids-D)
         # (cf. INTEL_SAPPHIRERAPIDS_X = 0x8F/143, INTEL_EMERALDRAPIDS_X = 0xCF/207)
-        if [ "${cpu_family}" == "6" ] && { [ "${cpu_model}" == "173" ] || [ "${cpu_model}" == "174" ]; }; then
+        elif [ "${cpu_family}" == "6" ] && { [ "${cpu_model}" == "173" ] || [ "${cpu_model}" == "174" ]; }; then
             best_arch_match="x86_64/intel/graniterapids"
             all_arch_matches="$best_arch_match:$all_arch_matches"
             log "DEBUG" "cpupath: model $cpu_model identifies Granite Rapids; best match upgraded to $best_arch_match"
