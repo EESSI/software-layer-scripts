@@ -237,7 +237,7 @@ cpupath(){
     # Find the best match for host CPU, based on its flags
     # (find_best_arch_match resets best_arch_match and all_arch_matches, which are set in this scope)
     local best_arch_match all_arch_matches
-    find_best_arch_match "$cpu_flags"
+    find_arch_matches "$cpu_flags"
 
     # Some Intel microarchitectures are flag-indistinguishable from an older one because their
     # new features are not exposed in /proc/cpuinfo. Granite Rapids (Xeon 6) shows the exact same
@@ -252,7 +252,7 @@ cpupath(){
         if cpu_features_flags=$(get_cpu_features "$cpu_flag_tag"); then
             log "DEBUG" "cpupath: flags reported by list_cpu_features: ${cpu_features_flags}"
             # Now that we have a (possibly) changed set of flags, find the best match for host CPU again
-            find_best_arch_match "$cpu_features_flags"
+            find_arch_matches "$cpu_features_flags"
         # Intel family 6 model numbers below come from the kernel's authoritative table
         # arch/x86/include/asm/intel-family.h (what the kernel itself uses for model dispatch):
         #   INTEL_GRANITERAPIDS_X = IFM(6, 0xAD) -> family 6, model 173 (Granite Rapids-SP/AP)
