@@ -1,0 +1,80 @@
+# documentation: https://help.github.com/en/articles/workflow-syntax-for-github-actions
+name: Tests for accelerator detection (AMD GPU)
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read # to fetch code (actions/checkout)
+jobs:
+  # Method 1: KFD sysfs topology parsing (no amd-smi / Python required).
+  # Fixtures under tests/archdetect/kfd/<name>/nodes/ are captured from real hardware
+  # and injected via $EESSI_KFD_TOPOLOGY_ROOT, so no AMD GPU is needed in CI.
+  kfd_sysfs:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        fixture:
+          - v710      # AMD Radeon Pro V710 (NAVI32), gfx_target_version 110001 -> gfx1101
+          - cpu_only  # only a CPU node (gfx_target_version 0) -> no accelerator, exit 2
+      fail-fast: false
+    steps:
+    - name: checkout
+      uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
+
+    - name: test AMD KFD sysfs accelerator detection
+      run: |
+          fixture="${{matrix.fixture}}"
+          root="$PWD/tests/archdetect/kfd/${fixture}/nodes"
+          expected=$(cat "$PWD/tests/archdetect/kfd/${fixture}/expected.output")
+
+          # ensure no real amd-smi leaks in and lets the cpu_only case pass via Method 2
+          export PATH="$(mktemp -d):/usr/bin:/bin"
+
+          export EESSI_KFD_TOPOLOGY_ROOT="$root"
+
+          # first run with debugging enabled, just to show the output
+          ./init/eessi_archdetect.sh -d accelpath || echo "non-zero exit code: $?"
+
+          out=$(./init/eessi_archdetect.sh accelpath || echo "non-zero exit code: $?")
+          if [[ "$out" == "$expected" ]]; then
+              echo "KFD test for '${fixture}' PASSED: '$out'"
+          else
+              echo "KFD test for '${fixture}' FAILED: got '$out', expected '$expected'" >&2
+              exit 1
+          fi
+
+  # Method 2: amd-smi fallback. A fake amd-smi (captured real-hardware output) is placed
+  # on $PATH, and the KFD root is pointed at an empty dir to force the fallback path.
+  amd_smi:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        fixture:
+          - v710  # amd-smi reports TARGET_GRAPHICS_VERSION: gfx1101
+      fail-fast: false
+    steps:
+    - name: checkout
+      uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
+
+    - name: test AMD amd-smi accelerator detection
+      run: |
+          fixture="${{matrix.fixture}}"
+          expected=$(cat "$PWD/tests/archdetect/amd-smi/${fixture}.output")
+
+          # force Method 1 (KFD) to find nothing so Method 2 (amd-smi) is exercised
+          export EESSI_KFD_TOPOLOGY_ROOT="$(mktemp -d)"
+
+          # put fake amd-smi command in place
+          tmpdir=$(mktemp -d)
+          ln -s "$PWD/tests/archdetect/amd-smi/${fixture}.sh" "$tmpdir/amd-smi"
+          export PATH="$tmpdir:$PATH"
+
+          ./init/eessi_archdetect.sh -d accelpath || echo "non-zero exit code: $?"
+
+          out=$(./init/eessi_archdetect.sh accelpath || echo "non-zero exit code: $?")
+          if [[ "$out" == "$expected" ]]; then
+              echo "amd-smi test for '${fixture}' PASSED: '$out'"
+          else
+              echo "amd-smi test for '${fixture}' FAILED: got '$out', expected '$expected'" >&2
+              exit 1
+          fi
