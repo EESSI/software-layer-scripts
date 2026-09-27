@@ -31,6 +31,7 @@ jobs:
           - riscv64/sifive/u74-mc/starvision-Ubuntu24
           - riscv64/spacemit/bananaf3-Armbian
           - riscv64/spacemit/bananaf3-k6.6
+          - riscv64/spacemit/k3-bianbu
           - riscv64/rva20u64
           - riscv64/rva22u64
           - riscv64/rva23u64
