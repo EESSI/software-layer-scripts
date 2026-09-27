@@ -855,7 +855,7 @@ if [ -z ${EESSI_DO_NOT_MOUNT_CVMFS_CONFIG_CERN_CH+x} ]; then
     if [[ -x $(command -v cvmfs_config) ]] && cvmfs_config probe cvmfs-config.cern.ch >& /dev/null; then
         BIND_PATHS="${BIND_PATHS},/cvmfs/cvmfs-config.cern.ch"
     else
-        EESSI_FUSE_MOUNTS+=("--fusemount" "container:cvmfs2 cvmfs-config.cern.ch /cvmfs/cvmfs-config.cern.ch")
+        EESSI_FUSE_MOUNTS+=("--fusemount" '"container:cvmfs2 cvmfs-config.cern.ch /cvmfs/cvmfs-config.cern.ch"')
     fi
 fi
 
@@ -926,7 +926,7 @@ do
             # make the target CernVM-FS repository available under /cvmfs_ro
             if [[ ${cvmfs_repo_mount} == "fuse" ]]; then
                 export EESSI_READONLY="container:cvmfs2 ${cvmfs_repo_name} /cvmfs_ro/${cvmfs_repo_name}"
-                EESSI_FUSE_MOUNTS+=("--fusemount" "${EESSI_READONLY}")
+                EESSI_FUSE_MOUNTS+=("--fusemount" "\"${EESSI_READONLY}\"")
             elif [[ ${cvmfs_repo_mount} == "bind" ]]; then
                 BIND_PATHS="/cvmfs/${cvmfs_repo_name}:/cvmfs_ro/${cvmfs_repo_name},${BIND_PATHS}"
             fi
@@ -953,7 +953,7 @@ do
             fi
             export EESSI_READONLY_OVERLAY
 
-            EESSI_FUSE_MOUNTS+=("--fusemount" "${EESSI_READONLY_OVERLAY}")
+            EESSI_FUSE_MOUNTS+=("--fusemount" "\"${EESSI_READONLY_OVERLAY}\"")
             export EESSI_FUSE_MOUNTS
         else
             # basic "ro" access that doesn't require any fuseoverlay-fs
@@ -961,7 +961,7 @@ do
 
             if [[ ${cvmfs_repo_mount} == "fuse" ]]; then
                 export EESSI_READONLY="container:cvmfs2 ${cvmfs_repo_name} /cvmfs/${cvmfs_repo_name}"
-                EESSI_FUSE_MOUNTS+=("--fusemount" "${EESSI_READONLY}")
+                EESSI_FUSE_MOUNTS+=("--fusemount" "\"${EESSI_READONLY}\"")
                 export EESSI_FUSE_MOUNTS
             elif [[ ${cvmfs_repo_mount} == "bind" ]]; then
                 BIND_PATHS="/cvmfs/${cvmfs_repo_name},${BIND_PATHS}"
@@ -978,7 +978,7 @@ do
         # set environment variables for fuse mounts in Singularity container
         if [[ ${cvmfs_repo_mount} == "fuse" ]]; then
             export EESSI_READONLY="container:cvmfs2 ${cvmfs_repo_name} /cvmfs_ro/${cvmfs_repo_name}"
-            EESSI_FUSE_MOUNTS+=("--fusemount" "${EESSI_READONLY}")
+            EESSI_FUSE_MOUNTS+=("--fusemount" "\"${EESSI_READONLY}\"")
         elif [[ ${cvmfs_repo_mount} == "bind" ]]; then
             BIND_PATHS="/cvmfs/${cvmfs_repo_name}:/cvmfs_ro/${cvmfs_repo_name},${BIND_PATHS}"
         fi
@@ -1002,7 +1002,7 @@ do
         fi
         export EESSI_WRITABLE_OVERLAY
 
-        EESSI_FUSE_MOUNTS+=("--fusemount" "${EESSI_WRITABLE_OVERLAY}")
+        EESSI_FUSE_MOUNTS+=("--fusemount" "\"${EESSI_WRITABLE_OVERLAY}"\")
         export EESSI_FUSE_MOUNTS
     else
         echo -e "ERROR: access mode '${cvmfs_repo_access}' for CVMFS repository\n  '${cvmfs_repo_name}' is not known"
