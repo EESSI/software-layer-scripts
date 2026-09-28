@@ -33,6 +33,7 @@ jobs:
           - riscv64/spacemit/bananaf3-k6.6
           - riscv64/spacemit/k3-bianbu
           - riscv64/thead/c910/beaglev-ahead
+          - riscv64/thead/c910/beaglev-ahead-k6.15
           - riscv64/rva20u64
           - riscv64/rva22u64
           - riscv64/rva23u64

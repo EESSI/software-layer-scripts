@@ -42,14 +42,17 @@
 #   spacemit/x60    <- tests/.../spacemit/bananaf3-Armbian.cpuinfo
 #   spacemit/x60-k6.6 <- tests/.../spacemit/bananaf3-k6.6.cpuinfo
 #   spacemit/x100    <- tests/.../spacemit/k3-bianbu.cpuinfo
-#   thead/c910       <- tests/.../thead/c910/beaglev-ahead.cpuinfo
+#   thead/c910       <- tests/.../thead/c910/beaglev-ahead.cpuinfo (factory 5.10)
+#   k6.15 fixture    <- tests/.../thead/c910/beaglev-ahead-k6.15.cpuinfo
 #
 # T-Head C910 (TH1520, BeagleV-Ahead) is listed before the profile floors.
 # Its factory cpuinfo has no mvendorid, so the match is the full measured isa
 # rv64imafdcvsu, including the S and U letters. Those letters are absent from
 # the RVA and SiFive/SpacemiT fixtures, and a later richer match still wins.
 # The V in that string is draft xtheadvector 0.7.1, not ratified RVV 1.0.
-# Kernels that disable the extension drop v, and those hosts stay on generic.
+# Kernel 6.15 hides xtheadvector (GhostWrite). That cpuinfo drops v, s, and u,
+# so it misses thead/c910. zicsr, zicntr, and zifencei are still present, so
+# the host matches rva20u64.
 
 # Software path in EESSI 	| Vendor ID 	| List of defining CPU features
 "riscv64/thead/c910"		""		"rv64imafdcvsu"	# full BeagleV-Ahead factory isa
