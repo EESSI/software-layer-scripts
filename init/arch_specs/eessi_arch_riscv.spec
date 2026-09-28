@@ -1,5 +1,5 @@
 # RISC-V CPU architecture specifications (see https://github.com/riscv/learn?tab=readme-ov-file#open-risc-v-implementations)
-# CPU vendors: SiFive (0x489), Spacemit (0x710)
+# CPU vendors: SiFive (0x489), Spacemit (0x710), T-Head (0x5b7)
 # Spec lines must not use parentheses in trailing comments: update_arch_specs evals each line.
 #
 # Profile paths riscv64/rva*: empty Vendor ID means any vendor. Compact base ISA
@@ -42,8 +42,17 @@
 #   spacemit/x60    <- tests/.../spacemit/bananaf3-Armbian.cpuinfo
 #   spacemit/x60-k6.6 <- tests/.../spacemit/bananaf3-k6.6.cpuinfo
 #   spacemit/x100    <- tests/.../spacemit/k3-bianbu.cpuinfo
+#   thead/c910       <- tests/.../thead/c910/beaglev-ahead.cpuinfo
+#
+# T-Head C910 (TH1520, BeagleV-Ahead) is listed before the profile floors.
+# Its factory cpuinfo has no mvendorid, so the match is the full measured isa
+# rv64imafdcvsu, including the S and U letters. Those letters are absent from
+# the RVA and SiFive/SpacemiT fixtures, and a later richer match still wins.
+# The V in that string is draft xtheadvector 0.7.1, not ratified RVV 1.0.
+# Kernels that disable the extension drop v, and those hosts stay on generic.
 
 # Software path in EESSI 	| Vendor ID 	| List of defining CPU features
+"riscv64/thead/c910"		""		"rv64imafdcvsu"	# full BeagleV-Ahead factory isa
 "riscv64/rva20u64"	""		"rv64imafdc zicsr zicntr zifencei"
 "riscv64/rva22u64"	""		"rv64imafdc zicsr zicntr zifencei zihpm zihintpause zba zbb zbs zicbom zicbop zicboz zfhmin zkt"
 "riscv64/rva23u64"	""		"rv64imafdcv zicsr zicntr zifencei zihpm zihintpause zihintntl zba zbb zbs zicbom zicbop zicboz zfhmin zkt zicond zimop zcmop zcb zfa zawrs zvfhmin zvbb zvkt"
