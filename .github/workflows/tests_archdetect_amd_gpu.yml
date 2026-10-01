@@ -1,0 +1,114 @@
+# documentation: https://help.github.com/en/articles/workflow-syntax-for-github-actions
+name: Tests for accelerator detection (AMD GPU)
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read # to fetch code (actions/checkout)
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        kfd_fixture:
+          - none # no KFD topology available
+          - no_devices # KFD topology present, but only a CPU node (no GPU)
+          - 1xmi250x # gfx90a
+          - 1xmi300x # gfx942
+          - 1xv710 # gfx1101 (AMD Radeon PRO V710)
+        EESSI_VERSION:
+          - '2023.06'
+      fail-fast: false
+    steps:
+    - name: checkout
+      uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
+
+    # we deliberately do not use the eessi/github-action-eessi action,
+    # because we want to control when the EESSI environment is initialized
+    - name: Mount EESSI CernVM-FS repository
+      uses: cvmfs-contrib/github-action-cvmfs@55899ca74cf78ab874bdf47f5a804e47c198743c # v4.0
+      with:
+          cvmfs_config_package: https://github.com/EESSI/filesystem-layer/releases/download/latest/cvmfs-config-eessi_latest_all.deb
+          cvmfs_http_proxy: DIRECT
+          cvmfs_repositories: software.eessi.io
+
+    - name: Fix EESSI version in init scripts
+      run: |
+        sed -i "s/__EESSI_VERSION_DEFAULT__/${{matrix.EESSI_VERSION}}/g" init/eessi_defaults
+
+    - name: test accelerator detection
+      run: |
+          export EESSI_SOFTWARE_SUBDIR_OVERRIDE='x86_64/amd/zen2'
+
+          # point archdetect at a fake KFD topology tree (unless we want none at all)
+          if [[ "${{matrix.kfd_fixture}}" != "none" ]]; then
+              export EESSI_KFD_NODES_OVERRIDE="$PWD/tests/archdetect/amd-kfd/${{matrix.kfd_fixture}}/nodes"
+          else
+              export EESSI_KFD_NODES_OVERRIDE="$PWD/tests/archdetect/amd-kfd/does-not-exist/nodes"
+          fi
+
+          # first run with debugging enabled, just to show the output
+          ./init/eessi_archdetect.sh -d accelpath || echo "non-zero exit code: $?"
+
+          # verify output (or exit code if non-zero)
+          out=$(./init/eessi_archdetect.sh accelpath || echo "non-zero exit code: $?")
+
+          if [[ $out == "$( cat ./tests/archdetect/amd-kfd/${{matrix.kfd_fixture}}.output )" ]]; then
+
+              echo "Test for '${{matrix.kfd_fixture}}' PASSED: '$out'"
+
+              # run full EESSI init script, which picks up on the accelerator (if available)
+              echo
+              . init/bash 2>&1 | tee init.out
+              echo "-----------------------------------------------------------------------------"
+
+              if [[ "${{matrix.kfd_fixture}}" == "none" ]] || [[ "${{matrix.kfd_fixture}}" == "no_devices" ]]; then
+
+                  pattern="archdetect could not detect any accelerators"
+                  echo ">>> checking for pattern '${pattern}' in init output..."
+                  grep "${pattern}" init.out || (echo "FAILED 1" && exit 1)
+
+                  pattern="archdetect found supported accelerator"
+                  echo ">>> checking for lack of pattern '${pattern}' in init output..."
+                  match=$(grep "${pattern}" init.out || true)
+                  test "x${match}" = "x" || (echo "unexpected match found for '${pattern}' in init output" && exit 1)
+
+              else
+                  # No AMD accelerator stack exists in EESSI yet, so a detected AMD GPU is
+                  # expected to have no matching path under the CPU target. The init script may
+                  # first map the detected target to its nearest supported base target (e.g.
+                  # gfx90a->gfx900, gfx942->gfx940, gfx1101->gfx1100), so match the "No matching
+                  # path found" line without pinning the exact gfx string.
+                  pattern="No matching path found in x86_64/amd/zen2 for accelerator detected by archdetect (accel/amd/gfx"
+                  echo ">>> checking for pattern '${pattern}' in init output..."
+                  grep -F "${pattern}" init.out || (echo "FAILED 1" && exit 1)
+
+                  pattern="Prepending /cvmfs/software.eessi.io/versions/${{matrix.EESSI_VERSION}}/software/linux/.*/accel/.*/modules/all to \$MODULEPATH"
+                  echo ">>> checking for lack of pattern '${pattern}' in init output..."
+                  match=$(grep "${pattern}" init.out || true)
+                  test "x${match}" = "x" || (echo "unexpected match found for '${pattern}' in init output" && exit 1)
+              fi
+
+              echo ">>> checking last line of init output..."
+              tail -1 init.out | grep "Environment set up to use EESSI (${{matrix.EESSI_VERSION}}), have fun!" || (echo "FAILED, full init output:" && cat init.out && exit 1)
+
+              echo "All checks on init output PASSED"
+          else
+              echo "Test for '${{matrix.kfd_fixture}}' FAILED: '$out'" >&2
+              exit 1
+          fi
+
+    - name: test accelerator detection under $EESSI_ACCEL_SOFTWARE_SUBDIR_OVERRIDE + $EESSI_ACCELERATOR_TARGET_OVERRIDE
+      run: |
+          export EESSI_SOFTWARE_SUBDIR_OVERRIDE='x86_64/amd/zen2'
+          export EESSI_ACCEL_SOFTWARE_SUBDIR_OVERRIDE='x86_64/amd/zen3'
+          export EESSI_ACCELERATOR_TARGET_OVERRIDE='accel/amd/gfx90a'
+
+          # first run with debugging enabled, just to show the output
+          ./init/eessi_archdetect.sh -d accelpath || echo "non-zero exit code: $?"
+
+          # verify the AMD override is accepted and echoed back verbatim
+          out=$(./init/eessi_archdetect.sh accelpath || echo "non-zero exit code: $?")
+          test "$out" = "accel/amd/gfx90a" || (echo "FAILED: unexpected accelpath output '$out'" && exit 1)
+
+          echo "All checks on AMD override PASSED"

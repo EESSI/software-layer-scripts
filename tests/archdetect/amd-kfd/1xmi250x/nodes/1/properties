@@ -1,0 +1,3 @@
+cpu_cores_count 0
+simd_count 4
+gfx_target_version 90010
