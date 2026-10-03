@@ -17,6 +17,8 @@ jobs:
             rebuild_software: "BCFtools-1.18-GCC-12.3.0.eb"
           - eessi_version: '2025.06'
             rebuild_software: "make-4.4.1-GCCcore-13.3.0.eb"
+          - eessi_version: '2026.06'
+            rebuild_software: "make-4.4.1-GCCcore-15.2.0.eb"
 
     steps:
       - name: Check out software-layer repository

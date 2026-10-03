@@ -20,6 +20,7 @@ jobs:
         EESSI_VERSION:
           - '2023.06'
           - '2025.06'
+          - '2026.06'
       fail-fast: false
     steps:
     - name: checkout
