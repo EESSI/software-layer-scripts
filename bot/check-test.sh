@@ -219,6 +219,13 @@ comment_details_list=${comment_details_list}$(add_detail ${SLURM_OUTPUT_FOUND} 1
 
 success_msg="no message matching <code>${GP_error}</code>"
 failure_msg="found message matching <code>${GP_error}</code>"
+# The matched lines stay in the result file. Echoing them would write the
+# pattern back into the Slurm output, and a second pass would match it again.
+if [[ ${ERROR} -eq 1 && -n ${grep_out} ]]; then
+    error_quote=$(printf '%s\n' "${grep_out}" | head -n 20 | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
+    error_quote=${error_quote//$'\n'/<br/>}
+    failure_msg="${failure_msg}<br/><pre><code>${error_quote}</code></pre>"
+fi
 comment_details_list=${comment_details_list}$(add_detail ${ERROR} 0 "${success_msg}" "${failure_msg}")
 
 # Add an escape character to every *, for it to be printed correctly in the comment on GitHub
