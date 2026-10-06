@@ -1,0 +1,28 @@
+# Top-level toolchains that are supported for installations in each EESSI version.
+# This file is read by eb_hooks.py (see load_supported_top_level_toolchains()), and has to be installed next to it.
+#
+# Each key is an EESSI version, with a list of toolchains ('name' and 'version').
+# An optional 'min_easybuild_version' can be used for toolchains that are only supported when
+# a sufficiently recent EasyBuild version is used (e.g. because older versions don't know the toolchain).
+
+# If you need to use this from a shell and don't have yq available, you can convert it to json on the fly using
+# python -c "import tomllib, json; print(json.dumps(tomllib.load(open('input.toml','rb')), indent=2))" > output.json
+
+"2023.06" = [
+    { name = "foss", version = "2022b" },
+    { name = "foss", version = "2023a" },
+    { name = "foss", version = "2023b" },
+]
+
+"2025.06" = [
+    { name = "foss", version = "2024a" },
+    { name = "foss", version = "2025a" },
+    { name = "foss", version = "2025b" },
+    { name = "lfoss", version = "2025b", min_easybuild_version = "5.2.0" },
+    { name = "rompi", version = "2025a", min_easybuild_version = "5.3.1" },
+]
+
+"2026.06" = [
+    { name = "foss", version = "2026.1" },
+    { name = "lfoss", version = "2026.1" },
+]

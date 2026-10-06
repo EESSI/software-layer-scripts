@@ -222,11 +222,12 @@ if [[ -d ${host_injections_easystacks_dir} ]]; then
     copy_files_by_list ${host_injections_easystacks_dir} ${INSTALL_PREFIX}/scripts/gpu_support/nvidia/easystacks "${host_injections_easystacks[@]}"
 fi
 
-# Copy over EasyBuild hooks file used for installations
-hook_files=(
+# Copy over EasyBuild hooks file used for installations (and the files it needs, which have to be located next to it)
+easybuild_init_files=(
     eb_hooks.py
+    eessi_supported_toolchains.toml
 )
-copy_files_by_list ${TOPDIR} ${INSTALL_PREFIX}/init/easybuild "${hook_files[@]}"
+copy_files_by_list ${TOPDIR} ${INSTALL_PREFIX}/init/easybuild "${easybuild_init_files[@]}"
 
 # replace version placeholders in scripts;
 # note: the commands below are always run, regardless of whether the scripts were changed,

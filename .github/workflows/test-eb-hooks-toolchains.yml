@@ -1,0 +1,33 @@
+# documentation: https://help.github.com/en/articles/workflow-syntax-for-github-actions
+name: Unit tests for supported toolchains in EasyBuild hooks
+on:
+  push:
+    paths:
+      - eb_hooks.py
+      - eessi_supported_toolchains.toml
+      - tests/eb_hooks/**
+      - .github/workflows/test-eb-hooks-toolchains.yml
+  pull_request:
+    paths:
+      - eb_hooks.py
+      - eessi_supported_toolchains.toml
+      - tests/eb_hooks/**
+      - .github/workflows/test-eb-hooks-toolchains.yml
+  workflow_dispatch:
+permissions:
+  contents: read # to fetch code (actions/checkout)
+jobs:
+  test_supported_toolchains:
+    runs-on: ubuntu-24.04
+    steps:
+        - name: Check out software-layer repository
+          uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+
+        - name: Install EasyBuild and pytest
+          run: |
+              python3 -m venv "$RUNNER_TEMP/venv"
+              "$RUNNER_TEMP/venv/bin/pip" install easybuild pytest
+
+        - name: Run unit tests
+          run: |
+              "$RUNNER_TEMP/venv/bin/python" -m pytest -v tests/eb_hooks
