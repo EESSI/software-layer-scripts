@@ -1,0 +1,5 @@
+-mno-fix-cortex-a53-835769
+-mno-fix-cortex-a53-843419
+-mlittle-endian
+-mabi=lp64
+-mcpu=neoverse-v1+sm4+crc+aes+sha3+nopauth

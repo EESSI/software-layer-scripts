@@ -10,6 +10,14 @@ import socket
 import tarfile
 from typing import NamedTuple
 
+try:
+    import tomllib  # in the standard library since Python 3.11
+except ImportError:
+    try:
+        import tomli as tomllib  # backport for older Python versions
+    except ImportError:
+        tomllib = None
+
 import easybuild.tools.environment as env
 from easybuild.easyblocks.generic.configuremake import obtain_config_guess
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
@@ -67,31 +75,60 @@ EESSI_IGNORE_ZEN4_GCC1220_ENVVAR="EESSI_IGNORE_LMOD_ERROR_ZEN4_GCC1220"
 
 STACK_REPROD_SUBDIR = 'reprod'
 
-EESSI_SUPPORTED_TOP_LEVEL_TOOLCHAINS = {
-    '2023.06': [
-        {'name': 'foss', 'version': '2022b'},
-        {'name': 'foss', 'version': '2023a'},
-        {'name': 'foss', 'version': '2023b'},
-    ],
-    '2025.06': [
-        {'name': 'foss', 'version': '2024a'},
-        {'name': 'foss', 'version': '2025a'},
-        {'name': 'foss', 'version': '2025b'},
-    ],
-    '2026.06': [
-        {'name': 'foss', 'version': '2026.1'},
-        {'name': 'lfoss', 'version': '2026.1'},
-    ],
-}
-if EASYBUILD_VERSION >= '5.2.0':
-    EESSI_SUPPORTED_TOP_LEVEL_TOOLCHAINS['2025.06'].append(
-        {'name': 'lfoss', 'version': '2025b'}
-    )
+# Environment variable that can be used to point to a custom TOML file with the supported top-level toolchains
+SUPPORTED_TOOLCHAINS_FILE_ENVVAR = 'EESSI_SUPPORTED_TOOLCHAINS_FILE'
 
-if EASYBUILD_VERSION >= '5.3.1':
-    EESSI_SUPPORTED_TOP_LEVEL_TOOLCHAINS['2025.06'].append(
-        {'name': 'rompi', 'version': '2025a'}
-    )
+
+def load_supported_top_level_toolchains():
+    """
+    Load the supported top-level toolchains per EESSI version from a TOML file.
+
+    The location of the TOML file can be set through the environment variable EESSI_SUPPORTED_TOOLCHAINS_FILE.
+    If that is not set, eessi_supported_toolchains.toml is expected next to this hooks file (both in the
+    software-layer-scripts repository, and when installed in <EESSI prefix>/init/easybuild).
+
+    Toolchains that require a more recent EasyBuild version than the one being used (as specified via
+    'min_easybuild_version') are left out.
+
+    Returns:
+        supported_toolchains (dict): maps each EESSI version to a list of dicts with the 'name' and 'version'
+            of a supported top-level toolchain
+    """
+    default_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'eessi_supported_toolchains.toml')
+    toolchains_file = os.getenv(SUPPORTED_TOOLCHAINS_FILE_ENVVAR)
+    envvar_msg = f" (set via ${SUPPORTED_TOOLCHAINS_FILE_ENVVAR})"
+    if not toolchains_file:
+        toolchains_file = default_file
+        envvar_msg = ""
+
+    if tomllib is None:
+        raise EasyBuildError("Parsing TOML files requires Python 3.11 or newer, or the 'tomli' Python package")
+
+    try:
+        with open(toolchains_file, 'rb') as fh:
+            toolchains = tomllib.load(fh)
+    except OSError as err:
+        msg = (f"Failed to read the file with supported toolchains {toolchains_file}{envvar_msg}: {err}. "
+               f"By default, it is expected next to the EasyBuild hooks file; its location can be configured "
+               f"through the environment variable {SUPPORTED_TOOLCHAINS_FILE_ENVVAR}.")
+        if envvar_msg and os.path.isfile(default_file):
+            msg += (f" Note that a file with supported toolchains does exist in the default location {default_file}. "
+                    f"If that is the file you intended to use, unset {SUPPORTED_TOOLCHAINS_FILE_ENVVAR}.")
+        raise EasyBuildError(msg)
+    except ValueError as err:
+        raise EasyBuildError(f"The file with supported toolchains {toolchains_file}{envvar_msg} "
+                             f"does not contain valid TOML: {err}")
+
+    return {
+        eessi_version: [
+            {'name': tc['name'], 'version': tc['version']} for tc in tcs
+            if EASYBUILD_VERSION >= tc.get('min_easybuild_version', '0')
+        ]
+        for eessi_version, tcs in toolchains.items()
+    }
+
+
+EESSI_SUPPORTED_TOP_LEVEL_TOOLCHAINS = load_supported_top_level_toolchains()
 
 # Supported compute capabilities by CUDA toolkit version
 # Obtained by installing all CUDAs from 12.0.0 to 13.3.0, then using:
