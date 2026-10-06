@@ -24,7 +24,13 @@ LATEST_VERSION="VERSION=\$(git tag | grep '^v[0-9]\+\.[0-9]\+\.[0-9]\+$' | sort 
 CHECKOUT_LATEST="git checkout \${VERSION}"
 
 # Git clone has to be run in compat layer, to make the git command available
-./run_in_compat_layer_env.sh "${TEST_CLONE} && ${LATEST_VERSION} && ${CHECKOUT_LATEST}"
+clone_err=$(./run_in_compat_layer_env.sh "${TEST_CLONE} && ${LATEST_VERSION} && ${CHECKOUT_LATEST}" 2>&1)
+clone_rc=$?
+printf '%s\n' "${clone_err}"
+if [[ ${clone_rc} -ne 0 ]]; then
+    echo "ERROR: Failed to clone the EESSI test suite: ${clone_err}" >&2
+    exit "${clone_rc}"
+fi
 
 # Run the test suite
 ./test_suite.sh "$@"
