@@ -90,19 +90,24 @@ source $TOPDIR/init/bash
 # Reason is that the LMOD cache is normally only updated on the Stratum 0, once everything is ingested
 export LMOD_IGNORE_CACHE=1
 
-# Load the ReFrame module
-# Currently, we load the default version. Maybe we should somehow make this configurable in the future?
-module load ReFrame
-if [[ $? -eq 0 ]]; then
+# Load the ReFrame module. The default is preferred. A generation that
+# ships ReFrame without a default still has a versioned module.
+if module load ReFrame; then
     echo_green ">> Loaded ReFrame module"
 else
-    fatal_error "Failed to load the ReFrame module"
+    reframe_mod=$(module -t avail ReFrame 2>&1 | grep -E '^ReFrame/' | tail -n 1)
+    if [[ -n ${reframe_mod} ]] && module load "${reframe_mod}"; then
+        echo_green ">> Loaded ${reframe_mod}"
+    else
+        module avail ReFrame >&2 || true
+        fatal_error "Failed to load the ReFrame module"
+    fi
 fi
 
 # Check that a python3 executable is available
 python3_found=$(command -v python3)
 if [ -z ${python3_found} ]; then
-    fatal_error "No python3 executable found"
+    fatal_error "No python3 executable found in PATH=${PATH}"
 else
     echo_green "Executable python3 found:"
     python3 -V
@@ -110,11 +115,11 @@ fi
 
 # Check that ReFrame can be imported
 reframe_import="reframe"
-python3 -c "import ${reframe_import}"
+import_err=$(python3 -c "import ${reframe_import}" 2>&1)
 if [[ $? -eq 0 ]]; then
     echo_green "Succesfully found and imported ${reframe_import}"
 else
-    fatal_error "Failed to import ${reframe_import}"
+    fatal_error "Failed to import ${reframe_import}: ${import_err}"
 fi
 
 # Cloning should already be done in run_tests.sh before test_suite.sh is invoked
@@ -129,11 +134,11 @@ export PYTHONPATH=$TESTSUITEPREFIX:$PYTHONPATH
 
 # Check that we can import from the testsuite
 testsuite_import="eessi.testsuite"
-python3 -c "import ${testsuite_import}"
+suite_err=$(python3 -c "import ${testsuite_import}" 2>&1)
 if [[ $? -eq 0 ]]; then
     echo_green "Succesfully found and imported ${testsuite_import}"
 else
-    fatal_error "Failed to import ${testsuite_import}"
+    fatal_error "Failed to import ${testsuite_import}: ${suite_err}"
 fi
 
 # Configure ReFrame, see https://www.eessi.io/docs/test-suite/installation-configuration
@@ -176,11 +181,11 @@ cat "${RFM_CONFIG_FILES}"
 export FI_PROVIDER="^psm3"
 
 # Check we can run reframe
-reframe --version
+version_err=$(reframe --version 2>&1)
 if [[ $? -eq 0 ]]; then
     echo_green "Succesfully ran 'reframe --version'"
 else
-    fatal_error "Failed to run 'reframe --version'"
+    fatal_error "Failed to run 'reframe --version': ${version_err}"
 fi
 
 # Check if the partition specified by RFM_SYSTEM is in the config file
@@ -242,21 +247,24 @@ export REFRAME_ARGS="${REFRAME_CI_TAG} ${REFRAME_SCALE_TAG} ${REFRAME_ADDITIONAL
 
 # List the tests we want to run
 echo "Listing tests: reframe ${REFRAME_ARGS} --list"
-reframe ${REFRAME_ARGS} --list
-if [[ $? -eq 0 ]]; then
+list_err=$(reframe ${REFRAME_ARGS} --list 2>&1)
+list_rc=$?
+printf '%s\n' "${list_err}"
+if [[ ${list_rc} -eq 0 ]]; then
     echo_green "Succesfully listed ReFrame tests with command: reframe ${REFRAME_ARGS} --list"
 else
-    fatal_error "Failed to list ReFrame tests with command: reframe ${REFRAME_ARGS} --list"
+    fatal_error "Failed to list ReFrame tests with command: reframe ${REFRAME_ARGS} --list: ${list_err}"
 fi
 
 # Run all tests
 echo "Running tests: reframe ${REFRAME_ARGS} --run"
-reframe ${REFRAME_ARGS} --run
+run_err=$(reframe ${REFRAME_ARGS} --run 2>&1)
 reframe_exit_code=$?
+printf '%s\n' "${run_err}"
 if [[ ${reframe_exit_code} -eq 0 ]]; then
     echo_green "ReFrame runtime ran succesfully with command: reframe ${REFRAME_ARGS} --run."
 else
-    fatal_error "ReFrame runtime failed to run with command: reframe ${REFRAME_ARGS} --run."
+    fatal_error "ReFrame runtime failed to run with command: reframe ${REFRAME_ARGS} --run: ${run_err}"
 fi
 
 echo ">> Cleaning up ${TMPDIR}..."
