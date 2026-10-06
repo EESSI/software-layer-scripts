@@ -2649,6 +2649,9 @@ PARALLELISM_LIMITS = {
         '*': (divide_by_factor, 2),
         CPU_TARGET_A64FX: (set_maximum, 1),
     },
+    'ParaView': {
+        CPU_TARGET_AWS_GRAVITON4: (divide_by_factor, 2),
+    },
     'PETSc': {
         # PETSc test suite can be quite memory hungry,
         # so reduce parallelism when running tests (also impacts build)
