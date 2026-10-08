@@ -190,6 +190,9 @@ eessiDebug("Adding " .. pathJoin(eessi_software_path, ".lmod", "lmodrc.lua") .. 
 -- Make sure that a cache for site installations can also be found
 prepend_path("LMOD_RC", pathJoin(eessi_site_software_path , ".lmod", "lmodrc.lua"))
 eessiDebug("Adding " .. pathJoin(eessi_site_software_path , ".lmod", "lmodrc.lua") .. " to LMOD_RC")
+-- Allow a Jupyter server started with EESSI loaded to find all it's hardcoded kernels
+prepend_path("JUPYTER_PATH", pathJoin(eessi_software_path, ".jupyter"))
+eessiDebug("Adding " .. pathJoin(eessi_software_path, ".jupyter") .. " to JUPYTER_PATH")
 
 -- Use pushenv for LMOD_PACKAGE_PATH as this may be set locally by the site
 pushenv("LMOD_PACKAGE_PATH", pathJoin(eessi_software_path, ".lmod"))
