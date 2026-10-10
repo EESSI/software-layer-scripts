@@ -379,4 +379,12 @@ echo "                     -- $software_layer_dir/create_tarball.sh ${TMP_IN_CON
 $software_layer_dir/eessi_container.sh "${COMMON_ARGS[@]}" "${TARBALL_STEP_ARGS[@]}" \
                      -- $software_layer_dir/create_tarball.sh ${TMP_IN_CONTAINER} ${EESSI_VERSIONS_SUBPATH} ${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE} "$tarball_accelerators" /eessi_bot_job/${TARBALL} 2>&1 | tee -a ${tar_outerr}
 
+# check that every instruction in the tarball is one the CPU target can run, against the same per-target
+# references as the native compiler flags check; a violation prints an 'ERROR: ' line, which check-build.sh reports
+if [[ -f ${TARBALL} ]]; then
+    $software_layer_dir/scripts/isa_audit/check_tarball.sh ${TARBALL} ${EESSI_SOFTWARE_SUBDIR_OVERRIDE} \
+        $software_layer_dir/scripts/native_flags/references $software_layer_dir/scripts/isa_audit/dispatch-allow.txt \
+        2>&1 | tee -a ${tar_outerr}
+fi
+
 exit 0

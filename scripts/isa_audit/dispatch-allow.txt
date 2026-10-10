@@ -1,0 +1,25 @@
+# Packages whose binaries carry instructions beyond the target in code chosen
+# at run time by a CPUID check. Seeded from the 2025.06 intel/icelake baseline;
+# each line: package, features, mechanism.
+FFmpeg fma4,xop  # hand-written assembly, av_get_cpu_flags dispatch
+x264 fma4,xop  # hand-written assembly, x264_cpu_detect dispatch
+OpenSSL rtm,xop  # OPENSSL_ia32cap dispatch
+GnuTLS xop  # bundled crypto assembly with CPU dispatch
+tbb rtm,waitpkg  # speculative locks and tpause behind cpuid checks
+OSPRay rtm,waitpkg  # bundled libtbb
+Salmon rtm,waitpkg  # bundled libtbb
+R-bundle-CRAN rtm  # RcppParallel bundled libtbb
+IQ-TREE rtm,waitpkg  # bundled tbb
+LLVM rtm,waitpkg  # libomp lock and wait paths behind cpuid checks
+libfabric enqcmd,movdir64b  # DSA provider, used only when the device exists
+SciPy-bundle avx512fp16  # NumPy NPY_CPU_DISPATCH kernels
+imkl amxbf16,amxfp16,amxint8,amxtile,avx512bf16,avx512fp16,avxvnni,fma4,rtm,waitpkg  # per-CPU code paths
+ollama avxvnni  # per-architecture ggml-cpu libraries chosen at load
+Julia amxbf16,amxtile,avx512bf16,fma4,shstk,xop  # bundled libraries with dispatch
+Java serialize  # JIT and runtime stubs behind CPU checks
+Qt6 xop  # WebEngine (Chromium) bundled code with dispatch
+RStudio-Server cldemote,rtm,xop  # bundled node, pandoc, typst
+Pandoc rtm,xop  # statically linked runtime with dispatch
+GCCcore fma4,rtm  # libgfortran matmul variants chosen at run time (fma4); libitm hardware transactions behind cpuid (rtm)
+# Not confirmed as dispatch; may be linear-sweep decoding of data in .text:
+Rust fma4  # bin/rust-analyzer, 2 sites (vfmaddsd)
