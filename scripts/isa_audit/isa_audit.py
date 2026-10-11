@@ -16,11 +16,16 @@ executable or named like a shared object, the only files read. The exit
 status is 1 when there is any violation against the first reference.
 
 --allow FILE lists code that selects its instruction set at run time, one
-"PACKAGE feature[,feature...]  # reason" per line. A violation in a file under
-/software/PACKAGE/ on a listed feature is reported as DISPATCH, not counted as
-a failure; the dynamic chip check (SDE) covers what actually runs.
+"PACKAGE feature[,feature...] [FUNCTION[,FUNCTION...]]  # reason" per line. A
+violation in a file under /software/PACKAGE/ on a listed feature is reported
+as DISPATCH, not counted as a failure; the dynamic chip check (SDE) covers
+what actually runs. When FUNCTION globs are given, only instructions inside a
+function whose symbol matches one of them are covered, so the same feature
+anywhere else in the package is still a violation.
 """
+import bisect
 import collections
+import fnmatch
 import os
 import sys
 
@@ -66,6 +71,16 @@ BASELINE = {
 #: returned a non-zero shadow-stack pointer
 CET_UNWIND = {Mnemonic.RDSSPD, Mnemonic.RDSSPQ, Mnemonic.INCSSPD, Mnemonic.INCSSPQ}
 
+#: TZCNT is encoded as REP BSF, which a CPU without BMI1 runs as BSF; GCC and
+#: LLVM emit it for count-trailing-zeros where a zero input is excluded, so the
+#: result is the same on every x86-64 CPU (LZCNT has no such property)
+TZCNT_AS_BSF = {Mnemonic.TZCNT}
+
+#: XGETBV reads XCR0 to learn which register state the OS saves; it faults
+#: unless CPUID reports OSXSAVE, so CPU-detection code runs it only after
+#: that check, and compilers never emit it on their own
+XGETBV = {Mnemonic.XGETBV}
+
 
 def norm(name: str) -> str:
     return name.lower().replace("_", "").replace("-", "").replace(".", "")
@@ -103,8 +118,40 @@ def elf_files(paths):
             yield p
 
 
-def audit_file(path, refs, names, viol, unclassified, counts):
+def function_lookup(elf):
+    """Map an address to the name of the code symbol that contains it.
+
+    Hand-written assembly often labels its functions with untyped symbols, so
+    those count too; an address past the end of a sized function is unnamed.
+    """
+    syms = []
+    for name in (".symtab", ".dynsym"):
+        tab = elf.get_section_by_name(name)
+        if tab is None:
+            continue
+        for s in tab.iter_symbols():
+            kind = s["st_info"]["type"]
+            if not s["st_value"] or s.name == "" or s["st_shndx"] in ("SHN_UNDEF", "SHN_ABS"):
+                continue
+            if kind in ("STT_FUNC", "STT_GNU_IFUNC") or (
+                    kind == "STT_NOTYPE" and not s.name.startswith(".")):
+                syms.append((s["st_value"], s["st_size"], s.name))
+    syms.sort()
+    addrs = [a for a, _, _ in syms]
+
+    def lookup(ip):
+        i = bisect.bisect_right(addrs, ip) - 1
+        if i < 0:
+            return ""
+        start, size, name = syms[i]
+        return name if size == 0 or ip < start + size else ""
+    return lookup
+
+
+def audit_file(path, refs, names, viol, disp, unclassified, counts, allow):
     """Decode every executable section once; check each reference."""
+    rules = [(feats, globs) for pkg, entries in allow.items()
+             if f"/software/{pkg}/" in path for feats, globs in entries]
     try:
         with open(path, "rb") as fh:
             if fh.read(4) != b"\x7fELF":
@@ -113,6 +160,7 @@ def audit_file(path, refs, names, viol, unclassified, counts):
             elf = ELFFile(fh)
             if elf["e_machine"] != "EM_X86_64":
                 return False
+            lookup = function_lookup(elf) if any(g for _, g in rules) else None
             for sec in elf.iter_sections():
                 if not sec["sh_flags"] & SH_FLAGS.SHF_EXECINSTR or sec["sh_type"] == "SHT_NOBITS":
                     continue
@@ -122,13 +170,21 @@ def audit_file(path, refs, names, viol, unclassified, counts):
                     for f in ins.cpuid_features():
                         n = norm(names.get(f, str(f)))
                         n = norm(ALIASES.get(n, n))
-                        if n in BASELINE or (n == "shstk" and ins.mnemonic in CET_UNWIND):
+                        if n in BASELINE or (n == "shstk" and ins.mnemonic in CET_UNWIND) \
+                                or (n == "bmi" and ins.mnemonic in TZCNT_AS_BSF) \
+                                or (n == "xsave" and ins.mnemonic in XGETBV):
                             continue
                         for r, (have, lack) in enumerate(refs):
                             if n in have:
                                 continue
                             if n in lack:
-                                viol[r].setdefault((n, path), (ins.ip, f"{ins}"))
+                                hit = viol
+                                for feats, globs in rules:
+                                    if n in feats and (not globs or any(
+                                            fnmatch.fnmatchcase(lookup(ins.ip), g) for g in globs)):
+                                        hit = disp
+                                        break
+                                hit[r].setdefault((n, path), (ins.ip, f"{ins}"))
                                 counts[(r, n)] += 1
                             else:
                                 unclassified[r][n] += 1
@@ -138,19 +194,15 @@ def audit_file(path, refs, names, viol, unclassified, counts):
 
 
 def load_allow(path):
-    allow = {}
+    """PACKAGE -> list of (features, function globs); no globs covers the package."""
+    allow = collections.defaultdict(list)
     for line in open(path):
         line = line.split("#", 1)[0].split()
         if len(line) >= 2:
-            allow[line[0]] = {norm(f) for f in line[1].split(",") if f}
+            feats = {norm(ALIASES.get(norm(f), f)) for f in line[1].split(",") if f}
+            globs = [g for g in line[2].split(",") if g] if len(line) > 2 else []
+            allow[line[0]].append((feats, globs))
     return allow
-
-
-def allowed(path, feat, allow):
-    for pkg, feats in allow.items():
-        if f"/software/{pkg}/" in path and feat in feats:
-            return True
-    return False
 
 
 def main(argv):
@@ -165,23 +217,21 @@ def main(argv):
     refs = [load_reference(p) for p in ref_paths]
     names = feature_names()
     viol = [dict() for _ in refs]
+    disp = [dict() for _ in refs]
     unclassified = [collections.Counter() for _ in refs]
     counts = collections.Counter()
     nfiles = 0
     for f in elf_files(argv[1:]):
-        if audit_file(f, refs, names, viol, unclassified, counts):
+        if audit_file(f, refs, names, viol, disp, unclassified, counts, allow):
             nfiles += 1
     print(f"audited {nfiles} x86-64 ELF files, {counts['instructions']} instructions")
     for r, path in enumerate(ref_paths):
         have, lack = refs[r]
         print(f"reference {path}: {len(have)} extensions present, {len(lack)} absent")
-        real = {}
-        for (feat, fpath), (ip, text) in sorted(viol[r].items()):
-            kind = "DISPATCH" if allowed(fpath, feat, allow) else "VIOLATION"
-            if kind == "VIOLATION":
-                real[(feat, fpath)] = 1
+        sites = {k: ("DISPATCH", v) for k, v in disp[r].items()}
+        sites.update({k: ("VIOLATION", v) for k, v in viol[r].items()})
+        for (feat, fpath), (kind, (ip, text)) in sorted(sites.items()):
             print(f"{kind}[{r}] {feat} x{counts[(r, feat)]} first in {fpath} at {ip:#x}: {text}")
-        viol[r] = real
         for feat, n in unclassified[r].most_common():
             print(f"unclassified[{r}] {feat} x{n}")
         print(f"RESULT[{r}]", "fail" if viol[r] else "pass")

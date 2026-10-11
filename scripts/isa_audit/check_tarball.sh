@@ -7,8 +7,10 @@
 # software-layer-scripts#311 (scripts/native_flags/references); the newest gcc
 # reference for the target is used. x86_64 targets are audited with
 # isa_audit.py (iced-x86), aarch64 targets with isa_audit_aarch64.py
-# (llvm-objdump). Generic targets are skipped. A violation prints an "ERROR:"
-# line, which bot/check-build.sh already reports as a failed build.
+# (llvm-objdump). Generic targets use the baseline references in
+# references/ next to this script (x86-64 and armv8-a, written by
+# generate_generic_references.sh). A violation prints an "ERROR:" line, which
+# bot/check-build.sh already reports as a failed build.
 set -uo pipefail
 tarball=$1 subdir=$2 refdir=$3 allow=${4:-}
 here=$(dirname "$(readlink -f "$0")")
@@ -16,7 +18,7 @@ if [ -n "${EESSI_SKIP_ISA_AUDIT:-}" ]; then
   echo ">> instruction audit: skipped, \$EESSI_SKIP_ISA_AUDIT is set"; exit 0
 fi
 case $subdir in
-  */generic) echo ">> instruction audit: skipped for $subdir"; exit 0 ;;
+  */generic) refdir=$here/references ;;
 esac
 case ${subdir%%/*} in
   x86_64)
@@ -30,7 +32,7 @@ case ${subdir%%/*} in
       exit 0
     fi ;;
 esac
-ref=$(ls "$refdir/$subdir"/gcc-*.txt 2>/dev/null | sort -V | tail -1)
+ref=$(ls "$refdir/$subdir"/gcc-*.txt "$refdir/$subdir"/baseline.txt 2>/dev/null | sort -V | tail -1)
 if [ -z "$ref" ]; then
   [ "${subdir%%/*}" = aarch64 ] && ref=$(ls "$refdir/$subdir"/clang-*.txt 2>/dev/null | sort -V | tail -1)
 fi
@@ -44,7 +46,7 @@ trap 'chmod -R u+w "$work" 2>/dev/null; rm -rf "$work"' EXIT
 tar -xf "$tarball" -C "$work" || { echo "ERROR: instruction audit: cannot unpack $tarball"; exit 1; }
 case ${subdir%%/*} in
   x86_64)  out=$(python3 "$here/isa_audit.py" ${allow:+--allow "$allow"} "$ref" "$work") ;;
-  aarch64) out=$(python3 "$here/isa_audit_aarch64.py" "$ref" "$work") ;;
+  aarch64) out=$(python3 "$here/isa_audit_aarch64.py" ${allow:+--allow "$allow"} "$ref" "$work") ;;
   *) echo ">> instruction audit: no auditor for ${subdir%%/*}"; exit 0 ;;
 esac
 rc=$?
