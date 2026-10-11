@@ -1,8 +1,11 @@
 # Packages whose binaries carry instructions beyond the target in code chosen
-# at run time by a CPUID check. Seeded from the 2025.06 intel/icelake baseline;
-# each line: package, features, mechanism.
-FFmpeg fma4,xop  # hand-written assembly, av_get_cpu_flags dispatch
+# at run time by a CPUID check. Seeded from the 2025.06 intel/icelake baseline
+# and a sample of 2025.06 x86_64/generic packages; each line: package,
+# features, optional function-symbol globs, mechanism. A line with globs
+# covers only instructions inside matching functions.
+FFmpeg 3dnow,avx,avx2,avx512bw,avx512dq,avx512f,avx512vbmi,avx512vl,avx512vnni,bmi2,fma,fma4,sse3,sse41,ssse3,xop  # hand-written assembly, av_get_cpu_flags dispatch; stripped, so no globs
 x264 fma4,xop  # hand-written assembly, x264_cpu_detect dispatch
+x264 avx,avx2,avx512bw,avx512cd,avx512dq,avx512f,avx512vl,bmi2,fma,lzcnt,sse3,sse41,ssse3 *_sse3*,*_ssse3*,*_sse4*,*_avx*,*_xop*,*_fma4*,*_bmi2*,*_lzcnt*,predict_*_p_*  # same assembly, by function suffix
 OpenSSL rtm,xop  # OPENSSL_ia32cap dispatch
 GnuTLS xop  # bundled crypto assembly with CPU dispatch
 tbb rtm,waitpkg  # speculative locks and tpause behind cpuid checks
@@ -12,7 +15,7 @@ R-bundle-CRAN rtm  # RcppParallel bundled libtbb
 IQ-TREE rtm,waitpkg  # bundled tbb
 LLVM rtm,waitpkg  # libomp lock and wait paths behind cpuid checks
 libfabric enqcmd,movdir64b  # DSA provider, used only when the device exists
-SciPy-bundle avx512fp16  # NumPy NPY_CPU_DISPATCH kernels
+SciPy-bundle avx,avx2,avx512bw,avx512dq,avx512f,avx512fp16,avx512vbmi2,avx512vl,bmi2,f16c,fma,popcnt,sse41,sse42,ssse3  # NumPy NPY_CPU_DISPATCH kernels; their objects carry unsuffixed helpers, so no globs
 imkl amxbf16,amxfp16,amxint8,amxtile,avx512bf16,avx512fp16,avxvnni,fma4,rtm,waitpkg  # per-CPU code paths
 ollama avxvnni  # per-architecture ggml-cpu libraries chosen at load
 Julia amxbf16,amxtile,avx512bf16,fma4,shstk,xop  # bundled libraries with dispatch
@@ -20,5 +23,27 @@ Java serialize  # JIT and runtime stubs behind CPU checks
 Qt6 xop  # WebEngine (Chromium) bundled code with dispatch
 RStudio-Server cldemote,rtm,xop  # bundled node, pandoc, typst
 Pandoc rtm,xop  # statically linked runtime with dispatch
-GCCcore fma4,rtm  # libgfortran matmul variants chosen at run time (fma4); libitm hardware transactions behind cpuid (rtm)
+GCCcore avx,avx2,avx512f,avx512vl,fma,fma4 *matmul_*_avx*  # libgfortran matmul variants chosen at run time
+GCCcore avx,rtm _ITM_*  # libitm AVX register save and hardware transactions behind cpuid
+GCCcore avx libat_*_16_i1  # libatomic 16-byte ifunc variant for CPUs with AVX
+GCCcore rdrnd,rdseed _ZNSt12_GLOBAL__N_1*__x86_rd*  # std::random_device sources, used after a cpuid check
 Rust fma4  # compiler_builtins fma_with_fma4 (libm fma), chosen after a cpuid check
+OpenBLAS avx,avx2,avx512bw,avx512dq,avx512f,avx512vl,bmi,bmi2,fma,fma4,prfchw,sse3,sse41,ssse3  # DYNAMIC_ARCH kernels picked per CPU at load
+OpenMPI avx,avx2,avx512bw,avx512dq,avx512f,avx512vl ompi_op_avx_*  # op/avx reductions, enabled by cpuid in the component
+Boost avx,avx2,ssse3,sse3 *dump_data_*_avx2*,*dump_data_*_ssse3*,_ZNSt13basic_ostream*5write*.isra.0.cold  # Boost.Log dump, picked by cpuid at load
+Boost sse41 *find_address_sse41*  # Boost.Atomic wait lookup, picked by cpuid
+zstd bmi,bmi2,lzcnt *_bmi2*,*HUF_decompress4X?_usingDTable_internal_fast*  # DYNAMIC_BMI2: called only when cpuid reports BMI2
+libjpeg-turbo avx,avx2,sse41 jsimd_*  # SIMD paths picked by jpeg_simd_cpu_support
+libwebp sse41,ssse3 *_SSE41*  # VP8GetCPUInfo dispatch
+pixman ssse3 ssse3_*  # ssse3 fast paths picked by cpuid
+libfabric avx,avx512f lpp_memcpy_avx*  # LPP provider copies, picked by __builtin_cpu_supports
+libfabric clflushopt,clwb pmem_commit_clflushopt,pmem_commit_clwb  # persistent-memory flush, picked by cpuid
+# aarch64 lines use LLVM feature names
+OpenMPI sve ompi_op_aarch64_*  # op/aarch64 SVE reductions, enabled when HWCAP_SVE is set
+SciPy-bundle fullfp16 _ZN3hwy18N_NEON_WITHOUT_AES*  # NumPy 16-bit Highway sort, built only for the ASIMDHP dispatch target
+x264 dotprod,i8mm,sve,sve2 *_dotprod*,*_i8mm*,*_sve*  # x264_cpu_detect reads HWCAP
+FFmpeg dotprod,i8mm  # hand-written assembly behind av_get_cpu_flags (HWCAP); stripped, so no globs
+GCCcore sme __arm_tpidr2_*,__libgcc_arm_tpidr2_*,__arm_za_disable,__arm_sme_*  # libgcc SME ABI routines, reached only with SME state live
+GCCcore lse,lse128,rcpc3 libat_*_i[0-9]  # libatomic ifunc variants chosen by HWCAP
+GCCcore sve _Unwind_GetGR,execute_stack_op,uw_update_context*,__arm_tpidr2_*,__libgcc_arm_tpidr2_*  # libgcc reads VG (cntd) lazily, only for frames that use SVE or SME
+OpenBLAS complxnum,sme,sve,sve2  # DYNAMIC_ARCH kernels picked per CPU at load
