@@ -1,0 +1,36 @@
+# documentation: https://help.github.com/en/articles/workflow-syntax-for-github-actions
+name: Tests for the tarball instruction audit
+on:
+  push:
+    paths:
+      - scripts/isa_audit/**
+      - tests/isa_audit/**
+      - .github/workflows/tests_isa_audit.yml
+  pull_request:
+    paths:
+      - scripts/isa_audit/**
+      - scripts/native_flags/references/**
+      - tests/isa_audit/**
+      - .github/workflows/tests_isa_audit.yml
+permissions:
+  contents: read # to fetch code (actions/checkout)
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+    - name: checkout
+      uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+
+    - name: install compilers and decoders
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc gcc-aarch64-linux-gnu llvm-20
+        # isa_audit_aarch64.py uses the LLVM 20 feature names (sve-aes and friends)
+        echo /usr/lib/llvm-20/bin >> "$GITHUB_PATH"
+        python3 -m venv "$RUNNER_TEMP/venv"
+        "$RUNNER_TEMP/venv/bin/pip" install iced-x86 pyelftools
+        echo "$RUNNER_TEMP/venv/bin" >> "$GITHUB_PATH"
+
+    - name: test check_tarball.sh
+      run: |
+        ./tests/isa_audit/test_check_tarball.sh
