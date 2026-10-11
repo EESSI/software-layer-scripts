@@ -21,5 +21,4 @@ Qt6 xop  # WebEngine (Chromium) bundled code with dispatch
 RStudio-Server cldemote,rtm,xop  # bundled node, pandoc, typst
 Pandoc rtm,xop  # statically linked runtime with dispatch
 GCCcore fma4,rtm  # libgfortran matmul variants chosen at run time (fma4); libitm hardware transactions behind cpuid (rtm)
-# Not confirmed as dispatch; may be linear-sweep decoding of data in .text:
-Rust fma4  # bin/rust-analyzer, 2 sites (vfmaddsd)
+Rust fma4  # compiler_builtins fma_with_fma4 (libm fma), chosen after a cpuid check
