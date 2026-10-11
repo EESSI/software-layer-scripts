@@ -24,9 +24,11 @@ LATEST_VERSION="VERSION=\$(git tag | grep '^v[0-9]\+\.[0-9]\+\.[0-9]\+$' | sort 
 CHECKOUT_LATEST="git checkout \${VERSION}"
 
 # Git clone has to be run in compat layer, to make the git command available
-clone_err=$(./run_in_compat_layer_env.sh "${TEST_CLONE} && ${LATEST_VERSION} && ${CHECKOUT_LATEST}" 2>&1)
-clone_rc=$?
-printf '%s\n' "${clone_err}"
+clone_log=$(mktemp)
+./run_in_compat_layer_env.sh "${TEST_CLONE} && ${LATEST_VERSION} && ${CHECKOUT_LATEST}" 2>&1 | tee "${clone_log}"
+clone_rc=${PIPESTATUS[0]}
+clone_err=$(tail -n 20 "${clone_log}")
+rm -f "${clone_log}"
 if [[ ${clone_rc} -ne 0 ]]; then
     echo "ERROR: Failed to clone the EESSI test suite: ${clone_err}" >&2
     exit "${clone_rc}"

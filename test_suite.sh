@@ -182,7 +182,9 @@ export FI_PROVIDER="^psm3"
 
 # Check we can run reframe
 version_err=$(reframe --version 2>&1)
-if [[ $? -eq 0 ]]; then
+version_rc=$?
+printf '%s\n' "${version_err}"
+if [[ ${version_rc} -eq 0 ]]; then
     echo_green "Succesfully ran 'reframe --version'"
 else
     fatal_error "Failed to run 'reframe --version': ${version_err}"
@@ -247,24 +249,26 @@ export REFRAME_ARGS="${REFRAME_CI_TAG} ${REFRAME_SCALE_TAG} ${REFRAME_ADDITIONAL
 
 # List the tests we want to run
 echo "Listing tests: reframe ${REFRAME_ARGS} --list"
-list_err=$(reframe ${REFRAME_ARGS} --list 2>&1)
-list_rc=$?
-printf '%s\n' "${list_err}"
+# tee keeps the output streaming into the Slurm log. Only the tail goes into
+# fatal_error, so the error line stays short.
+list_log="${TMPDIR}/reframe-list.log"
+reframe ${REFRAME_ARGS} --list 2>&1 | tee "${list_log}"
+list_rc=${PIPESTATUS[0]}
 if [[ ${list_rc} -eq 0 ]]; then
     echo_green "Succesfully listed ReFrame tests with command: reframe ${REFRAME_ARGS} --list"
 else
-    fatal_error "Failed to list ReFrame tests with command: reframe ${REFRAME_ARGS} --list: ${list_err}"
+    fatal_error "Failed to list ReFrame tests with command: reframe ${REFRAME_ARGS} --list: $(tail -n 20 "${list_log}")"
 fi
 
 # Run all tests
 echo "Running tests: reframe ${REFRAME_ARGS} --run"
-run_err=$(reframe ${REFRAME_ARGS} --run 2>&1)
-reframe_exit_code=$?
-printf '%s\n' "${run_err}"
+run_log="${TMPDIR}/reframe-run.log"
+reframe ${REFRAME_ARGS} --run 2>&1 | tee "${run_log}"
+reframe_exit_code=${PIPESTATUS[0]}
 if [[ ${reframe_exit_code} -eq 0 ]]; then
     echo_green "ReFrame runtime ran succesfully with command: reframe ${REFRAME_ARGS} --run."
 else
-    fatal_error "ReFrame runtime failed to run with command: reframe ${REFRAME_ARGS} --run: ${run_err}"
+    fatal_error "ReFrame runtime failed to run with command: reframe ${REFRAME_ARGS} --run: $(tail -n 20 "${run_log}")"
 fi
 
 echo ">> Cleaning up ${TMPDIR}..."
