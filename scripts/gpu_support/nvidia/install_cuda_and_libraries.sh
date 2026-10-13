@@ -19,6 +19,8 @@
 TOPDIR=$(dirname $(realpath $BASH_SOURCE))
 source "$TOPDIR"/../../utils.sh
 
+set -o pipefail
+
 # Function to display help message
 show_help() {
     echo "Usage: $0 [OPTIONS]"
@@ -173,20 +175,21 @@ for EASYSTACK_FILE in ${NVIDIA_EASYSTACKS_DIRECTORY}/eessi-*CUDA*.yml; do
 
     # show EasyBuild configuration
     echo "Show EasyBuild configuration"
-    eb --show-config
+    if ! eb --show-config; then
+        fatal_error "\nFailed to start EasyBuild. Check the above output for errors like wrong/misspelled configuration environment variables\n"
+    fi
 
     # do a 'eb --dry-run-short' with the EASYSTACK_FILE and determine list of packages
     # to be installed
     echo ">> Determining if packages specified in ${EASYSTACK_FILE} are missing under ${EESSI_SITE_SOFTWARE_PATH}"
     eb_dry_run_short_out=${tmpdir}/eb_dry_run_short.out
-    eb --dry-run-short --easystack ${EASYSTACK_FILE} 2>&1 | tee ${eb_dry_run_short_out}
-    ret=$?
+    if ! eb --dry-run-short --easystack ${EASYSTACK_FILE} 2>&1 | tee ${eb_dry_run_short_out}; then
+      fatal_error "\nFailed to determine missing packages, check above output"
+    fi
 
     # Check if CUDA shall be installed
     cuda_install_needed=0
-    cat ${eb_dry_run_short_out} | grep "^ \* \[[ ]\]" | grep "module: CUDA/" > /dev/null
-    ret=$?
-    if [ "${ret}" -eq 0 ]; then
+    if cat ${eb_dry_run_short_out} | grep "^ \* \[[ ]\]" | grep -q "module: CUDA/"; then
         cuda_install_needed=1
     fi
 
@@ -199,9 +202,7 @@ for EASYSTACK_FILE in ${NVIDIA_EASYSTACKS_DIRECTORY}/eessi-*CUDA*.yml; do
 
     # Check if cdDNN shall be installed
     cudnn_install_needed=0
-    cat ${eb_dry_run_short_out} | grep "^ \* \[[ ]\]" | grep "module: cuDNN/" > /dev/null
-    ret=$?
-    if [ "${ret}" -eq 0 ]; then
+    if cat ${eb_dry_run_short_out} | grep "^ \* \[[ ]\]" | grep -q "module: cuDNN/"; then
         cudnn_install_needed=1
     fi
 
@@ -285,9 +286,13 @@ for EASYSTACK_FILE in ${NVIDIA_EASYSTACKS_DIRECTORY}/eessi-*CUDA*.yml; do
         eb $eb_args
         ret=$?
         if [ $ret -ne 0 ]; then
-          eb_last_log=$(unset EB_VERBOSE; eb --last-log)
-          cp -a ${eb_last_log} .
-          fatal_error "some installation failed, please check EasyBuild logs ${PWD}/$(basename ${eb_last_log})..."
+            eb_last_log=$(unset EB_VERBOSE; eb --last-log)
+            error="some installation failed"
+            if [ -n "${eb_last_log}" ]; then
+                cp -a ${eb_last_log} .
+                error+=", please check EasyBuild logs ${PWD}/$(basename ${eb_last_log})..."
+            fi
+            fatal_error "${error}"
         else
           echo_green "all installations at ${EASYBUILD_INSTALLPATH}/software/... succeeded!"
           PROCESSED_EASYSTACK_FILES+=("${EASYSTACK_FILE}")
