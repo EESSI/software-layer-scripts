@@ -1075,8 +1075,8 @@ def pre_prepare_hook_cudnn(self, *args, **kwargs):
     """
 
     if self.name == 'cuDNN':
-        # cuDNN 9.5.0.50 doesn't have support for 9.0a in all binaries
-        if self.version == "9.5.0.50":
+        # cuDNN 8.9.2.26 and 9.5.0.50 don't have support for 9.0a in all binaries
+        if self.version in ('8.9.2.26', '9.5.0.50'):
             cuda_cc = build_option('cuda_compute_capabilities')
             if cuda_cc and '9.0a' in cuda_cc:
                 updated_cuda_cc = [v.replace('9.0a', '9.0') for v in cuda_cc]
