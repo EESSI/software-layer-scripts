@@ -1674,6 +1674,28 @@ def pre_configure_hook_libfabric_disable_psm3_x86_64_generic(self, *args, **kwar
         raise EasyBuildError("libfabric-specific hook triggered for non-libfabric easyconfig?!")
 
 
+def pre_configure_hook_ucx_generic(self, *args, **kwargs):
+    """
+    Pre-configure hook for UCX: drop --enable-optimizations when building for a generic CPU target.
+    With that option, UCX's configure runs an AVX test program on the build host and adds -mavx to the
+    compiler flags of the whole package when it passes (on aarch64 it may add -mcpu for the build host);
+    UCX does not check the CPU at run time, so the result needs AVX.
+    See https://github.com/EESSI/software-layer/issues/1778
+    """
+    if self.name == 'UCX':
+        cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+        generic = cpu_target in (CPU_TARGET_X86_64_GENERIC, CPU_TARGET_AARCH64_GENERIC)
+        if generic or build_option('optarch') == OPTARCH_GENERIC:
+            configopts = self.cfg['configopts']
+            opts = configopts.split()
+            if '--enable-optimizations' in opts:
+                self.cfg['configopts'] = ' '.join(opt for opt in opts if opt != '--enable-optimizations')
+                print_msg("Removed --enable-optimizations from configure options for %s: %s",
+                          self.name, self.cfg['configopts'])
+    else:
+        raise EasyBuildError("UCX-specific hook triggered for non-UCX easyconfig?!")
+
+
 def pre_configure_hook_metabat_filtered_zlib_dep(self, *args, **kwargs):
     """
     Pre-configure hook for MetaBAT:
@@ -2571,6 +2593,7 @@ PRE_CONFIGURE_HOOKS = {
     'ROCm-LLVM': pre_configure_hook_llvm,
     'Score-P': pre_configure_hook_score_p,
     'SymEngine': pre_configure_hook_symengine,
+    'UCX': pre_configure_hook_ucx_generic,
     'Visit': pre_configure_hook_visit,
     'WRF': pre_configure_hook_wrf_aarch64,
     'Zoltan': pre_configure_hook_Zoltan,
