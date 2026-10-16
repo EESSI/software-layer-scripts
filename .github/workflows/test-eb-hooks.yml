@@ -168,3 +168,44 @@ jobs:
               # echo "$OUT" | grep -qiF 'add_property("arch","gpu")'
               # echo "$OUT" | grep -qiF 'setenv("EESSIROCMVERSION","6.4.1")'
               # echo "rompi toolchain handled"
+
+  check_numpy_generic_cpu_baseline:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        include:
+          - EESSI_VERSION: '2025.06'
+            EASYCONFIG: 'SciPy-bundle-2025.07-gfbf-2025b.eb'
+
+    steps:
+        - name: Check out software-layer repository
+          uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+
+        - name: Mount EESSI CernVM-FS repository
+          uses: eessi/github-action-eessi@v3
+          with:
+            eessi_stack_version: ${{matrix.EESSI_VERSION}}
+            use_eessi_module: true
+
+        - name: Test that numpy uses cpu-baseline=none for x86_64/generic
+          if: ${{ github.event_name == 'pull_request' }}
+          run: |
+              module load EESSI-extend/${{matrix.EESSI_VERSION}}-easybuild
+
+              # the hook prints a message when it adds the option to the numpy installopts
+              baseline_msg() {
+                  eb --hooks=$PWD/eb_hooks.py --extended-dry-run "$@" ${{matrix.EASYCONFIG}} 2>&1 \
+                      | grep -c 'Using cpu-baseline=none for numpy'
+              }
+
+              [ "$(baseline_msg)" = 0 ]
+              echo "Native target keeps the default numpy cpu-baseline"
+
+              [ "$(EESSI_SOFTWARE_SUBDIR=aarch64/generic baseline_msg)" = 0 ]
+              echo "aarch64/generic keeps the default numpy cpu-baseline"
+
+              [ "$(EESSI_SOFTWARE_SUBDIR=x86_64/generic baseline_msg)" = 1 ]
+              echo "x86_64/generic uses cpu-baseline=none"
+
+              [ "$(baseline_msg --optarch=GENERIC)" = 1 ]
+              echo "--optarch=GENERIC uses cpu-baseline=none"
