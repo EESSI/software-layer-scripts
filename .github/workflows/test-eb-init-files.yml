@@ -1,5 +1,5 @@
 # documentation: https://help.github.com/en/articles/workflow-syntax-for-github-actions
-name: Run checks on EasyBuild hooks script
+name: Run checks on EasyBuild hooks script and related init files
 on:
   push:
   pull_request:
@@ -26,30 +26,36 @@ jobs:
             eessi_stack_version: ${{matrix.EESSI_VERSION}}
             use_eessi_module: true
 
-        - name: Check whether eb_hooks.py script is up-to-date
+        - name: Check whether eb_hooks.py and related files are up-to-date
           if: ${{ github.event_name == 'pull_request' }}
           run: |
-              FILE="eb_hooks.py"
-              TEMP_FILE="$(mktemp)"
+              # Files that are installed in the same directory as the hooks, and have to be up-to-date
+              FILES=(eb_hooks.py eessi_supported_toolchains.toml)
 
               # Fetch base branch
               git fetch origin ${{ github.base_ref }}
 
-              # Check if the hooks has changed in the PR
-              if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -q "^$FILE$"; then
-                echo "Hooks changed in PR. Using PR version."
-                cp "$FILE" "$TEMP_FILE"
-              else
-                echo "File not changed in PR. Using default branch version."
-                git show origin/${{ github.base_ref }}:$FILE > "$TEMP_FILE"
-              fi
-
-              # replace <EESSI_VERSION> placeholder (as is also done in install_scripts.sh)
-              sed -i "s/<EESSI_VERSION>/${{matrix.EESSI_VERSION}}/g" "${TEMP_FILE}"
-
-              # Compare the hooks to what is shipped in the repository
               module load EESSI-extend
-              diff "$TEMP_FILE" "$EASYBUILD_HOOKS"
+
+              for FILE in "${FILES[@]}"; do
+                echo "Checking whether $FILE is up-to-date"
+                TEMP_FILE="$(mktemp)"
+
+                # Check if the file has changed in the PR
+                if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -q "^$FILE$"; then
+                  echo "$FILE changed in PR. Using PR version."
+                  cp "$FILE" "$TEMP_FILE"
+                else
+                  echo "$FILE not changed in PR. Using default branch version."
+                  git show origin/${{ github.base_ref }}:$FILE > "$TEMP_FILE"
+                fi
+
+                # replace <EESSI_VERSION> placeholder (as is also done in install_scripts.sh)
+                sed -i "s/<EESSI_VERSION>/${{matrix.EESSI_VERSION}}/g" "${TEMP_FILE}"
+
+                # Compare to what is shipped in the repository (all files are installed in the same directory as the hooks)
+                diff "$TEMP_FILE" "$(dirname "$EASYBUILD_HOOKS")/$FILE"
+              done
 
   check_eb_hooks_functionality:
     runs-on: ubuntu-24.04
