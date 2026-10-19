@@ -215,77 +215,82 @@ for EASYSTACK_FILE in ${NVIDIA_EASYSTACKS_DIRECTORY}/eessi-*CUDA*.yml; do
     # determine the number of packages to be installed (assume 5 GB + num_packages *
     # 3GB space needed). Both CUDA and cuDNN are about this size
     number_of_packages=$(cat ${eb_dry_run_short_out} | grep "^ \* \[[ ]\]" | sed -e 's/^.*module: //' | sort -u | wc -l)
-    echo "number of packages to be (re-)installed: '${number_of_packages}'"
-    base_storage_space=$((5000000 + ${number_of_packages} * 3000000))
 
-    required_space_in_tmpdir=${base_storage_space}
-    # Let's see if we have sources and build locations defined if not, we use the temporary space
-    if [[ -z "${EASYBUILD_BUILDPATH}" ]]; then
-      export EASYBUILD_BUILDPATH=${tmpdir}/build
-      required_space_in_tmpdir=$((required_space_in_tmpdir + ${base_storage_space}))
-    fi
-    if [[ -z "${EASYBUILD_SOURCEPATH}" ]]; then
-      export EASYBUILD_SOURCEPATH=${tmpdir}/sources
-      required_space_in_tmpdir=$((required_space_in_tmpdir + ${base_storage_space}))
-    fi
-    
-    # Checking disk space on a non-existing folder returns a permission denied, but the error then seems to 
-    # incorrectly suggest there is insufficient disk space. Let's make sure this directory exists.
-    mkdir -p ${EASYBUILD_INSTALLPATH}
-
-    # The install is pretty fat, you need lots of space for download/unpack/install
-    # (~3*${base_storage_space}*1000 Bytes),
-    # need to do a space check before we proceed
-    avail_space=$(df --output=avail "${EASYBUILD_INSTALLPATH}"/ | tail -n 1 | awk '{print $1}')
-    min_disk_storage=$((3 * ${base_storage_space}))
-    if (( avail_space < ${min_disk_storage} )); then
-      fatal_error "Need at least $(echo "${min_disk_storage} / 1000000" | bc) GB disk space to install CUDA and other libraries under ${EESSI_SITE_SOFTWARE_PATH}, exiting now..."
-    fi
-    avail_space=$(df --output=avail "${tmpdir}"/ | tail -n 1 | awk '{print $1}')
-    if (( avail_space < required_space_in_tmpdir )); then
-      error="Need at least $(echo "${required_space_in_tmpdir} / 1000000" | bc) GB temporary disk space under ${tmpdir}.\n"
-      error="${error}Provide a location with adequate space via the argument '--temp-dir /path/to/tmpdir' to pass this check. "
-      error="${error}You can alternatively set EASYBUILD_BUILDPATH and/or EASYBUILD_SOURCEPATH "
-      error="${error}to reduce this requirement. Exiting now..."
-      fatal_error "${error}"
-    fi
-
-    # Brief explanation of parameters:
-    #  - prefix: using $tmpdir as default base directory for several EB settings
-    #  - installpath-modules: We install the module in a hidden .modules, so that next time this script
-    #        is run, it is not reinstalled.
-    #  - ${accept_eula_opt}: We only set the --accept-eula-for=CUDA option if CUDA will be installed and if
-    #        this script was called with the argument --accept-cuda-eula.
-    #  - easystack: Path to easystack file that defines which packages shall be
-    #        installed
-    accept_eula_opt=
-    if [[ ${cuda_eula_accepted} -eq 1 ]]; then
-        accept_eula_opt="CUDA"
-    fi
-    if [[ ${cudnn_eula_accepted} -eq 1 ]]; then
-        if [[ -z ${accept_eula_opt} ]]; then
-            accept_eula_opt="cuDNN"
-        else
-            accept_eula_opt="${accept_eula_opt},cuDNN"
-        fi
-    fi
-    touch "$tmpdir"/none.py
-    eb_args="--prefix=$tmpdir"
-    eb_args="$eb_args --installpath-modules=${EASYBUILD_INSTALLPATH}/.modules"
-    eb_args="$eb_args --easystack ${EASYSTACK_FILE}"
-    if [[ ! -z ${accept_eula_opt} ]]; then
-        eb_args="$eb_args --accept-eula-for=$accept_eula_opt"
-    fi
-    echo "Running eb $eb_args"
-    eb $eb_args
-    ret=$?
-    if [ $ret -ne 0 ]; then
-      eb_last_log=$(unset EB_VERBOSE; eb --last-log)
-      cp -a ${eb_last_log} .
-      fatal_error "some installation failed, please check EasyBuild logs ${PWD}/$(basename ${eb_last_log})..."
+    if [[ $number_of_packages -eq 0 ]]; then
+        echo_green "All packages from ${EASYSTACK_FILE} already installed"
     else
-      echo_green "all installations at ${EASYBUILD_INSTALLPATH}/software/... succeeded!"
-      PROCESSED_EASYSTACK_FILES+=("${EASYSTACK_FILE}")
+        echo "number of packages to be (re-)installed: '${number_of_packages}'"
+        base_storage_space=$((5000000 + ${number_of_packages} * 3000000))
+    
+        required_space_in_tmpdir=${base_storage_space}
+        # Let's see if we have sources and build locations defined if not, we use the temporary space
+        if [[ -z "${EASYBUILD_BUILDPATH}" ]]; then
+          export EASYBUILD_BUILDPATH=${tmpdir}/build
+          required_space_in_tmpdir=$((required_space_in_tmpdir + ${base_storage_space}))
+        fi
+        if [[ -z "${EASYBUILD_SOURCEPATH}" ]]; then
+          export EASYBUILD_SOURCEPATH=${tmpdir}/sources
+          required_space_in_tmpdir=$((required_space_in_tmpdir + ${base_storage_space}))
+        fi
+        
+        # Checking disk space on a non-existing folder returns a permission denied, but the error then seems to 
+        # incorrectly suggest there is insufficient disk space. Let's make sure this directory exists.
+        mkdir -p ${EASYBUILD_INSTALLPATH}
+    
+        # The install is pretty fat, you need lots of space for download/unpack/install
+        # (~3*${base_storage_space}*1000 Bytes),
+        # need to do a space check before we proceed
+        avail_space=$(df --output=avail "${EASYBUILD_INSTALLPATH}"/ | tail -n 1 | awk '{print $1}')
+        min_disk_storage=$((3 * ${base_storage_space}))
+        if (( avail_space < ${min_disk_storage} )); then
+          fatal_error "Need at least $(echo "${min_disk_storage} / 1000000" | bc) GB disk space to install CUDA and other libraries under ${EESSI_SITE_SOFTWARE_PATH}, exiting now..."
+        fi
+        avail_space=$(df --output=avail "${tmpdir}"/ | tail -n 1 | awk '{print $1}')
+        if (( avail_space < required_space_in_tmpdir )); then
+          error="Need at least $(echo "${required_space_in_tmpdir} / 1000000" | bc) GB temporary disk space under ${tmpdir}.\n"
+          error="${error}Provide a location with adequate space via the argument '--temp-dir /path/to/tmpdir' to pass this check. "
+          error="${error}You can alternatively set EASYBUILD_BUILDPATH and/or EASYBUILD_SOURCEPATH "
+          error="${error}to reduce this requirement. Exiting now..."
+          fatal_error "${error}"
+        fi
+    
+        # Brief explanation of parameters:
+        #  - prefix: using $tmpdir as default base directory for several EB settings
+        #  - installpath-modules: We install the module in a hidden .modules, so that next time this script
+        #        is run, it is not reinstalled.
+        #  - ${accept_eula_opt}: We only set the --accept-eula-for=CUDA option if CUDA will be installed and if
+        #        this script was called with the argument --accept-cuda-eula.
+        #  - easystack: Path to easystack file that defines which packages shall be
+        #        installed
+        accept_eula_opt=
+        if [[ ${cuda_eula_accepted} -eq 1 ]]; then
+            accept_eula_opt="CUDA"
+        fi
+        if [[ ${cudnn_eula_accepted} -eq 1 ]]; then
+            if [[ -z ${accept_eula_opt} ]]; then
+                accept_eula_opt="cuDNN"
+            else
+                accept_eula_opt="${accept_eula_opt},cuDNN"
+            fi
+        fi
+        touch "$tmpdir"/none.py
+        eb_args="--prefix=$tmpdir"
+        eb_args="$eb_args --installpath-modules=${EASYBUILD_INSTALLPATH}/.modules"
+        eb_args="$eb_args --easystack ${EASYSTACK_FILE}"
+        if [[ ! -z ${accept_eula_opt} ]]; then
+            eb_args="$eb_args --accept-eula-for=$accept_eula_opt"
+        fi
+        echo "Running eb $eb_args"
+        eb $eb_args
+        ret=$?
+        if [ $ret -ne 0 ]; then
+          eb_last_log=$(unset EB_VERBOSE; eb --last-log)
+          cp -a ${eb_last_log} .
+          fatal_error "some installation failed, please check EasyBuild logs ${PWD}/$(basename ${eb_last_log})..."
+        else
+          echo_green "all installations at ${EASYBUILD_INSTALLPATH}/software/... succeeded!"
+          PROCESSED_EASYSTACK_FILES+=("${EASYSTACK_FILE}")
+        fi
     fi
 
     # clean up tmpdir content
