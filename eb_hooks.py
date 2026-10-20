@@ -12,6 +12,7 @@ from typing import NamedTuple
 
 import easybuild.tools.environment as env
 from easybuild.easyblocks.generic.configuremake import obtain_config_guess
+from easybuild.easyblocks.generic.pythonpackage import det_pylibdir
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
 from easybuild.framework.easyconfig.easyconfig import (
     get_toolchain_hierarchy,
@@ -1916,6 +1917,22 @@ def pre_test_hook_lammps_ignore_failure_arm_generic(self, *args, **kwargs):
             self.cfg['test_cmd'] = test_cmd
 
 
+def pre_single_extension_numba(ext, *args, **kwargs):
+    """
+    Some numba tests may hit a timeout when run in the EESSI container with a writable overlay, e.g.:
+    subprocess.TimeoutExpired: Command '['/cvmfs/software.eessi.io/versions/2025.06/software/linux/x86_64/amd/zen2/software/Python/3.13.1-GCCcore-14.2.0/bin/python',
+    '-m', 'numba.runtests', 'numba.tests.test_usecases.TestUsecases.test_sum1d_pyobj']' timed out after 60 seconds
+
+    So, (temporarily) increase the 30-second and 60-second timeouts to 120 seconds to ensure that the tests will pass.
+    Note that it is only done for the temporary installation used by the tests, the final installation will have the original timeout values.
+    See https://github.com/EESSI/software-layer/pull/1683#issuecomment-5889329460
+    """
+    if ext.name == 'numba':
+        if ext.version in ['0.62.0']:
+            support_py_file = os.path.join('$EB_PYTHONPACKAGE_TEST_INSTALLDIR', det_pylibdir(), 'numba', 'tests', 'support.py')
+            ext.cfg['runtest'] = f"sed -i 's/timeout=[3,6]0/timeout=120/g' {support_py_file} && {ext.cfg['runtest']}"
+
+
 def pre_test_hook_perl_increase_test_timeout(self, *args, **kwargs):
     """
     Tests fail for different Perl versions in EESSI 2026.06 when run with standard timeout. So, increase timeout by a factor of 10.
@@ -2593,6 +2610,7 @@ PRE_TEST_HOOKS = {
 
 PRE_SINGLE_EXTENSION_HOOKS = {
     'isoband': pre_single_extension_isoband,
+    'numba': pre_single_extension_numba,
     'numpy': pre_single_extension_numpy,
     'testthat': pre_single_extension_testthat,
     'hf_xet': pre_single_extension_hf_xet,
