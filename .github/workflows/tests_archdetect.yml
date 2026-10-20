@@ -12,6 +12,8 @@ jobs:
     strategy:
       matrix:
         proc_cpuinfo:
+          - x86_64/intel/graniterapids/AWS-Rocky9-6975PC
+          - x86_64/intel/graniterapids/Azure-Ubuntu24-6973P-C
           - x86_64/intel/haswell/archspec-linux-E5-2680-v3
           - x86_64/intel/sapphirerapids/AWS-Rocky8-8488C
           - x86_64/intel/skylake_avx512/archspec-linux-6132
@@ -50,6 +52,9 @@ jobs:
           export EESSI_MACHINE_TYPE=${{matrix.proc_cpuinfo}}
           export EESSI_MACHINE_TYPE=${EESSI_MACHINE_TYPE%%/*}
           export EESSI_PROC_CPUINFO=./tests/archdetect/${{matrix.proc_cpuinfo}}.cpuinfo
+          if [[ -f ./tests/archdetect/${{matrix.proc_cpuinfo}}.cpu_features ]]; then
+              export EESSI_CPU_FEATURES_FILE=./tests/archdetect/${{matrix.proc_cpuinfo}}.cpu_features
+          fi
           # check that printing of best match works correctly
           CPU_ARCH=$(./init/eessi_archdetect.sh cpupath)
           if [[ $CPU_ARCH == "$( cat ./tests/archdetect/${{matrix.proc_cpuinfo}}.output )" ]]; then
