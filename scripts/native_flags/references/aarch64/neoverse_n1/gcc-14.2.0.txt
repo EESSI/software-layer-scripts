@@ -1,0 +1,3 @@
+-mlittle-endian
+-mabi=lp64
+-mcpu=neoverse-n1+crc+crypto+ssbs

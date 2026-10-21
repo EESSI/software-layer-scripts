@@ -234,6 +234,19 @@ else
     echo_green ">> Using ${EESSI_SOFTWARE_SUBDIR} as software subdirectory!"
 fi
 
+# Check that the compilers of all supported toolchains translate the native architecture flag into exactly the same
+# target flags on this build host as on other build hosts for the same CPU target, to ensure that binaries built on
+# different build hosts for the same CPU target are compatible
+if [[ ${GENERIC} -eq 1 ]]; then
+    echo ">> Skipping check of native compiler flags, since this is a generic build"
+elif [[ -n "${EESSI_SKIP_NATIVE_FLAGS_CHECK}" ]]; then
+    echo_yellow ">> Skipping check of native compiler flags, since \$EESSI_SKIP_NATIVE_FLAGS_CHECK is set"
+else
+    ${TOPDIR}/scripts/native_flags/check_native_flags.sh
+    check_exit_code $? ">> Native compiler flags on this build host are OK" \
+        "Native compiler flags check failed, refusing to build on this host (set \$EESSI_SKIP_NATIVE_FLAGS_CHECK to override)"
+fi
+
 # avoid that pyc files for EasyBuild are stored in EasyBuild installation directory
 export PYTHONPYCACHEPREFIX=$TMPDIR/pycache
 # force Python's stdout and stderr streams to be unbuffered
