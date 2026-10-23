@@ -2113,8 +2113,22 @@ def pre_single_extension_numpy(ext, *args, **kwargs):
     Pre-extension hook for numpy:
       - change -march=native to -march=armv8.4-a for numpy 1.24.2 when building for aarch64/neoverse_v1 CPU target
       - change -march=native to -march=armv8.2-a for numpy 1.24.2 when building for aarch64/a64fx CPU target
+      - use cpu-baseline=none for numpy >= 1.26 (built with meson) when building for x86_64/generic;
+        the default baseline ('min') is SSE3 in numpy 1.26-2.3 and x86-64-v2 in numpy >= 2.4,
+        while x86_64/generic should only need x86-64 (SSE2); the dispatched code paths for newer
+        CPU features are unaffected and are still selected at runtime, see
+        https://numpy.org/doc/stable/reference/simd/build-options.html
     """
     cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+    x86_64_generic = cpu_target == CPU_TARGET_X86_64_GENERIC or (
+        get_cpu_architecture() == X86_64 and build_option('optarch') == OPTARCH_GENERIC)
+    if ext.name == 'numpy' and x86_64_generic and LooseVersion(ext.version) >= LooseVersion('1.26'):
+        baseline_opt = "-Csetup-args=-Dcpu-baseline=none"
+        installopts = ext.cfg.get('installopts', '') or ''
+        if baseline_opt not in installopts:
+            ext.cfg['installopts'] = (installopts + ' ' + baseline_opt).strip()
+            print_msg("Using cpu-baseline=none for %s %s on x86_64/generic: %s",
+                      ext.name, ext.version, ext.cfg['installopts'])
     if ext.name == 'numpy' and ext.version == '1.24.2':
         # note: this hook is called before build environment is set up (by calling toolchain.prepare()),
         # so environment variables like $CFLAGS are not defined yet
