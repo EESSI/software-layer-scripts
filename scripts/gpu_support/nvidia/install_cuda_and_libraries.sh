@@ -120,8 +120,8 @@ for EASYSTACK_FILE in ${NVIDIA_EASYSTACKS_DIRECTORY}/eessi-*CUDA*.yml; do
 
     # Load EasyBuild version for this easystack file _before_ loading EESSI-extend
     module_avail_out=${tmpdir}/ml.out
-    module avail 2>&1 | grep EasyBuild/${eb_version} &> ${module_avail_out}
-    if [[ $? -eq 0 ]]; then
+    module avail 2>&1 &> ${module_avail_out}
+    if grep -q EasyBuild/${eb_version} ${module_avail_out}; then
         echo_green ">> Found an EasyBuild/${eb_version} module"
     else
         echo_yellow ">> No EasyBuild/${eb_version} module found: skipping step to install easystack file ${EASYSTACK_FILE} (see output in ${module_avail_out})"
@@ -141,8 +141,8 @@ for EASYSTACK_FILE in ${NVIDIA_EASYSTACKS_DIRECTORY}/eessi-*CUDA*.yml; do
     # need to use --ignore_cache to avoid the case that the module was removed (to be
     # rebuilt) but it is still in the cache and the rebuild failed
     EESSI_EXTEND_VERSION=${EESSI_VERSION}-easybuild
-    module --ignore_cache avail 2>&1 | grep -i EESSI-extend/${EESSI_EXTEND_VERSION} &> ${ml_av_eessi_extend_out}
-    if [[ $? -eq 0 ]]; then
+    module --ignore_cache avail &> ${ml_av_eessi_extend_out}
+    if grep -qi EESSI-extend/${EESSI_EXTEND_VERSION} ${ml_av_eessi_extend_out}; then
         echo_green ">> Module for EESSI-extend/${EESSI_EXTEND_VERSION} found!"
     else
         error="\nNo module for EESSI-extend/${EESSI_EXTEND_VERSION} found\nwhile EESSI has been initialised to use software under ${EESSI_SOFTWARE_PATH}\n"
