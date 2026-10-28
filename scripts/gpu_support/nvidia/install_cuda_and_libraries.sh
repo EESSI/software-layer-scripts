@@ -283,9 +283,7 @@ for EASYSTACK_FILE in ${NVIDIA_EASYSTACKS_DIRECTORY}/eessi-*CUDA*.yml; do
             eb_args="$eb_args --accept-eula-for=$accept_eula_opt"
         fi
         echo "Running eb $eb_args"
-        eb $eb_args
-        ret=$?
-        if [ $ret -ne 0 ]; then
+        if ! eb $eb_args; then
             eb_last_log=$(unset EB_VERBOSE; eb --last-log)
             error="some installation failed"
             if [ -n "${eb_last_log}" ]; then
