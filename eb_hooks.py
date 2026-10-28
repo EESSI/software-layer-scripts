@@ -7,6 +7,7 @@ import json
 import os
 import re
 import socket
+import stat
 import tarfile
 from typing import NamedTuple
 
@@ -36,6 +37,7 @@ except ImportError:
     from distutils.version import LooseVersion
 
 
+# AARCH64 targets
 CPU_TARGET_NEOVERSE_N1 = 'aarch64/neoverse_n1'
 CPU_TARGET_NEOVERSE_V1 = 'aarch64/neoverse_v1'
 CPU_TARGET_AARCH64_GENERIC = 'aarch64/generic'
@@ -43,10 +45,16 @@ CPU_TARGET_A64FX = 'aarch64/a64fx'
 CPU_TARGET_NVIDIA_GRACE = 'aarch64/nvidia/grace'
 CPU_TARGET_AWS_GRAVITON4 = 'aarch64/aws/graviton4'
 
+# X86_64 targets
 CPU_TARGET_X86_64_GENERIC = 'x86_64/generic'
+CPU_TARGET_HASWELL = 'x86_64/intel/haswell'
 CPU_TARGET_CASCADELAKE = 'x86_64/intel/cascadelake'
 CPU_TARGET_ICELAKE = 'x86_64/intel/icelake'
 CPU_TARGET_SAPPHIRE_RAPIDS = 'x86_64/intel/sapphirerapids'
+CPU_TARGET_SKYLAKE_AVX512 = 'x86_64/intel/skylake_avx512'
+CPU_TARGET_GRANITE_RAPIDS = 'x86_64/intel/graniterapids'
+CPU_TARGET_ZEN2 = 'x86_64/amd/zen2'
+CPU_TARGET_ZEN3 = 'x86_64/amd/zen3'
 CPU_TARGET_ZEN4 = 'x86_64/amd/zen4'
 CPU_TARGET_ZEN5 = 'x86_64/amd/zen5'
 
@@ -1076,8 +1084,8 @@ def pre_prepare_hook_cudnn(self, *args, **kwargs):
     """
 
     if self.name == 'cuDNN':
-        # cuDNN 9.5.0.50 doesn't have support for 9.0a in all binaries
-        if self.version == "9.5.0.50":
+        # cuDNN 8.9.2.26 and 9.5.0.50 don't have support for 9.0a in all binaries
+        if self.version in ('8.9.2.26', '9.5.0.50'):
             cuda_cc = build_option('cuda_compute_capabilities')
             if cuda_cc and '9.0a' in cuda_cc:
                 updated_cuda_cc = [v.replace('9.0a', '9.0') for v in cuda_cc]
@@ -2290,6 +2298,85 @@ def post_postproc_cudnn(self, *args, **kwargs):
         raise EasyBuildError("cuDNN-specific hook triggered for non-cuDNN easyconfig?!")
 
 
+def post_proc_julia(self, *args, **kwargs):
+    """
+    Post-processing hook for Julia: add the `--cpu-target` option to the `julia` wrappers in order to ensure the
+    correct CPU target is used when running Julia, and to avoid issues with Julia's autodetection of the CPU target.
+    """
+    if self.name == 'Julia':
+        version = LooseVersion(self.version)
+
+        cpu_to_target_map = {}
+        if version >= '1.12':
+            cpu_to_target_map = {
+                **cpu_to_target_map,
+                # x86_64 targets
+                CPU_TARGET_X86_64_GENERIC: 'x86-64',
+                CPU_TARGET_HASWELL: 'haswell',
+                CPU_TARGET_CASCADELAKE: 'cascadelake',
+                CPU_TARGET_ICELAKE: 'icelake-client',
+                CPU_TARGET_SAPPHIRE_RAPIDS: 'sapphirerapids',
+                CPU_TARGET_SKYLAKE_AVX512: 'skylake-avx512',
+                CPU_TARGET_GRANITE_RAPIDS: 'graniterapids',
+                CPU_TARGET_ZEN2: 'znver2',
+                CPU_TARGET_ZEN3: 'znver3',
+                CPU_TARGET_ZEN4: 'znver4',
+                CPU_TARGET_ZEN5: 'znver4',  # Proper znver5 only available in Julia 1.13 and later, handled below
+
+                # ARM targets
+                CPU_TARGET_AARCH64_GENERIC: 'generic',
+                CPU_TARGET_NEOVERSE_N1: 'neoverse-n1',
+                CPU_TARGET_NEOVERSE_V1: 'neoverse-v1',
+                CPU_TARGET_A64FX: 'a64fx',
+                CPU_TARGET_NVIDIA_GRACE: 'neoverse-v2',
+                CPU_TARGET_AWS_GRAVITON4: 'neoverse-v2',
+            }
+        if version >= '1.13':
+            cpu_to_target_map = {
+                **cpu_to_target_map,
+                CPU_TARGET_ZEN5: 'znver5',
+            }
+
+        if not cpu_to_target_map:
+            print_warning(f"No CPU target mapping defined for Julia version {version}, skipping --cpu-target modification.")
+            return
+
+        cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+        julia_target = cpu_to_target_map.get(cpu_target, None)
+        if julia_target:
+            wrapper_path = os.path.join(self.installdir, 'bin', 'julia')
+            if os.path.isfile(wrapper_path):
+                # Add the --cpu-target option to the Julia wrapper script
+                with open(wrapper_path, 'r') as f:
+                    content = f.read()
+                replace_str = 'julia.bin "$@"'
+                if '--cpu-target' in content:
+                    print_warning(
+                        f"Julia wrapper at {wrapper_path} already contains --cpu-target option, skipping modification. "
+                        f"Current content: {content}"
+                    )
+                elif replace_str not in content:
+                    raise EasyBuildError(f"Unexpected content in Julia wrapper at {wrapper_path}, cannot modify to add --cpu-target option.")
+                else:
+                    content = content.replace(replace_str, f'julia.bin --cpu-target={julia_target} "$@"')
+                    # Ensure file is writable and restore original permissions after writing
+                    original_permissions = os.stat(wrapper_path).st_mode
+                    os.chmod(wrapper_path, original_permissions | stat.S_IWUSR)
+                    with open(wrapper_path, 'w') as f:
+                        f.write(content)
+                    os.chmod(wrapper_path, original_permissions)
+                    print_msg(f"Added --cpu-target={julia_target} to Julia wrapper at {wrapper_path}")
+            else:
+                raise EasyBuildError(f"Julia wrapper not found at {wrapper_path}, cannot set CPU target.")
+        else:
+            raise EasyBuildError(
+                f"No Julia CPU target mapping found for EESSI CPU target '{cpu_target}'. "
+                "Please update the cpu_to_target_map in the `post_proc_julia` hook to include this mapping."
+            )
+    else:
+        raise EasyBuildError("Julia-specific post-processing hook triggered for non-Julia easyconfig?!")
+
+
 def replace_binary_non_distributable_files_with_symlinks(log, install_dir, pkg_name, allowlist):
     """
     Replace files that cannot be distributed with symlinks into host_injections
@@ -2624,6 +2711,7 @@ POST_SINGLE_EXTENSION_HOOKS = {
 POST_POSTPROC_HOOKS = {
     'CUDA': post_postproc_cuda,
     'cuDNN': post_postproc_cudnn,
+    'Julia': post_proc_julia,
 }
 
 PRE_MODULE_HOOKS = {}

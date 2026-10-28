@@ -306,6 +306,9 @@ for ACCEL_OVERRIDE in "${EESSI_ACCELERATOR_TARGET_OVERRIDES[@]}"; do
         if nvidia_gpu_available && nvidia_gpu_has_compute_capability "${nvidia_cc}" ; then
             echo "bot/build.sh: GPU with the requested compute capability is available, using '--nvidia all'"
             BUILD_STEP_ARGS_ACCEL+=("--nvidia" "all")
+            # Make sure that LD_LIBRARY_PATH gets set correctly in the startprefix environment
+            # See https://github.com/EESSI/software-layer/pull/1461#issuecomment-6194230190
+            export EESSI_PROPAGATE_INTO_PREFIX_LD_LIBRARY_PATH=/.singularity.d/libs/
         else
             echo "bot/build.sh: no GPU with the requested compute capability is available, using '--nvidia install'"
             BUILD_STEP_ARGS_ACCEL+=("--nvidia" "install")
