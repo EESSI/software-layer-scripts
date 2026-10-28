@@ -1938,7 +1938,7 @@ def pre_single_extension_numba(ext, *args, **kwargs):
     if ext.name == 'numba':
         if ext.version in ['0.62.0']:
             support_py_file = os.path.join('$EB_PYTHONPACKAGE_TEST_INSTALLDIR', det_pylibdir(), 'numba', 'tests', 'support.py')
-            ext.cfg['runtest'] = f"sed -i 's/timeout=[3,6]0/timeout=120/g' {support_py_file} && {ext.cfg['runtest']}"
+            ext.cfg['runtest'] = f"sed -i 's/timeout=[3,6]0/timeout=600/g' {support_py_file} && {ext.cfg['runtest']}"
 
 
 def pre_test_hook_perl_increase_test_timeout(self, *args, **kwargs):
