@@ -2097,24 +2097,22 @@ def pre_cargo_python_package_2025(self, *args, **kwargs):
     eessi_version = get_eessi_envvar('EESSI_VERSION')
     if eessi_version != '2025.06':
         return
-    print_msg(f"Running pre_cargo_python_package_2025 for {self.name} {self.version}")
     from easybuild.easyblocks.generic.cargopythonpackage import CargoPythonPackage
-    CPU_TARGET_MAP = {
-        # CPU_TARGET_A64FX: 'a64fx',
+    rust_cpu_target_map = {
         CPU_TARGET_HASWELL: 'haswell',
     }
-    # print_msg(f"Checking {self.name} for Cargo instances to set cpu-target")
     if isinstance(self, CargoPythonPackage):
+        print_msg(f"Running pre_cargo_python_package_2025 for {self.name} {self.version}")
         cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
         env_vars = {}
         def set_env_var(var_name, var_value):
             env.setvar(var_name, var_value)
             env_vars[var_name] = var_value
-        if cpu_target in CPU_TARGET_MAP:
+        if cpu_target in rust_cpu_target_map:
             print_msg(
                 f"Setting RUSTFLAGS for Cargo build of {self.name} {self.version} to use cpu-target {cpu_target}"
             )
-            rust_target = CPU_TARGET_MAP[cpu_target]
+            rust_target = rust_cpu_target_map[cpu_target]
             old_rustflags = os.getenv('RUSTFLAGS', '')
             rustflags = old_rustflags
             if '-C target-cpu=' not in rustflags:
@@ -2124,30 +2122,6 @@ def pre_cargo_python_package_2025(self, *args, **kwargs):
             set_env_var('RUSTFLAGS', rustflags)
 
         self.cfg.update('installopts', '-Cbuild-args=--verbose')
-
-
-        # Avoid SIGSEGV 11 errors on Haswell + EESSI/2025.06 seen randomly with Cargo builds ran trhough maturin
-        # for python packages:
-        # - https://github.com/EESSI/software-layer/pull/1543#issuecomment-5328338503
-        # - https://github.com/EESSI/software-layer/pull/1871#issuecomment-6441762518
-        # Mitigate this by:
-        # - increase the available stack size for Rust to 160MB (RUST_MIN_STACK=167772160)
-        # - disable LTO (linker-plugin-lto=no) to reduce memory usage
-        # - Force optimization level to 2 (-C opt-level=2) usually set to 3 by maturin/pip
-        # if cpu_target in [
-        #     CPU_TARGET_HASWELL
-        # ]:
-        #     print_msg(f"Applying mitigations to avoid SIGSEGV 11 errors in cargo builds...")
-        #     rustflags = os.getenv('RUSTFLAGS', '')
-        #     rustflags += ' -C linker-plugin-lto=no'
-        #     rustflags += ' -C opt-level=0'
-
-        #     set_env_var('RUST_MIN_STACK', '167772160')
-        #     set_env_var('RUSTFLAGS', rustflags)
-        #     set_env_var('CARGO_BUILD_JOBS', '1')
-
-        #     self.cfg.update('installopts', '-Csetup-args=-Doptimization=0')
-        #     self.cfg.update('installopts', '-Csetup-args=-Db_lto=false')
 
         if env_vars:
             new_opts = [f"export {k}='{v}'" for k, v in env_vars.items()] + ['']
@@ -2159,6 +2133,10 @@ def pre_cargo_python_package_2025(self, *args, **kwargs):
         # Other attempts like increasing the `RUST_MIN_STACK`, disabling LTO, or reducing the optimization level did 
         # not fix the issue
         if cpu_target == CPU_TARGET_HASWELL:
+            print_msg(
+                f"Adding retry() function to preinstallopts for Cargo build of {self.name} {self.version} "
+                f"on {cpu_target} to mitigate random SIGSEGV 11 errors"
+            )
             self.cfg.update(
                 'preinstallopts',
                 'retry() { '
