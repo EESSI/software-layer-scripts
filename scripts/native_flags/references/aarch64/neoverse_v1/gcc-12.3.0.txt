@@ -1,0 +1,3 @@
+-mlittle-endian
+-mabi=lp64
+-mcpu=zeus+crypto+sha3+sm4+noprofile+nopauth

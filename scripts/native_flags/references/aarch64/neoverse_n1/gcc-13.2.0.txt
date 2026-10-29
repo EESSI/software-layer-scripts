@@ -1,0 +1,3 @@
+-mlittle-endian
+-mabi=lp64
+-mcpu=ares+crc+crypto+ssbs
