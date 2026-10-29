@@ -1291,6 +1291,9 @@ def pre_configure_hook(self, *args, **kwargs):
     if self.name in PRE_CONFIGURE_HOOKS:
         PRE_CONFIGURE_HOOKS[self.name](self, *args, **kwargs)
 
+    # Run this both for extensions and pure CargoPythonPackages installs
+    pre_cargo_python_package_2025(self, *args, **kwargs)
+
     # workaround for a Zlib macro being renamed in Gentoo, see https://bugs.gentoo.org/383179
     # (solves "expected initializer before 'OF'" errors)
     if self.name in ['FreeXL', 'libspatialite', 'VSEARCH']:
@@ -2087,14 +2090,14 @@ def pre_test_hook_Siesta_ignore_failure_with_crosscompilation(self, *args, **kwa
 
 
 
-def pre_cargo_python_extension_2025(self, *args, **kwargs):
+def pre_cargo_python_package_2025(self, *args, **kwargs):
     """Ensure that Cargo builds in python packages use the correct cpu-target for the current EESSI CPU family.
     Also mitigate the issue described in https://gitlab.com/eessi/support/-/work_items/270 where random
     SIGSEGV 11 errors are seen in cargo builds."""
     eessi_version = get_eessi_envvar('EESSI_VERSION')
     if eessi_version != '2025.06':
         return
-    print_msg(f"Running pre_python_cargo_2025 for {self.name} {self.version}")
+    print_msg(f"Running pre_cargo_python_package_2025 for {self.name} {self.version}")
     from easybuild.easyblocks.generic.cargopythonpackage import CargoPythonPackage
     CPU_TARGET_MAP = {
         # CPU_TARGET_A64FX: 'a64fx',
@@ -2170,7 +2173,7 @@ def pre_single_extension_hook(ext, *args, **kwargs):
     if ext.name in PRE_SINGLE_EXTENSION_HOOKS:
         PRE_SINGLE_EXTENSION_HOOKS[ext.name](ext, *args, **kwargs)
 
-    pre_cargo_python_extension_2025(ext, *args, **kwargs)
+    pre_cargo_python_package_2025(ext, *args, **kwargs)
 
 
 def post_single_extension_hook(ext, *args, **kwargs):
