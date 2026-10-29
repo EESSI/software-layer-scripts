@@ -62,12 +62,13 @@ jobs:
               exit 1
             fi
 
+            # check that $EESSI_SOFTWARE_SUBDIR_OVERRIDE is honored
             export EESSI_SOFTWARE_SUBDIR_OVERRIDE='dummy/cpu'
             CPU_ARCH=$(./init/eessi_archdetect.sh cpupath)
-            if [[ "$CPU_ARCH" == "$EESSI_SOFTWARE_SUBDIR_OVERRIDE" ]]; then
-              echo "Test for picking up on EESSI_SOFTWARE_SUBDIR_OVERRIDE PASSED"
+            if [[ "$CPU_ARCH" == "${EESSI_SOFTWARE_SUBDIR_OVERRIDE}" ]]; then
+              echo "Test for picking up on \$EESSI_SOFTWARE_SUBDIR_OVERRIDE PASSED"
             else
-              echo "Test for picking up on EESSI_SOFTWARE_SUBDIR_OVERRIDE FAILED" >&2
+              echo "Test for picking up on \$EESSI_SOFTWARE_SUBDIR_OVERRIDE FAILED" >&2
               exit 1
             fi
             unset EESSI_SOFTWARE_SUBDIR_OVERRIDE
