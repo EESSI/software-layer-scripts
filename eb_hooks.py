@@ -1291,6 +1291,9 @@ def pre_configure_hook(self, *args, **kwargs):
     if self.name in PRE_CONFIGURE_HOOKS:
         PRE_CONFIGURE_HOOKS[self.name](self, *args, **kwargs)
 
+    # Run this both for extensions and pure CargoPythonPackages installs
+    pre_cargo_python_package_2025(self, *args, **kwargs)
+
     # workaround for a Zlib macro being renamed in Gentoo, see https://bugs.gentoo.org/383179
     # (solves "expected initializer before 'OF'" errors)
     if self.name in ['FreeXL', 'libspatialite', 'VSEARCH']:
@@ -2086,10 +2089,69 @@ def pre_test_hook_Siesta_ignore_failure_with_crosscompilation(self, *args, **kwa
                     self.cfg['testopts'] = re.sub(r"-E '(.*)'", rf"-E '\1|{extra_testopts}'", testopts)
 
 
+
+def pre_cargo_python_package_2025(self, *args, **kwargs):
+    """Ensure that Cargo builds in python packages use the correct cpu-target for the current EESSI CPU family.
+    Also mitigate the issue described in https://gitlab.com/eessi/support/-/work_items/270 where random
+    SIGSEGV 11 errors are seen in cargo builds."""
+    eessi_version = get_eessi_envvar('EESSI_VERSION')
+    if eessi_version != '2025.06':
+        return
+    from easybuild.easyblocks.generic.cargopythonpackage import CargoPythonPackage
+    rust_cpu_target_map = {
+        CPU_TARGET_HASWELL: 'haswell',
+    }
+    if isinstance(self, CargoPythonPackage):
+        print_msg(f"Running pre_cargo_python_package_2025 for {self.name} {self.version}")
+        cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+        env_vars = {}
+        def set_env_var(var_name, var_value):
+            env.setvar(var_name, var_value)
+            env_vars[var_name] = var_value
+        if cpu_target in rust_cpu_target_map:
+            print_msg(
+                f"Setting RUSTFLAGS for Cargo build of {self.name} {self.version} to use cpu-target {cpu_target}"
+            )
+            rust_target = rust_cpu_target_map[cpu_target]
+            old_rustflags = os.getenv('RUSTFLAGS', '')
+            rustflags = old_rustflags
+            if '-C target-cpu=' not in rustflags:
+                rustflags += f' -C target-cpu={rust_target}'
+            else:
+                rustflags = re.sub(r'-C target-cpu=[^ "]+', f'-C target-cpu={rust_target}', rustflags)
+            set_env_var('RUSTFLAGS', rustflags)
+
+        self.cfg.update('installopts', '-Cbuild-args=--verbose')
+
+        if env_vars:
+            new_opts = [f"export {k}='{v}'" for k, v in env_vars.items()] + ['']
+            new_opts_str = ' && '.join(new_opts)
+            self.cfg['preinstallopts'] = new_opts_str + self.cfg.get('preinstallopts', '')
+
+        # On haswell with the 2025.06 EESSI release we have observed random SIGSEGV 11 errors in cargo builds
+        # here we add a preinstallopt to retry the build 10 times before failing, to mitigate this issue
+        # Other attempts like increasing the `RUST_MIN_STACK`, disabling LTO, or reducing the optimization level did 
+        # not fix the issue
+        if cpu_target == CPU_TARGET_HASWELL:
+            print_msg(
+                f"Adding retry() function to preinstallopts for Cargo build of {self.name} {self.version} "
+                f"on {cpu_target} to mitigate random SIGSEGV 11 errors"
+            )
+            self.cfg.update(
+                'preinstallopts',
+                'retry() { '
+                    'for i in $(seq 1 10); do "$@" && return 0 || echo "Retry $i failed, retrying..."; done; '
+                    'echo "All retries failed!"; return 1; '
+                '}; retry '
+            )
+
+
 def pre_single_extension_hook(ext, *args, **kwargs):
     """Main pre-extension: trigger custom functions based on software name."""
     if ext.name in PRE_SINGLE_EXTENSION_HOOKS:
         PRE_SINGLE_EXTENSION_HOOKS[ext.name](ext, *args, **kwargs)
+
+    pre_cargo_python_package_2025(ext, *args, **kwargs)
 
 
 def post_single_extension_hook(ext, *args, **kwargs):
