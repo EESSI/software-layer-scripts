@@ -1171,7 +1171,7 @@ def pre_prepare_hook_coordgenlibs_a64fx(self, *args, **kwargs):
     immediate offset out of range 0 to 31 at operand 3 -- `st1b z30.d,p7,[z31.d,#40]'
     ```
     - https://github.com/EESSI/software-layer/pull/1829#issuecomment-6510125464
-    This was also observed previously with LLVM and Rus+LLVM builds on older stacks. See eg:
+    This was also observed previously with LLVM and Rust+LLVM builds on older stacks. See eg:
     - https://github.com/EESSI/software-layer/issues/1213
     - https://github.com/EESSI/software-layer/issues/1213
     - https://github.com/EESSI/software-layer/pull/1177
