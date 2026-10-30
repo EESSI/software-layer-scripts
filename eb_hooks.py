@@ -1164,6 +1164,28 @@ def pre_prepare_hook_llvm_a64fx(self, *args, **kwargs):
             update_build_option('optarch', 'march=armv8.2-a')
 
 
+def pre_prepare_hook_coordgenlibs_a64fx(self, *args, **kwargs):
+    """
+    Solve issues with compiling coordgenlibs on a64fx with the 2026.1 stack. The specific error is:
+    ```
+    immediate offset out of range 0 to 31 at operand 3 -- `st1b z30.d,p7,[z31.d,#40]'
+    ```
+    - https://github.com/EESSI/software-layer/pull/1829#issuecomment-6510125464
+    This was also observed previously with LLVM and Rus+LLVM builds on older stacks. See eg:
+    - https://github.com/EESSI/software-layer/issues/1213
+    - https://github.com/EESSI/software-layer/issues/1213
+    - https://github.com/EESSI/software-layer/pull/1177
+    """
+    if self.name == 'CoordgenLibs':
+        eessi_version = get_eessi_envvar('EESSI_VERSION')
+        cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+        if eessi_version == '2026.06' and cpu_target == CPU_TARGET_A64FX:
+            self.orig_optarch = build_option('optarch')
+            update_build_option('optarch', '-march=armv8.2-a')
+    else:
+        raise EasyBuildError("CoordgenLibs-specific hook triggered for non-CoordgenLibs easyconfig?!")
+
+
 def pre_prepare_hook_pytorch(self, *args, **kwargs):
     """
     Solve PyTorch test failures due to:
@@ -1284,6 +1306,19 @@ def post_prepare_hook_llvm_a64fx(self, *args, **kwargs):
     if cpu_target == CPU_TARGET_A64FX:
         if (self.name == 'LLVM' and self.version in ['14.0.6', '15.0.5']) or (self.name == 'Rust' and self.version == '1.65.0'):
             update_build_option('optarch', self.orig_optarch)
+
+
+def post_prepare_hook_coordgenlibs_a64fx(self, *args, **kwargs):
+    """
+    Reset the optarch build option for coordgenlibs on a64fx with the 2026.1 stack.
+    """
+    if self.name == 'CoordgenLibs':
+        eessi_version = get_eessi_envvar('EESSI_VERSION')
+        cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+        if eessi_version == '2026.06' and cpu_target == CPU_TARGET_A64FX:
+            update_build_option('optarch', self.orig_optarch)
+    else:
+        raise EasyBuildError("CoordgenLibs-specific hook triggered for non-CoordgenLibs easyconfig?!")
 
 
 def pre_configure_hook(self, *args, **kwargs):
@@ -2701,12 +2736,14 @@ PRE_PREPARE_HOOKS = {
     'Highway': pre_prepare_hook_highway_handle_test_compilation_issues,
     'LAMMPS': pre_prepare_hook_LAMMPS_kokkos_CUDA_families,
     'LLVM': pre_prepare_hook_llvm_a64fx,
+    'CoordgenLibs': pre_prepare_hook_coordgenlibs_a64fx,
     'PyTorch': pre_prepare_hook_pytorch,
     'Rust': pre_prepare_hook_llvm_a64fx,
     'uv': pre_prepare_hook_uv_source_date_epoch,
 }
 
 POST_PREPARE_HOOKS = {
+    'CoordgenLibs': post_prepare_hook_coordgenlibs_a64fx,
     'GCCcore': post_prepare_hook_gcc_prefixed_ld_rpath_wrapper,
     'Highway': post_prepare_hook_highway_handle_test_compilation_issues,
     'LLVM': post_prepare_hook_llvm_a64fx,
