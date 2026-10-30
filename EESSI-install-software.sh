@@ -84,6 +84,55 @@ TOPDIR=$(dirname $(realpath $0))
 
 source $TOPDIR/scripts/utils.sh
 
+# Debugging aid, only active if EESSI_INTERACTIVE_BUILD is set (see bot/build.sh): start an interactive shell
+# in the current environment. We are running inside 'startprefix' with stdin consumed by a here-string, so we
+# talk to /dev/tty directly. The new shell inherits all exported variables (Prefix, Lmod state, ...); we
+# additionally dump the non-exported variables, functions, aliases and shell options of this script into an
+# rcfile, so that e.g. ${EB} and our helper functions are available too.
+debug_shell() {
+    local reason="$1"
+    local rcfile
+    rcfile=$(mktemp "${TMPDIR:-/tmp}/debug_shell_rc.XXXXXX")
+    {
+        # 'grep -v' filters out read-only variables (e.g. BASHOPTS, EUID), as trying to load those in a debug shell
+        # would cause errors. If grep -v returns a non-zero output (i.e. the only variables are read-only variables)
+        # the '|| true' ensures this still passes if 'set -e' is ever set
+        declare -p 2>/dev/null | grep -v '^declare -[a-zA-Z-]*r[a-zA-Z-]* ' || true
+        declare -f
+        alias -p
+        shopt -p
+        # the debugging shell should not abort on errors, nor re-trigger our hooks
+        echo "set +e +u; trap - EXIT"
+        echo "PS1='[EESSI debug] \\w \\$ '"
+        echo "cd '${PWD}'"
+    } > "${rcfile}" 2>/dev/null
+    echo_yellow ">> Dropping into an interactive debug shell: ${reason}"
+    echo_yellow ">> Working directory: ${PWD}; exit the shell (Ctrl-D) to continue/finish"
+    # Run the shell in a pty of its own (using 'script'), not directly on our terminal. An interactive bash takes over
+    # the terminal (it makes its own process group the foreground group) and hands it back to our group when it exits.
+    # This resolves issues with Ctrl+C no longer working after the debug shell has been exited (which was the case 
+    # without 'script' / a pty).
+    # See https://github.com/EESSI/software-layer-scripts/pull/321#issuecomment-6267183643 and
+    # https://github.com/EESSI/software-layer-scripts/pull/321#issuecomment-6267991021 for details.
+    # If script is ever no longer available from the compatibility layer, the same can be achieved with python3, see
+    # https://github.com/EESSI/software-layer-scripts/pull/321/changes/8d617c7c44cbf51ccdb3c801d36c86c85bdfcbfc
+    script -qc "bash --rcfile $(printf '%q' "${rcfile}") -i" /dev/null < /dev/tty > /dev/tty 2>&1
+    rm -f "${rcfile}"
+}
+
+# The debug shell needs 'script', check this now rather than when we want the shell (possibly after a long build). This
+# is done before defining the trap below, so that failing here does not try to start a debug shell.
+if [[ -n "${EESSI_INTERACTIVE_BUILD}" ]] && ! command -v script > /dev/null; then
+    fatal_error "EESSI_INTERACTIVE_BUILD=${EESSI_INTERACTIVE_BUILD} needs the 'script' command to start a debug shell, but it was not found. It is part of util-linux, and is normally available in the EESSI compatibility layer."
+fi
+
+# If EESSI_INTERACTIVE_BUILD=onfail, then define a trap so that if an error is encounted that would cause the shell to exit
+# (e.g. fatal_error) we get dropped into the debug_shell as well. That will allow us to not only debug EasyBuild build 
+# failures interactively, but anything resulting in fatal_error as well.
+if [[ "${EESSI_INTERACTIVE_BUILD}" == "onfail" ]]; then
+    trap 'ec_exit=$?; if [[ ${ec_exit} -ne 0 ]]; then debug_shell "script exiting with exit code ${ec_exit}"; fi' EXIT
+fi
+
 # honor $TMPDIR if it is already defined, use /tmp otherwise
 if [ -z $TMPDIR ]; then
     export WORKDIR=/tmp/$USER
@@ -425,18 +474,34 @@ else
 
             echo_green "All set, let's start installing some software with EasyBuild v${eb_version} in ${EASYBUILD_INSTALLPATH}..."
 
+            # full EasyBuild command for this easystack file (also shown in the debug shell messages)
+            if [[ ${easystack_file} == *"/rebuilds/"* ]]; then
+                eb_cmd="${EB} --easystack ${easystack_file} --rebuild"
+            else
+                eb_cmd="${EB} --easystack ${easystack_file} --robot"
+            fi
+
+            # If EESSI_INTERACTIVE_BUILD=before, you'll get a debug shell right before easybuild starts
+            # You can execute ${eb_cmd} manually, or just exit the shell again
+            # to let the script continue (e.g. because the item you want to debug is in the 2nd iteration of this for-loop over
+            # easystack files)
+            if [[ "${EESSI_INTERACTIVE_BUILD}" == "before" ]]; then
+                debug_shell "environment is ready to run: ${eb_cmd}"
+            fi
+
             if [ -f ${easystack_file} ]; then
                 echo_green "Feeding easystack file ${easystack_file} to EasyBuild..."
 
-                if [[ ${easystack_file} == *"/rebuilds/"* ]]; then
-                    ${EB} --easystack ${easystack_file} --rebuild
-                else
-                    ${EB} --easystack ${easystack_file} --robot
-                fi
+                ${eb_cmd}
                 ec=$?
 
                 # copy EasyBuild log file if EasyBuild exited with an error
                 if [ ${ec} -ne 0 ]; then
+                    # If easybuild had a non-zero exit code, and EESSI_INTERACTIVE_BUILD=onfail, you'll get a debug
+                    # shell so you can debug the failure
+                    if [[ "${EESSI_INTERACTIVE_BUILD}" == "onfail" ]]; then
+                        debug_shell "EasyBuild failed with exit code ${ec} for command: ${eb_cmd}"
+                    fi
                     eb_last_log=$(eb --last-log | grep ^/.*\.log)
                     # copy to current working directory if file exhists
                     if [ -f ${eb_last_log} ]; then
