@@ -2804,6 +2804,13 @@ PARALLELISM_LIMITS = {
     'hipBLASLt': {
         '*': (set_maximum, 8),
     },
+    'Highway': {
+        # compiling the Highway tests runs out of memory on aarch64/generic,
+        # see https://github.com/EESSI/software-layer/pull/1692;
+        # keep the A64FX default, since a '*' entry here would override it
+        '*': (divide_by_factor, 2),
+        CPU_TARGET_A64FX: (divide_by_factor, 4),
+    },
     'libxc': {
         '*': (divide_by_factor, 2),
         CPU_TARGET_A64FX: (set_maximum, 6),
