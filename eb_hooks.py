@@ -1690,8 +1690,8 @@ def pre_configure_hook_ucx_generic(self, *args, **kwargs):
             opts = configopts.split()
             if '--enable-optimizations' in opts:
                 self.cfg['configopts'] = ' '.join(opt for opt in opts if opt != '--enable-optimizations')
-                print_msg("Removed --enable-optimizations from configure options for %s: %s",
-                          self.name, self.cfg['configopts'])
+                print_msg("Removed --enable-optimizations from configure options for %s, "
+                          "since this is a build for a generic CPU target: %s", self.name, self.cfg['configopts'])
     else:
         raise EasyBuildError("UCX-specific hook triggered for non-UCX easyconfig?!")
 
