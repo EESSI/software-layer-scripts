@@ -1723,9 +1723,9 @@ def pre_configure_hook_libfabric_disable_psm3_x86_64_generic(self, *args, **kwar
 def pre_configure_hook_ucx_generic(self, *args, **kwargs):
     """
     Pre-configure hook for UCX: drop --enable-optimizations when building for a generic CPU target.
-    With that option, UCX's configure runs an AVX test program on the build host and adds -mavx to the
-    compiler flags of the whole package when it passes (on aarch64 it may add -mcpu for the build host);
-    UCX does not check the CPU at run time, so the result needs AVX.
+    With that option, UCX's configure runs an AVX test program on the build host and, when it passes,
+    adds -mavx to the compiler flags of the whole package (on aarch64 it may add -mcpu for the build host).
+    ucs_check_cpu_flags then aborts at load time if the CPU does not support those flags.
     See https://github.com/EESSI/software-layer/issues/1778
     """
     if self.name == 'UCX':
