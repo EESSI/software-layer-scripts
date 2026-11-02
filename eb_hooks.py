@@ -1401,6 +1401,23 @@ def pre_configure_hook_grass(self, *args, **kwargs):
         raise EasyBuildError("GRASS-specific hook triggered for non-GRASS easyconfig?!")
 
 
+def pre_configure_hook_python(self, *args, **kwargs):
+    """
+    Pre-configure hook for Python:
+      - make sure that the timezone data from the compatibility layer is used
+    """
+    if self.name == 'Python':
+        # determine path to Prefix installation in compat layer via $EPREFIX
+        eprefix = get_eessi_envvar('EPREFIX')
+        tzdata = os.path.join(eprefix, 'usr', 'share', 'zoneinfo')
+        self.cfg.update('configopts', '--with-tzpath=' + tzdata)
+        # also fix the datetime tester, which has a hardcoded path to /usr/share/zoneinfo
+        datetimetester_file = os.path.join('Lib', 'test', 'datetimetester.py')
+        apply_regex_substitutions(datetimetester_file, [("zoneroot = '/usr/share/zoneinfo'", f"zoneroot = '{tzdata}'")])
+    else:
+        raise EasyBuildError("Python-specific hook triggered for non-Python easyconfig?!")
+
+
 def pre_configure_hook_score_p(self, *args, **kwargs):
     """
     Pre-configure hook for Score-p
@@ -2769,6 +2786,7 @@ PRE_CONFIGURE_HOOKS = {
     'PETSc': pre_configure_hook_petsc,
     'PMIx': pre_configure_hook_pmix_ipv6,
     'PRRTE': pre_configure_hook_prrte_ipv6,
+    'Python': pre_configure_hook_python,
     'ROCm-LLVM': pre_configure_hook_llvm,
     'Score-P': pre_configure_hook_score_p,
     'SymEngine': pre_configure_hook_symengine,
