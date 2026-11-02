@@ -20,7 +20,7 @@ source ${base_dir}/init/eessi_defaults
 # Make sure we clone the latest version. This assumes versions are of the format "v1.2.3", then picks the latest
 # then checks it out
 TEST_CLONE="git clone https://github.com/EESSI/test-suite EESSI-test-suite && cd EESSI-test-suite"
-LATEST_VERSION=$(git tag --list 'v*' | sort -V | tail -n1)
+LATEST_VERSION="VERSION=\$(git tag --list 'v*' | sort -V | tail -n1)"
 CHECKOUT_LATEST="git checkout \${VERSION}"
 
 # Git clone has to be run in compat layer, to make the git command available
