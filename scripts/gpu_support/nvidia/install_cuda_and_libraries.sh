@@ -19,6 +19,8 @@
 TOPDIR=$(dirname $(realpath $BASH_SOURCE))
 source "$TOPDIR"/../../utils.sh
 
+set -o pipefail
+
 EULA_URL_CUDA="https://docs.nvidia.com/cuda/eula/index.html"
 EULA_URL_CUDNN="https://docs.nvidia.com/deeplearning/cudnn/latest/reference/eula.html"
 
@@ -121,8 +123,8 @@ for EASYSTACK_FILE in ${NVIDIA_EASYSTACKS_DIRECTORY}/eessi-*CUDA*.yml; do
 
     # Load EasyBuild version for this easystack file _before_ loading EESSI-extend
     module_avail_out=${tmpdir}/ml.out
-    module avail 2>&1 | grep EasyBuild/${eb_version} &> ${module_avail_out}
-    if [[ $? -eq 0 ]]; then
+    module avail 2>&1 &> ${module_avail_out}
+    if grep -q EasyBuild/${eb_version} ${module_avail_out}; then
         echo_green ">> Found an EasyBuild/${eb_version} module"
     else
         echo_yellow ">> No EasyBuild/${eb_version} module found: skipping step to install easystack file ${EASYSTACK_FILE} (see output in ${module_avail_out})"
@@ -142,8 +144,8 @@ for EASYSTACK_FILE in ${NVIDIA_EASYSTACKS_DIRECTORY}/eessi-*CUDA*.yml; do
     # need to use --ignore_cache to avoid the case that the module was removed (to be
     # rebuilt) but it is still in the cache and the rebuild failed
     EESSI_EXTEND_VERSION=${EESSI_VERSION}-easybuild
-    module --ignore_cache avail 2>&1 | grep -i EESSI-extend/${EESSI_EXTEND_VERSION} &> ${ml_av_eessi_extend_out}
-    if [[ $? -eq 0 ]]; then
+    module --ignore_cache avail &> ${ml_av_eessi_extend_out}
+    if grep -qi EESSI-extend/${EESSI_EXTEND_VERSION} ${ml_av_eessi_extend_out}; then
         echo_green ">> Module for EESSI-extend/${EESSI_EXTEND_VERSION} found!"
     else
         error="\nNo module for EESSI-extend/${EESSI_EXTEND_VERSION} found\nwhile EESSI has been initialised to use software under ${EESSI_SOFTWARE_PATH}\n"
@@ -176,20 +178,21 @@ for EASYSTACK_FILE in ${NVIDIA_EASYSTACKS_DIRECTORY}/eessi-*CUDA*.yml; do
 
     # show EasyBuild configuration
     echo "Show EasyBuild configuration"
-    eb --show-config
+    if ! eb --show-config; then
+        fatal_error "\nFailed to start EasyBuild. Check the above output for errors like wrong/misspelled configuration environment variables\n"
+    fi
 
     # do a 'eb --dry-run-short' with the EASYSTACK_FILE and determine list of packages
     # to be installed
     echo ">> Determining if packages specified in ${EASYSTACK_FILE} are missing under ${EESSI_SITE_SOFTWARE_PATH}"
     eb_dry_run_short_out=${tmpdir}/eb_dry_run_short.out
-    eb --dry-run-short --easystack ${EASYSTACK_FILE} 2>&1 | tee ${eb_dry_run_short_out}
-    ret=$?
+    if ! eb --dry-run-short --easystack ${EASYSTACK_FILE} 2>&1 | tee ${eb_dry_run_short_out}; then
+      fatal_error "\nFailed to determine missing packages, check above output"
+    fi
 
     # Check if CUDA shall be installed
     cuda_install_needed=0
-    cat ${eb_dry_run_short_out} | grep "^ \* \[[ ]\]" | grep "module: CUDA/" > /dev/null
-    ret=$?
-    if [ "${ret}" -eq 0 ]; then
+    if cat ${eb_dry_run_short_out} | grep "^ \* \[[ ]\]" | grep -q "module: CUDA/"; then
         cuda_install_needed=1
     fi
 
@@ -203,9 +206,7 @@ for EASYSTACK_FILE in ${NVIDIA_EASYSTACKS_DIRECTORY}/eessi-*CUDA*.yml; do
 
     # Check if cdDNN shall be installed
     cudnn_install_needed=0
-    cat ${eb_dry_run_short_out} | grep "^ \* \[[ ]\]" | grep "module: cuDNN/" > /dev/null
-    ret=$?
-    if [ "${ret}" -eq 0 ]; then
+    if cat ${eb_dry_run_short_out} | grep "^ \* \[[ ]\]" | grep -q "module: cuDNN/"; then
         cudnn_install_needed=1
     fi
 
@@ -287,12 +288,14 @@ for EASYSTACK_FILE in ${NVIDIA_EASYSTACKS_DIRECTORY}/eessi-*CUDA*.yml; do
             eb_args="$eb_args --accept-eula-for=$accept_eula_opt"
         fi
         echo "Running eb $eb_args"
-        eb $eb_args
-        ret=$?
-        if [ $ret -ne 0 ]; then
-          eb_last_log=$(unset EB_VERBOSE; eb --last-log)
-          cp -a ${eb_last_log} .
-          fatal_error "some installation failed, please check EasyBuild logs ${PWD}/$(basename ${eb_last_log})..."
+        if ! eb $eb_args; then
+            eb_last_log=$(unset EB_VERBOSE; eb --last-log)
+            error="some installation failed"
+            if [ -n "${eb_last_log}" ]; then
+                cp -a ${eb_last_log} .
+                error+=", please check EasyBuild logs ${PWD}/$(basename ${eb_last_log})..."
+            fi
+            fatal_error "${error}"
         else
           echo_green "all installations at ${EASYBUILD_INSTALLPATH}/software/... succeeded!"
           PROCESSED_EASYSTACK_FILES+=("${EASYSTACK_FILE}")
