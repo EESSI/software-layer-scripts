@@ -1172,6 +1172,7 @@ def pre_prepare_hook_remove_install_dir_for_rebuilds(self, *args, **kwargs):
     Rebuilds of an existing installation may pick up files from the original installation in e.g. the test step,
     because the installation directory only gets removed/wiped at the install step.
     To prevent such issues, we do a hard removal early on, unless this is explicitly disabled.
+    Also see https://github.com/easybuilders/easybuild-framework/issues/5362.
     """
     if build_option('rebuild') and os.path.exists(self.installdir) and len(os.listdir(self.installdir)) > 0:
         if os.getenv('EESSI_FORCE_EARLY_REMOVAL_OF_INSTALL_DIR'):
