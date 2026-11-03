@@ -173,7 +173,15 @@ else
 
       # make sure the the software and modules directory exist
       # (since it's expected by init/eessi_environment_variables when using archdetect and by the EESSI module)
-      mkdir -p -v ${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/{modules,software}
+      if [[ ! -z "${EESSI_SITE_INSTALL_FORCE}" ]]; then
+          if [[ ! -z "${EESSI_SITE_SOFTWARE_PREFIX}" ]]; then
+              mkdir -p -v ${EESSI_SITE_SOFTWARE_PREFIX}/versions/${EESSI_VERSION_OVERRIDE:-${EESSI_VERSION}}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/{modules,software}
+          else
+              fatal_error 'Requested a site installation, but $EESSI_SITE_SOFTWARE_PREFIX is somehow not set?! This should have been set by bot/build.sh.'
+          fi
+      else
+          mkdir -p -v ${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/{modules,software}
+      fi
 
       # If EESSI_ACCELERATOR_TARGET_OVERRIDE is defined, we are building for an accelerator target
       # In that case, make sure the modulepath for the accelerator subdir exists, otherwise the EESSI module will not
