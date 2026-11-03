@@ -192,7 +192,11 @@ else
           # Note that ${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/${EESSI_ACCELERATOR_TARGET_OVERRIDE}/modules/all
           # is only the correct path if EESSI_ACCEL_SOFTWARE_SUBDIR_OVERRIDE is not set
           if [[ -z $EESSI_ACCEL_SOFTWARE_SUBDIR_OVERRIDE ]]; then
-              mkdir -p -v ${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/${EESSI_ACCELERATOR_TARGET_OVERRIDE}/modules/all
+              if [[ ! -z "${EESSI_SITE_INSTALL_FORCE}" ]]; then
+                  mkdir -p -v ${EESSI_SITE_SOFTWARE_PREFIX}/versions/${EESSI_VERSION_OVERRIDE:-${EESSI_VERSION}}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/${EESSI_ACCELERATOR_TARGET_OVERRIDE}/modules/all
+              else
+                  mkdir -p -v ${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/${EESSI_ACCELERATOR_TARGET_OVERRIDE}/modules/all
+              fi
           else
               # At runtime, one might want to use a different CPU subdir for a given accelerator. E.g. one could use
               # a zen2 CPU subdir on a zen4 node if the required GPU software isn't available in the zen4 tree.
