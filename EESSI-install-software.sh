@@ -306,7 +306,8 @@ export PYTHONUNBUFFERED=1
 # - .lmod/lmodrc.lua
 # - .lmod/SitePackage.lua
 if [[ -n "${EESSI_SITE_INSTALL_FORCE}" ]]; then
-    _eessi_software_path=${EESSI_SITE_SOFTWARE_PREFIX}/versions/${EESSI_VERSION_OVERRIDE:-${EESSI_VERSION}}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}
+    # note: we need to use EESSI_SITE_SOFTWARE_PREFIX_BACKUP here, as we have temporarily unset EESSI_SITE_SOFTWARE_PREFIX above
+    _eessi_software_path=${EESSI_SITE_SOFTWARE_PREFIX_BACKUP}/versions/${EESSI_VERSION_OVERRIDE:-${EESSI_VERSION}}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}
 else
     _eessi_software_path=${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}
 fi
