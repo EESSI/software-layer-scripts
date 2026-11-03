@@ -1175,6 +1175,7 @@ def pre_prepare_hook_remove_install_dir_for_rebuilds(self, *args, **kwargs):
     """
     if build_option('rebuild') and os.path.exists(self.installdir) and len(os.listdir(self.installdir)) > 0:
         if os.getenv('EESSI_FORCE_EARLY_REMOVAL_OF_INSTALL_DIR'):
+            print_msg(f'Removing existing installation directory {self.installdir}...')
             remove_dir(self.installdir)
         else:
             warning_msg = 'You are rebuilding software, and the installation directory already exists and is non-empty. '
