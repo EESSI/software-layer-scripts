@@ -490,6 +490,12 @@ else
             # full EasyBuild command for this easystack file (also shown in the debug shell messages)
             if [[ ${easystack_file} == *"/rebuilds/"* ]]; then
                 eb_cmd="${EB} --easystack ${easystack_file} --rebuild"
+                # for rebuilds on a CVMFS repository, we assume an overlay is used,
+                # and we can safely enable the hook that removes the existing installation directory at the start of the build
+                if [[ ${EASYBUILD_INSTALLPATH} == "/cvmfs"* ]]; then
+                    echo "This is a rebuild, so setting EESSI_FORCE_EARLY_REMOVAL_OF_INSTALL_DIR=1"
+                    export EESSI_FORCE_EARLY_REMOVAL_OF_INSTALL_DIR=1
+                fi
             else
                 eb_cmd="${EB} --easystack ${easystack_file} --robot"
             fi
