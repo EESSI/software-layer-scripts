@@ -1321,6 +1321,132 @@ def post_prepare_hook_coordgenlibs_a64fx(self, *args, **kwargs):
         raise EasyBuildError("CoordgenLibs-specific hook triggered for non-CoordgenLibs easyconfig?!")
 
 
+# libxc 7.0.0 translation units whose cc1 peak was at least 2 GiB.
+# GCC 15.2.0, -O3, -march=native, -fPIC, third and fourth derivatives on.
+# 8-core Intel Xeon. -O1 brings the largest file from
+# 5.631 GiB down to 1.132 GiB. Nothing else in the list exceeded 6 GiB.
+# 7.0.0 is the first libxc version whose heavy sources were measured.
+_LIBXC_O1_MIN_VERSION = '7.0.0'
+# CMakeMake is the easyblock that reads CMAKE_PROJECT_Libxc_INCLUDE.
+_LIBXC_O1_EASYBLOCK = 'CMakeMake'
+_LIBXC_O1_SOURCES = (
+    ('src/mgga_x_br89.c', '5.631 GiB'),
+    ('src/mgga_x_mggac.c', '5.373 GiB'),
+    ('src/mgga_x_br89_explicit.c', '4.638 GiB'),
+    ('src/mgga_c_rmggac.c', '4.173 GiB'),
+    ('src/mgga_c_kcisk.c', '3.125 GiB'),
+    ('src/mgga_x_mbrxc_bg.c', '2.998 GiB'),
+    ('src/mgga_c_rscan.c', '2.938 GiB'),
+    ('src/gga_x_wpbeh.c', '2.564 GiB'),
+    ('src/gga_c_ft97.c', '2.531 GiB'),
+    ('src/mgga_x_rscan.c', '2.271 GiB'),
+    ('src/mgga_c_kcis.c', '2.208 GiB'),
+)
+
+
+def _libxc_o1_applies(self):
+    """Return True when this libxc build should compile the heavy sources at -O1.
+
+    Older libxc, and any libxc that is not CMakeMake, keeps the 2-core cap
+    in PARALLELISM_LIMITS and does not receive the CMake include flag.
+    """
+    if self.name != 'libxc':
+        return False
+    if LooseVersion(str(self.version)) < LooseVersion(_LIBXC_O1_MIN_VERSION):
+        return False
+    try:
+        easyblock = self.cfg['easyblock']
+    except EasyBuildError:
+        easyblock = None
+    if not easyblock:
+        easyblock = type(self).__name__
+    return easyblock == _LIBXC_O1_EASYBLOCK
+
+
+def _libxc_use_normal_job_count(self):
+    """Drop the general 2-core cap for a build the -O1 list covers.
+
+    The 2-core value is the '*' entry in PARALLELISM_LIMITS for libxc.
+    A64FX keeps its own 6-core limit, which post_ready_hook already applied.
+    """
+    cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+    if cpu_target == CPU_TARGET_A64FX:
+        return
+    full = det_parallelism()
+    if hasattr(self, 'parallel'):
+        self.cfg.parallel = full
+    else:
+        self.cfg['parallel'] = full
+    self.cfg.template_values['parallel'] = full
+    self.cfg.generate_template_values()
+    print_msg(
+        "libxc: using %s jobs; libxc that this hook skips stays at the 2-core cap",
+        full,
+    )
+
+
+def pre_configure_hook_libxc_o1(self, *args, **kwargs):
+    """Compile the heavy libxc sources at -O1 and leave the rest alone.
+
+    CMake's per-source COMPILE_OPTIONS are placed after the toolchain -O3.
+    gcc keeps the last -O flag, so -O1 wins for the listed files only.
+    The snippet is pulled in by -DCMAKE_PROJECT_Libxc_INCLUDE, which CMake
+    runs at the end of project(Libxc). That does not touch other projects.
+    """
+    if not _libxc_o1_applies(self):
+        return
+
+    missing = []
+    for relpath, _peak in _LIBXC_O1_SOURCES:
+        if not os.path.isfile(os.path.join(self.start_dir, relpath)):
+            missing.append(relpath)
+    if missing:
+        print_warning(
+            "libxc -O1 list has sources missing from this tree: %s",
+            ', '.join(missing),
+        )
+
+    lines = [
+        '# Appended -O1 wins over the toolchain -O3. Other sources are unchanged.',
+        'set(_eessi_libxc_o1_sources',
+    ]
+    for relpath, _peak in _LIBXC_O1_SOURCES:
+        lines.append('  %s' % relpath)
+    lines.extend([
+        ')',
+        'set_source_files_properties(',
+        '  ${_eessi_libxc_o1_sources}',
+        '  PROPERTIES COMPILE_OPTIONS "-O1"',
+        ')',
+        '',
+    ])
+    snippet = os.path.join(self.builddir, 'eessi_libxc_o1.cmake')
+    with open(snippet, 'w') as handle:
+        handle.write('\n'.join(lines))
+
+    extra = '-DCMAKE_PROJECT_Libxc_INCLUDE=%s' % snippet
+    current = self.cfg['configopts']
+    if isinstance(current, (list, tuple)):
+        updated = []
+        for item in current:
+            text = item or ''
+            if extra not in text:
+                text = (text + ' ' + extra).strip()
+            updated.append(text)
+        self.cfg['configopts'] = updated
+    else:
+        text = current or ''
+        if extra not in text:
+            self.cfg['configopts'] = (text + ' ' + extra).strip()
+
+    print_msg(
+        "libxc: compiling %s sources at -O1 (%s); other sources keep the toolchain flags",
+        len(_LIBXC_O1_SOURCES),
+        ', '.join(os.path.basename(relpath) for relpath, _peak in _LIBXC_O1_SOURCES),
+    )
+    _libxc_use_normal_job_count(self)
+
+
 def pre_configure_hook(self, *args, **kwargs):
     """Main pre-configure hook: trigger custom functions based on software name."""
     if self.name in PRE_CONFIGURE_HOOKS:
@@ -2762,6 +2888,7 @@ PRE_CONFIGURE_HOOKS = {
     'GRASS': pre_configure_hook_grass,
     'LAMMPS': pre_configure_hook_LAMMPS_zen4_and_aarch64_cuda,
     'libfabric': pre_configure_hook_libfabric_disable_psm3_x86_64_generic,
+    'libxc': pre_configure_hook_libxc_o1,
     'LLVM': pre_configure_hook_llvm,
     'MetaBAT': pre_configure_hook_metabat_filtered_zlib_dep,
     'OpenBLAS': pre_configure_hook_openblas_optarch_generic,
@@ -2841,6 +2968,9 @@ PARALLELISM_LIMITS = {
     'hipBLASLt': {
         '*': (set_maximum, 8),
     },
+    # The 2-core cap stays for libxc that pre_configure_hook_libxc_o1 skips.
+    # That hook lifts it for libxc >= 7.0.0 built with CMakeMake.
+    # A64FX stays at 6 cores because of HBM, which is independent of those files.
     'libxc': {
         '*': (set_maximum, 2),
         CPU_TARGET_A64FX: (set_maximum, 6),
