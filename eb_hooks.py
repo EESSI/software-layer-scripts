@@ -2842,7 +2842,7 @@ PARALLELISM_LIMITS = {
         '*': (set_maximum, 8),
     },
     'libxc': {
-        '*': (set_maximum, 8),
+        '*': (set_maximum, 2),
         CPU_TARGET_A64FX: (set_maximum, 6),
     },
     'LLVM': {
