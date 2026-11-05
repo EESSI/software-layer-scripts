@@ -2905,6 +2905,6 @@ PARALLELISM_LIMITS = {
         '*': (divide_by_factor, 2),
     },
     'polars': {
-        CPU_TARGET_A64FX: (set_maximum, 8),
+        CPU_TARGET_A64FX: (set_maximum, 4),
     },
 }
