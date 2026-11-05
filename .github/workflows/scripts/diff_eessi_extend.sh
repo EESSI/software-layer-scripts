@@ -23,8 +23,8 @@ compare_group() {
         # echo -e "\tComparing with $f"
 
         if ! diff \
-            <(grep -v '^local root = ' "$ref") \
-            <(grep -v '^local root = ' "$f"); then
+            <(grep -v '^local root = \|^-- Built with EasyBuild version' "$ref") \
+            <(grep -v '^local root = \|^-- Built with EasyBuild version' "$f"); then
 
             failure_summary+=("$version|$ref|$f")
 
