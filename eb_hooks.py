@@ -2904,4 +2904,7 @@ PARALLELISM_LIMITS = {
     'jax': {
         '*': (divide_by_factor, 2),
     },
+    'polars': {
+        CPU_TARGET_A64FX: (set_maximum, 8),
+    },
 }
