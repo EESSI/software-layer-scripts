@@ -1325,8 +1325,6 @@ def post_prepare_hook_coordgenlibs_a64fx(self, *args, **kwargs):
 # GCC 15.2.0, -O3, -march=native, -fPIC, third and fourth derivatives on.
 # 8-core Intel Xeon. -O1 brings the largest file from
 # 5.631 GiB down to 1.132 GiB. Nothing else in the list exceeded 6 GiB.
-# libxc 7.1.2 lda_xc_ksdt.c peaked at 2.153 GiB with -O3 and 2.530 GiB
-# with -O1, so -O1 is not applied to it.
 # 7.0.0 is the first libxc version whose heavy sources were measured.
 _LIBXC_O1_MIN_VERSION = '7.0.0'
 # CMakeMake is the easyblock that reads CMAKE_PROJECT_Libxc_INCLUDE.
