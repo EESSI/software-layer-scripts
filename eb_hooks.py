@@ -501,9 +501,6 @@ def pre_prepare_hook(self, *args, **kwargs):
     # Always trigger this, regardless of ec.name
     pre_prepare_hook_cuda_dependant(self, *args, **kwargs)
 
-    # Always trigger this, regardless of ec.name
-    pre_prepare_hook_remove_install_dir_for_rebuilds(self, *args, **kwargs)
-
 
 def post_prepare_hook_gcc_prefixed_ld_rpath_wrapper(self, *args, **kwargs):
     """
@@ -790,6 +787,9 @@ def pre_fetch_hook(self, *args, **kwargs):
     # Always check the software installation path
     pre_fetch_hook_check_installation_path(self, *args, **kwargs)
 
+    # Always check if this is a rebuild and if the existing installation directory should be removed
+    pre_fetch_hook_remove_install_dir_for_rebuilds(self, *args, **kwargs)
+
 
 # Check the installation path so we verify that accelerator software always gets installed into the correct location
 def pre_fetch_hook_check_installation_path(self, *args, **kwargs):
@@ -826,6 +826,27 @@ def pre_fetch_hook_check_installation_path(self, *args, **kwargs):
                     "module, this means reloading that module with EESSI_ACCELERATOR_INSTALL unset:\n"
                     "  unset EESSI_ACCELERATOR_INSTALL && module load EESSI-extend"
                     )
+
+
+def pre_fetch_hook_remove_install_dir_for_rebuilds(self, *args, **kwargs):
+    """
+    Rebuilds of an existing installation may pick up files from the original installation in e.g. the test step,
+    because the installation directory only gets removed/wiped at the install step.
+    To prevent such issues, we do a hard removal early on, unless this is explicitly disabled.
+    Also see https://github.com/easybuilders/easybuild-framework/issues/5362.
+    """
+    if build_option('rebuild') and os.path.exists(self.installdir) and len(os.listdir(self.installdir)) > 0:
+        if os.getenv('EESSI_FORCE_EARLY_REMOVAL_OF_INSTALL_DIR'):
+            print_msg(f'Removing existing installation directory {self.installdir}...')
+            remove_dir(self.installdir)
+        else:
+            warning_msg = 'You are rebuilding software, and the installation directory already exists and is non-empty. '
+            warning_msg += 'Be aware that the build may pick up files from the existing installation, because RPATH is enabled and '
+            warning_msg += 'the existing installation only gets wiped at the install step. Set $EESSI_FORCE_EARLY_REMOVAL_OF_INSTALL_DIR '
+            warning_msg += 'to a non-zero value to make sure that the existing installation is wiped at the start of the rebuild. '
+            warning_msg += 'Do note that it may mean that the installation is gone for a while if you are building on a '
+            warning_msg += 'writable shared filesystem without e.g. an overlay or bubblewrap!'
+            print_warning(warning_msg)
 
 
 class UnsupportedModule(NamedTuple):
@@ -1165,27 +1186,6 @@ def pre_prepare_hook_llvm_a64fx(self, *args, **kwargs):
         if (self.name == 'LLVM' and self.version in ['14.0.6', '15.0.5']) or (self.name == 'Rust' and self.version == '1.65.0'):
             self.orig_optarch = build_option('optarch')
             update_build_option('optarch', 'march=armv8.2-a')
-
-
-def pre_prepare_hook_remove_install_dir_for_rebuilds(self, *args, **kwargs):
-    """
-    Rebuilds of an existing installation may pick up files from the original installation in e.g. the test step,
-    because the installation directory only gets removed/wiped at the install step.
-    To prevent such issues, we do a hard removal early on, unless this is explicitly disabled.
-    Also see https://github.com/easybuilders/easybuild-framework/issues/5362.
-    """
-    if build_option('rebuild') and os.path.exists(self.installdir) and len(os.listdir(self.installdir)) > 0:
-        if os.getenv('EESSI_FORCE_EARLY_REMOVAL_OF_INSTALL_DIR'):
-            print_msg(f'Removing existing installation directory {self.installdir}...')
-            remove_dir(self.installdir)
-        else:
-            warning_msg = 'You are rebuilding software, and the installation directory already exists and is non-empty. '
-            warning_msg += 'Be aware that the build may pick up files from the existing installation, because RPATH is enabled and '
-            warning_msg += 'the existing installation only gets wiped at the install step. Set EESSI_FORCE_EARLY_REMOVAL_OF_INSTALL_DIR '
-            warning_msg += 'to a non-zero value to make sure that the existing installation is wiped at the start of the rebuild. '
-            warning_msg += 'Do note that it may mean that the installation is gone for a while if you are building on a '
-            warning_msg += 'writable shared filesystem without e.g. an overlay or bubblewrap!'
-            print_warning(warning_msg)
 
 
 def pre_prepare_hook_coordgenlibs_a64fx(self, *args, **kwargs):
