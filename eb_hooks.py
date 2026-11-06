@@ -21,7 +21,7 @@ from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option, install_path, update_build_option
 from easybuild.tools.config import ERROR
-from easybuild.tools.filetools import apply_regex_substitutions, copy_dir, copy_file, remove_file, symlink, which
+from easybuild.tools.filetools import apply_regex_substitutions, copy_dir, copy_file, remove_dir, remove_file, symlink, which
 from easybuild.tools.modules import get_software_root, get_software_root_env_var_name
 from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import AARCH64, POWER, X86_64, det_parallelism, get_cpu_architecture, get_cpu_features, get_gpu_info
@@ -787,6 +787,9 @@ def pre_fetch_hook(self, *args, **kwargs):
     # Always check the software installation path
     pre_fetch_hook_check_installation_path(self, *args, **kwargs)
 
+    # Always check if this is a rebuild and if the existing installation directory should be removed
+    pre_fetch_hook_remove_install_dir_for_rebuilds(self, *args, **kwargs)
+
 
 # Check the installation path so we verify that accelerator software always gets installed into the correct location
 def pre_fetch_hook_check_installation_path(self, *args, **kwargs):
@@ -823,6 +826,27 @@ def pre_fetch_hook_check_installation_path(self, *args, **kwargs):
                     "module, this means reloading that module with EESSI_ACCELERATOR_INSTALL unset:\n"
                     "  unset EESSI_ACCELERATOR_INSTALL && module load EESSI-extend"
                     )
+
+
+def pre_fetch_hook_remove_install_dir_for_rebuilds(self, *args, **kwargs):
+    """
+    Rebuilds of an existing installation may pick up files from the original installation in e.g. the test step,
+    because the installation directory only gets removed/wiped at the install step.
+    To prevent such issues, we do a hard removal early on, unless this is explicitly disabled.
+    Also see https://github.com/easybuilders/easybuild-framework/issues/5362.
+    """
+    if build_option('rebuild') and os.path.exists(self.installdir) and len(os.listdir(self.installdir)) > 0:
+        if os.getenv('EESSI_FORCE_EARLY_REMOVAL_OF_INSTALL_DIR'):
+            print_msg(f'Removing existing installation directory {self.installdir}...')
+            remove_dir(self.installdir)
+        else:
+            warning_msg = 'You are rebuilding software, and the installation directory already exists and is non-empty. '
+            warning_msg += 'Be aware that the build may pick up files from the existing installation, because RPATH is enabled and '
+            warning_msg += 'the existing installation only gets wiped at the install step. Set $EESSI_FORCE_EARLY_REMOVAL_OF_INSTALL_DIR '
+            warning_msg += 'to a non-zero value to make sure that the existing installation is wiped at the start of the rebuild. '
+            warning_msg += 'Do note that it may mean that the installation is gone for a while if you are building on a '
+            warning_msg += 'writable shared filesystem without e.g. an overlay or bubblewrap!'
+            print_warning(warning_msg)
 
 
 class UnsupportedModule(NamedTuple):
@@ -2840,6 +2864,13 @@ PARALLELISM_LIMITS = {
     # software-specific limits
     'hipBLASLt': {
         '*': (set_maximum, 8),
+    },
+    'Highway': {
+        # compiling the Highway tests runs out of memory on aarch64/generic,
+        # see https://github.com/EESSI/software-layer/pull/1692;
+        # keep the A64FX default, since a '*' entry here would override it
+        '*': (divide_by_factor, 2),
+        CPU_TARGET_A64FX: (divide_by_factor, 4),
     },
     'libxc': {
         '*': (set_maximum, 4),
