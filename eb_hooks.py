@@ -2229,6 +2229,20 @@ def pre_single_extension_isoband(ext, *args, **kwargs):
         ext.cfg['preinstallopts'] = "sed -i 's/SIGSTKSZ/32768/g' src/testthat/vendor/catch.h && "
 
 
+def pre_single_extension_mzr(ext, *args, **kwargs):
+    """
+    Pre-extension hook for mzR R package.
+    Fixes the following error on A64FX for the included Boost 1.76.0:
+    Error: selected processor does not support `ldapr w0,[x0]
+    Error: selected processor does not support `ldapr w0,[x20]'
+    """
+    if ext.name == 'mzR' and ext.version == '2.46.0':
+        # Prevent that BOOST_ATOMIC_DETAIL_AARCH64_HAS_RCPC is being defined,
+        # as the RCpc extension is not supported on A64FX
+        sed_cmd = 'sed -i "s|#define BOOST_ATOMIC_DETAIL_AARCH64_HAS_RCPC|// #define BOOST_ATOMIC_DETAIL_AARCH64_HAS_RCPC|g" src/boost/atomic/detail/caps_arch_gcc_aarch64.hpp && '
+        ext.cfg['preinstallopts'] = sed_cmd + ext.cfg.get('preinstallopts', '')
+
+
 def pre_single_extension_numpy(ext, *args, **kwargs):
     """
     Pre-extension hook for numpy:
@@ -2818,6 +2832,7 @@ PRE_TEST_HOOKS = {
 
 PRE_SINGLE_EXTENSION_HOOKS = {
     'isoband': pre_single_extension_isoband,
+    'mzR': pre_single_extension_mzr,
     'numpy': pre_single_extension_numpy,
     'orjson': pre_single_extension_orjson,
     'testthat': pre_single_extension_testthat,
