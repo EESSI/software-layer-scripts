@@ -2239,7 +2239,7 @@ def pre_single_extension_mzr(ext, *args, **kwargs):
     if ext.name == 'mzR' and ext.version == '2.46.0':
         # Prevent that BOOST_ATOMIC_DETAIL_AARCH64_HAS_RCPC is being defined,
         # as the RCpc extension is not supported on A64FX
-        sed_cmd = 'sed -i "s|#define BOOST_ATOMIC_DETAIL_AARCH64_HAS_RCPC|// #define BOOST_ATOMIC_DETAIL_AARCH64_HAS_RCPC|g" && '
+        sed_cmd = 'sed -i "s|#define BOOST_ATOMIC_DETAIL_AARCH64_HAS_RCPC|// #define BOOST_ATOMIC_DETAIL_AARCH64_HAS_RCPC|g" src/boost/atomic/detail/caps_arch_gcc_aarch64.hpp && '
         ext.cfg['preinstallopts'] = sed_cmd + ext.cfg.get('preinstallopts', '')
 
 
