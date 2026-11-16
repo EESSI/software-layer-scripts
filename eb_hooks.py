@@ -57,6 +57,9 @@ CPU_TARGET_ZEN3 = 'x86_64/amd/zen3'
 CPU_TARGET_ZEN4 = 'x86_64/amd/zen4'
 CPU_TARGET_ZEN5 = 'x86_64/amd/zen5'
 
+# RISCV64 targets
+CPU_TARGET_RISCV_GENERIC = 'riscv64/generic'
+
 EESSI_RPATH_OVERRIDE_ATTR = 'orig_rpath_override_dirs'
 EESSI_MODULE_ONLY_ATTR = 'orig_module_only'
 EESSI_FORCE_ATTR = 'orig_force'
@@ -1838,6 +1841,33 @@ def pre_configure_hook_cmake_system(self, *args, **kwargs):
         raise EasyBuildError("CMake-specific hook triggered for non-CMake easyconfig?!")
 
 
+def pre_configure_hook_IDG_riscv_target_cpu(self, *args, **kwargs):
+    """
+    pre-configure hook for IDG:
+    - set TARGET_CPU for the generic RISC-V target, replacing any existing -DTARGET_CPU
+    """
+    if self.name == 'IDG':
+        cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+        if cpu_target == CPU_TARGET_RISCV_GENERIC:
+            # the value contains a space, so it has to stay quoted in the shell command
+            target_cpu_opt = '-DTARGET_CPU="rv64gc -mabi=lp64d"'
+
+            if '-DTARGET_CPU' in self.cfg['configopts']:
+                # existing value may be double-quoted, single-quoted or unquoted
+                # We use a non-capturing group (?:<something>) with two ORs (|) to match those three scenarios
+                # We use a lambda function as replacement so backslashes/quotes aren't interpreted
+                self.cfg['configopts'] = re.sub(
+                    r"""-DTARGET_CPU=(?:"[^"]*"|'[^']*'|\S*)""",
+                    lambda _: target_cpu_opt,
+                    self.cfg['configopts'],
+                )
+            else:
+                self.cfg.update('configopts', target_cpu_opt)
+            print_msg("Using custom configure options for %s: %s", self.name, self.cfg['configopts'])
+    else:
+        raise EasyBuildError("IDG-specific hook triggered for non-IDG easyconfig?!")
+
+
 def pre_configure_hook_visit(self, *args, **kwargs):
     """
     Pre-configure hook for Visit
@@ -2784,6 +2814,7 @@ PRE_CONFIGURE_HOOKS = {
     'GObject-Introspection': pre_configure_hook_gobject_introspection,
     'Graphviz': pre_configure_hook_graphviz,
     'GRASS': pre_configure_hook_grass,
+    'IDG': pre_configure_hook_IDG_riscv_target_cpu,
     'LAMMPS': pre_configure_hook_LAMMPS_zen4_and_aarch64_cuda,
     'libfabric': pre_configure_hook_libfabric_disable_psm3_x86_64_generic,
     'LLVM': pre_configure_hook_llvm,
