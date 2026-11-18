@@ -18,6 +18,28 @@
 #    file 'job.cfg' has been deposited
 #  - the directory may contain any additional files referenced in job.cfg
 
+# Debugging interactive builds
+# This script respects the environment variable EESSI_INTERACTIVE_BUILD=<mode> which may be set if one wants to debug interactively
+# To debug interactively, run:
+# EESSI_INTERACTIVE_BUILD=<mode> <path-to-bot-build-jobscript>
+# where the path-to-bot-build-jobscript is the job script referred to as build_job_script by the app.cfg of the build bot.
+# That is typically eessi-bot-software-layer/scripts/bot-build.slurm, which then calls bot/build.sh (i.e. this script) with
+# EESSI_INTERACTIVE_BUILD=<mode> set. This way, environment setup that is part of the bot-build.slurm script (including e.g.
+# sourcing of the site_config_script as pointed to in the bot's app.cfg) is included. Then, this script sets up more of the
+# build environment, before eventually running the build, dropping you in an interactive debugging shell. Supported modes:
+#   shell  - start a plain shell in the build container instead of running the build
+#   before - run the build, but start a shell (inside the compat layer, EasyBuild loaded) right before
+#            EasyBuild is called
+#   onfail - run the build, and start a shell when EasyBuild fails (or the build script exits non-zero)
+# The state of the bot's build step (a tarball in previous_tmp/build_step) is resumed, and one accelerator target is
+# handled. Select them with EESSI_INTERACTIVE_BUILD_RESUME_FROM (a tmp directory or tarball, or 'none' to not resume from
+# anything and start from scratch) and EESSI_INTERACTIVE_BUILD_ACCELERATOR (e.g. accel/nvidia/cc80). If one of them is set, it
+# is used as given. If it is not set, you are asked to choose from the available accelerator targets / tarballs (the n-th
+# tarball is normally the one written after the n-th accelerator build), which needs stdin to be a terminal. Nothing is
+# assumed: without a terminal the script stops with an error asking you to set the variable(s). The only choices that
+# are not asked are those with just one option: a single accelerator target, or no tarballs to resume from.
+# Nothing is saved, no tarball is created.
+
 # stop as soon as something fails
 set -e
 
@@ -260,8 +282,19 @@ mkdir -p ${TARBALL_TMP_BUILD_STEP_DIR}
 
 # prepare arguments to eessi_container.sh specific to build step
 declare -a BUILD_STEP_ARGS=()
-BUILD_STEP_ARGS+=("--save" "${TARBALL_TMP_BUILD_STEP_DIR}")
+# We don't want interactive debugging sessions to save tarballs, so only save if EESSI_INTERACTIVE_BUILD isn't set
+if [[ -z "${EESSI_INTERACTIVE_BUILD}" ]]; then
+    BUILD_STEP_ARGS+=("--save" "${TARBALL_TMP_BUILD_STEP_DIR}")
+fi
 BUILD_STEP_ARGS+=("--storage" "${STORAGE}")
+
+# interactive debugging: check the requested mode. The state of the bot's build step to resume from (tarball) and the
+# accelerator target are selected further below, once the list of accelerator targets is known
+if [[ -n "${EESSI_INTERACTIVE_BUILD}" ]]; then
+    if [[ ! "${EESSI_INTERACTIVE_BUILD}" =~ ^(shell|before|onfail)$ ]]; then
+        fatal_error "EESSI_INTERACTIVE_BUILD must be one of: shell, before, onfail (got '${EESSI_INTERACTIVE_BUILD}')"
+    fi
+fi
 
 # Retain location for host injections so we don't reinstall CUDA
 # (Always need to run the driver installation as available driver may change)
@@ -296,6 +329,20 @@ else
 fi
 RESUME_DIR=""
 
+# interactive debugging only handles a single accelerator target, and resumes from a single tarball of the bot's build step
+# (or from none). Select them as described at the top of this script, see scripts/interactive_build.sh
+if [[ -n "${EESSI_INTERACTIVE_BUILD}" ]]; then
+    source $software_layer_dir/scripts/interactive_build.sh
+    select_interactive_state
+    if [[ "${selected_tarball}" == "none" ]]; then
+        echo "bot/build.sh: EESSI_INTERACTIVE_BUILD='${EESSI_INTERACTIVE_BUILD}', accelerator '${selected_accel_target}', not resuming from a tarball"
+    else
+        echo "bot/build.sh: EESSI_INTERACTIVE_BUILD='${EESSI_INTERACTIVE_BUILD}', accelerator '${selected_accel_target}', resuming from '${selected_tarball}'"
+        BUILD_STEP_ARGS+=("--resume" "${selected_tarball}")
+    fi
+    EESSI_ACCELERATOR_TARGET_OVERRIDES=("${selected_accel_target}")
+fi
+
 for ACCEL_OVERRIDE in "${EESSI_ACCELERATOR_TARGET_OVERRIDES[@]}"; do
     # copy the common build step arguments to a a
     BUILD_STEP_ARGS_ACCEL=("${BUILD_STEP_ARGS[@]}")
@@ -325,6 +372,19 @@ for ACCEL_OVERRIDE in "${EESSI_ACCELERATOR_TARGET_OVERRIDES[@]}"; do
     echo "Executing command to build software:"
     echo "$software_layer_dir/eessi_container.sh ${COMMON_ARGS[@]} ${BUILD_STEP_ARGS_ACCEL[@]}"
     echo "                     -- $software_layer_dir/install_software_layer.sh \"${INSTALL_SCRIPT_ARGS[@]}\" \"$@\" 2>&1 | tee -a ${build_outerr}"
+    if [[ -n "${EESSI_INTERACTIVE_BUILD}" ]]; then
+        # Interactive debugging: same setup as above. No 'tee' as it would break the interactive terminal.
+        if [[ "${EESSI_INTERACTIVE_BUILD}" == "shell" ]]; then
+            echo "bot/build.sh: starting a shell in the build container instead of the build; to run the build step manually use:"
+            echo "                     $software_layer_dir/install_software_layer.sh ${INSTALL_SCRIPT_ARGS[@]} $@"
+            # a later --mode overrides the --mode exec in COMMON_ARGS
+            $software_layer_dir/eessi_container.sh "${COMMON_ARGS[@]}" "${BUILD_STEP_ARGS_ACCEL[@]}" --mode shell
+        else
+            $software_layer_dir/eessi_container.sh "${COMMON_ARGS[@]}" "${BUILD_STEP_ARGS_ACCEL[@]}" \
+                                 -- $software_layer_dir/install_software_layer.sh "${INSTALL_SCRIPT_ARGS[@]}" "$@"
+        fi
+        exit 0
+    fi
     $software_layer_dir/eessi_container.sh "${COMMON_ARGS[@]}" "${BUILD_STEP_ARGS_ACCEL[@]}" \
                          -- $software_layer_dir/install_software_layer.sh "${INSTALL_SCRIPT_ARGS[@]}" "$@" 2>&1 | tee -a ${build_outerr}
 

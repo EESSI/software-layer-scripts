@@ -84,8 +84,57 @@ TOPDIR=$(dirname $(realpath $0))
 
 source $TOPDIR/scripts/utils.sh
 
+# Debugging aid, only active if EESSI_INTERACTIVE_BUILD is set (see bot/build.sh): start an interactive shell
+# in the current environment. We are running inside 'startprefix' with stdin consumed by a here-string, so we
+# talk to /dev/tty directly. The new shell inherits all exported variables (Prefix, Lmod state, ...); we
+# additionally dump the non-exported variables, functions, aliases and shell options of this script into an
+# rcfile, so that e.g. ${EB} and our helper functions are available too.
+debug_shell() {
+    local reason="$1"
+    local rcfile
+    rcfile=$(mktemp "${TMPDIR:-/tmp}/debug_shell_rc.XXXXXX")
+    {
+        # 'grep -v' filters out read-only variables (e.g. BASHOPTS, EUID), as trying to load those in a debug shell
+        # would cause errors. If grep -v returns a non-zero output (i.e. the only variables are read-only variables)
+        # the '|| true' ensures this still passes if 'set -e' is ever set
+        declare -p 2>/dev/null | grep -v '^declare -[a-zA-Z-]*r[a-zA-Z-]* ' || true
+        declare -f
+        alias -p
+        shopt -p
+        # the debugging shell should not abort on errors, nor re-trigger our hooks
+        echo "set +e +u; trap - EXIT"
+        echo "PS1='[EESSI debug] \\w \\$ '"
+        echo "cd '${PWD}'"
+    } > "${rcfile}" 2>/dev/null
+    echo_yellow ">> Dropping into an interactive debug shell: ${reason}"
+    echo_yellow ">> Working directory: ${PWD}; exit the shell (Ctrl-D) to continue/finish"
+    # Run the shell in a pty of its own (using 'script'), not directly on our terminal. An interactive bash takes over
+    # the terminal (it makes its own process group the foreground group) and hands it back to our group when it exits.
+    # This resolves issues with Ctrl+C no longer working after the debug shell has been exited (which was the case 
+    # without 'script' / a pty).
+    # See https://github.com/EESSI/software-layer-scripts/pull/321#issuecomment-6267183643 and
+    # https://github.com/EESSI/software-layer-scripts/pull/321#issuecomment-6267991021 for details.
+    # If script is ever no longer available from the compatibility layer, the same can be achieved with python3, see
+    # https://github.com/EESSI/software-layer-scripts/pull/321/changes/8d617c7c44cbf51ccdb3c801d36c86c85bdfcbfc
+    script -qc "bash --rcfile $(printf '%q' "${rcfile}") -i" /dev/null < /dev/tty > /dev/tty 2>&1
+    rm -f "${rcfile}"
+}
+
+# The debug shell needs 'script', check this now rather than when we want the shell (possibly after a long build). This
+# is done before defining the trap below, so that failing here does not try to start a debug shell.
+if [[ -n "${EESSI_INTERACTIVE_BUILD}" ]] && ! command -v script > /dev/null; then
+    fatal_error "EESSI_INTERACTIVE_BUILD=${EESSI_INTERACTIVE_BUILD} needs the 'script' command to start a debug shell, but it was not found. It is part of util-linux, and is normally available in the EESSI compatibility layer."
+fi
+
+# If EESSI_INTERACTIVE_BUILD=onfail, then define a trap so that if an error is encounted that would cause the shell to exit
+# (e.g. fatal_error) we get dropped into the debug_shell as well. That will allow us to not only debug EasyBuild build 
+# failures interactively, but anything resulting in fatal_error as well.
+if [[ "${EESSI_INTERACTIVE_BUILD}" == "onfail" ]]; then
+    trap 'ec_exit=$?; if [[ ${ec_exit} -ne 0 ]]; then debug_shell "script exiting with exit code ${ec_exit}"; fi' EXIT
+fi
+
 # honor $TMPDIR if it is already defined, use /tmp otherwise
-if [ -z $TMPDIR ]; then
+if [[ -z $TMPDIR ]]; then
     export WORKDIR=/tmp/$USER
 else
     export WORKDIR=$TMPDIR/$USER
@@ -106,7 +155,7 @@ if [[ "$EASYBUILD_OPTARCH" == "GENERIC" ]]; then
 fi
 
 echo ">> Determining software subdirectory to use for current build host..."
-if [ -z $EESSI_SOFTWARE_SUBDIR_OVERRIDE ]; then
+if [[ -z $EESSI_SOFTWARE_SUBDIR_OVERRIDE ]]; then
   export EESSI_SOFTWARE_SUBDIR_OVERRIDE=$(python3 $TOPDIR/eessi_software_subdir.py $DETECTION_PARAMETERS)
   echo ">> Determined \$EESSI_SOFTWARE_SUBDIR_OVERRIDE via 'eessi_software_subdir.py $DETECTION_PARAMETERS' script"
 else
@@ -124,18 +173,30 @@ else
 
       # make sure the the software and modules directory exist
       # (since it's expected by init/eessi_environment_variables when using archdetect and by the EESSI module)
-      mkdir -p -v ${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/{modules,software}
+      if [[ ! -z "${EESSI_SITE_INSTALL_FORCE}" ]]; then
+          if [[ ! -z "${EESSI_SITE_SOFTWARE_PREFIX}" ]]; then
+              mkdir -p -v ${EESSI_SITE_SOFTWARE_PREFIX}/versions/${EESSI_VERSION_OVERRIDE:-${EESSI_VERSION}}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/{modules,software}
+          else
+              fatal_error 'Requested a site installation, but $EESSI_SITE_SOFTWARE_PREFIX is somehow not set?! This should have been set by bot/build.sh.'
+          fi
+      else
+          mkdir -p -v ${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/{modules,software}
+      fi
 
       # If EESSI_ACCELERATOR_TARGET_OVERRIDE is defined, we are building for an accelerator target
       # In that case, make sure the modulepath for the accelerator subdir exists, otherwise the EESSI module will not
       # set EESSI_ACCELERATOR_TARGET and the if-condition later in this script which checks if EESSI_ACCELERATOR_TARGET
       # is equal to EESSI_ACCELERATOR_TARGET_OVERRIDE will fail 
       # See https://github.com/EESSI/software-layer-scripts/pull/59#issuecomment-3173593882
-      if [ -n $EESSI_ACCELERATOR_TARGET_OVERRIDE ]; then
+      if [[ -n $EESSI_ACCELERATOR_TARGET_OVERRIDE ]]; then
           # Note that ${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/${EESSI_ACCELERATOR_TARGET_OVERRIDE}/modules/all
           # is only the correct path if EESSI_ACCEL_SOFTWARE_SUBDIR_OVERRIDE is not set
-          if [ -z $EESSI_ACCEL_SOFTWARE_SUBDIR_OVERRIDE ]; then
-              mkdir -p -v ${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/${EESSI_ACCELERATOR_TARGET_OVERRIDE}/modules/all
+          if [[ -z $EESSI_ACCEL_SOFTWARE_SUBDIR_OVERRIDE ]]; then
+              if [[ ! -z "${EESSI_SITE_INSTALL_FORCE}" ]]; then
+                  mkdir -p -v ${EESSI_SITE_SOFTWARE_PREFIX}/versions/${EESSI_VERSION_OVERRIDE:-${EESSI_VERSION}}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/${EESSI_ACCELERATOR_TARGET_OVERRIDE}/modules/all
+              else
+                  mkdir -p -v ${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}/${EESSI_ACCELERATOR_TARGET_OVERRIDE}/modules/all
+              fi
           else
               # At runtime, one might want to use a different CPU subdir for a given accelerator. E.g. one could use
               # a zen2 CPU subdir on a zen4 node if the required GPU software isn't available in the zen4 tree.
@@ -154,7 +215,7 @@ fi
 echo ">> Setting up environment..."
 
 # If EESSI_VERSION is not set, source the defaults script to set it
-if [ -z ${EESSI_VERSION} ]; then
+if [[ -z ${EESSI_VERSION} ]]; then
     source $TOPDIR/init/eessi_defaults
 fi
 
@@ -212,13 +273,13 @@ else
     fatal_error "Not running in Gentoo Prefix environment, run '${EPREFIX}/startprefix' first!"
 fi
 
-if [ -d $EESSI_CVMFS_REPO ]; then
+if [[ -d $EESSI_CVMFS_REPO ]]; then
     echo_green "$EESSI_CVMFS_REPO available, OK!"
 else
     fatal_error "$EESSI_CVMFS_REPO is not available!"
 fi
 if [[ -n "$EESSI_CVMFS_REPO_OVERRIDE" && "$EESSI_CVMFS_REPO" != "$EESSI_CVMFS_REPO_OVERRIDE" ]]; then
-    if [ -d "$EESSI_CVMFS_REPO_OVERRIDE" ]; then
+    if [[ -d "$EESSI_CVMFS_REPO_OVERRIDE" ]]; then
         echo_green "$EESSI_CVMFS_REPO_OVERRIDE available, OK!"
     else
         fatal_error "$EESSI_CVMFS_REPO_OVERRIDE is not available!"
@@ -245,13 +306,14 @@ export PYTHONUNBUFFERED=1
 # - .lmod/lmodrc.lua
 # - .lmod/SitePackage.lua
 if [[ -n "${EESSI_SITE_INSTALL_FORCE}" ]]; then
-    _eessi_software_path=${EESSI_CVMFS_REPO_OVERRIDE}/versions/${EESSI_VERSION_OVERRIDE:-${EESSI_VERSION}}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}
+    # note: we need to use EESSI_SITE_SOFTWARE_PREFIX_BACKUP here, as we have temporarily unset EESSI_SITE_SOFTWARE_PREFIX above
+    _eessi_software_path=${EESSI_SITE_SOFTWARE_PREFIX_BACKUP}/versions/${EESSI_VERSION_OVERRIDE:-${EESSI_VERSION}}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}
 else
     _eessi_software_path=${EESSI_PREFIX}/software/${EESSI_OS_TYPE}/${EESSI_SOFTWARE_SUBDIR_OVERRIDE}
 fi
 _lmod_cfg_dir=${_eessi_software_path}/.lmod
 _lmod_rc_file=${_lmod_cfg_dir}/lmodrc.lua
-if [ ! -f ${_lmod_rc_file} ]; then
+if [[ ! -f ${_lmod_rc_file} ]]; then
     echo "Lmod file '${_lmod_rc_file}' does not exist yet; creating it..."
     command -V python3
     python3 ${TOPDIR}/create_lmodrc.py ${_eessi_software_path}
@@ -322,7 +384,7 @@ temp_install_storage=${TMPDIR}/temp_install_storage
 # Make sure that we use the easystack files from the git repository, which has an additional subdirectory ${EESSI_VERSION} at the end
 export NVIDIA_EASYSTACKS_DIRECTORY=${TOPDIR}/scripts/gpu_support/nvidia/easystacks/${EESSI_VERSION}
 mkdir -p ${temp_install_storage}
-if [ -z "${skip_cuda_install}" ] || [ ! "${skip_cuda_install}" ]; then
+if [[ -z "${skip_cuda_install}" ]] || [[ ! "${skip_cuda_install}" ]]; then
     ${TOPDIR}/scripts/gpu_support/nvidia/install_cuda_and_libraries.sh \
         -t ${temp_install_storage} \
         --accept-cuda-eula \
@@ -353,16 +415,16 @@ if [[ ! -z "${EESSI_SITE_INSTALL}" && ! -z "${EESSI_SITE_SOFTWARE_PREFIX}" ]]; t
     echo "EASYBUILD_INSTALLPATH=${EASYBUILD_INSTALLPATH}"
 fi
 
-if [ ! -z "${shared_fs_path}" ]; then
+if [[ ! -z "${shared_fs_path}" ]]; then
     shared_eb_sourcepath=${shared_fs_path}/easybuild/sources
     echo ">> Using ${shared_eb_sourcepath} as shared EasyBuild source path"
     export EASYBUILD_SOURCEPATH=${shared_eb_sourcepath}:${EASYBUILD_SOURCEPATH}
 fi
 
 # if an accelerator target is specified, we need to make sure that the CPU-only modules are also still available
-if [ ! -z ${EESSI_ACCELERATOR_TARGET} ]; then
+if [[ ! -z ${EESSI_ACCELERATOR_TARGET} ]]; then
     CPU_ONLY_MODULES_PATH=$(echo $EASYBUILD_INSTALLPATH | sed "s@/${EESSI_ACCELERATOR_TARGET}@@g")/modules/all
-    if [ -d ${CPU_ONLY_MODULES_PATH} ]; then
+    if [[ -d ${CPU_ONLY_MODULES_PATH} ]]; then
         module use ${CPU_ONLY_MODULES_PATH}
     else
         fatal_error "Derived path to CPU-only modules does not exist: ${CPU_ONLY_MODULES_PATH}"
@@ -384,7 +446,7 @@ fi
 # Note that we exclude the scripts/gpu_support/ dir, since those are not meant to be built in the
 # software-layer, but they are helper easystacks for installing e.g. CUDA in host_injections
 changed_easystacks=$(cat ${pr_diff} | grep '^+++' | cut -f2 -d' ' | sed 's@^[a-z]/@@g' | grep 'easystacks/.*yml$' | egrep -v 'known-issues|missing' | (grep -v "scripts/gpu_support/" || true)) 
-if [ -z "${changed_easystacks}" ]; then
+if [[ -z "${changed_easystacks}" ]]; then
     echo "No missing installations, party time!"  # Ensure the bot report success, as there was nothing to be build here
 else
 
@@ -404,10 +466,10 @@ else
         # make sure that easystack file being picked up is for EESSI version that we're building for...
         # Preferentially check EESSI_CVMFS_REPO_OVERRIDE (since that is set for site builds), otherwise default to EESSI_CVMFS_REPO
         echo "${easystack_file}" | grep -q "^easystacks/$(basename ${EESSI_CVMFS_REPO_OVERRIDE:-${EESSI_CVMFS_REPO}})/${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX}/"
-        if [ $? -ne 0 ]; then
+        if [[ $? -ne 0 ]]; then
             # Check if this was even an easystack file for the right repository
             echo "${easystack_file}" | grep -q "^easystacks/$(basename ${EESSI_CVMFS_REPO_OVERRIDE:-${EESSI_CVMFS_REPO}})"
-            if [ $? -ne 0 ]; then
+            if [[ $? -ne 0 ]]; then
                 echo_yellow "Easystack file ${easystack_file} is not intended for the repository ${EESSI_CVMFS_REPO_OVERRIDE:-${EESSI_CVMFS_REPO}}, skipping it..."
             else
                 echo_yellow "Easystack file ${easystack_file} is not intended for EESSI version ${EESSI_VERSION}${EESSI_SOFTWARE_LAYER_VERSION_SUFFIX}, skipping it..."
@@ -425,21 +487,43 @@ else
 
             echo_green "All set, let's start installing some software with EasyBuild v${eb_version} in ${EASYBUILD_INSTALLPATH}..."
 
-            if [ -f ${easystack_file} ]; then
+            # full EasyBuild command for this easystack file (also shown in the debug shell messages)
+            if [[ ${easystack_file} == *"/rebuilds/"* ]]; then
+                eb_cmd="${EB} --easystack ${easystack_file} --rebuild"
+                # for rebuilds on a CVMFS repository, we assume an overlay is used,
+                # and we can safely enable the hook that removes the existing installation directory at the start of the build
+                if [[ ${EASYBUILD_INSTALLPATH} == "/cvmfs"* ]]; then
+                    echo "This is a rebuild, so setting EESSI_FORCE_EARLY_REMOVAL_OF_INSTALL_DIR=1"
+                    export EESSI_FORCE_EARLY_REMOVAL_OF_INSTALL_DIR=1
+                fi
+            else
+                eb_cmd="${EB} --easystack ${easystack_file} --robot"
+            fi
+
+            # If EESSI_INTERACTIVE_BUILD=before, you'll get a debug shell right before easybuild starts
+            # You can execute ${eb_cmd} manually, or just exit the shell again
+            # to let the script continue (e.g. because the item you want to debug is in the 2nd iteration of this for-loop over
+            # easystack files)
+            if [[ "${EESSI_INTERACTIVE_BUILD}" == "before" ]]; then
+                debug_shell "environment is ready to run: ${eb_cmd}"
+            fi
+
+            if [[ -f ${easystack_file} ]]; then
                 echo_green "Feeding easystack file ${easystack_file} to EasyBuild..."
 
-                if [[ ${easystack_file} == *"/rebuilds/"* ]]; then
-                    ${EB} --easystack ${easystack_file} --rebuild
-                else
-                    ${EB} --easystack ${easystack_file} --robot
-                fi
+                ${eb_cmd}
                 ec=$?
 
                 # copy EasyBuild log file if EasyBuild exited with an error
-                if [ ${ec} -ne 0 ]; then
+                if [[ ${ec} -ne 0 ]]; then
+                    # If easybuild had a non-zero exit code, and EESSI_INTERACTIVE_BUILD=onfail, you'll get a debug
+                    # shell so you can debug the failure
+                    if [[ "${EESSI_INTERACTIVE_BUILD}" == "onfail" ]]; then
+                        debug_shell "EasyBuild failed with exit code ${ec} for command: ${eb_cmd}"
+                    fi
                     eb_last_log=$(eb --last-log | grep ^/.*\.log)
                     # copy to current working directory if file exhists
-                    if [ -f ${eb_last_log} ]; then
+                    if [[ -f ${eb_last_log} ]]; then
                         cp -a ${eb_last_log} .
                         echo "Last EasyBuild log file copied from ${eb_last_log} to ${PWD}"
                         # copy to build logs dir (with context added)
@@ -473,7 +557,7 @@ if [[ -z "${EESSI_SITE_INSTALL}" ]]; then
         echo "Path to lmodrc.lua changed to '${lmod_rc_file}'"
     fi
     lmodrc_changed=$(cat ${pr_diff} | grep '^+++' | cut -f2 -d' ' | sed 's@^[a-z]/@@g' | grep '^create_lmodrc.py$' > /dev/null; echo $?)
-    if [ ! -f $lmod_rc_file ] || [ ${lmodrc_changed} == '0' ]; then
+    if [[ ! -f $lmod_rc_file ]] || [[ ${lmodrc_changed} == '0' ]]; then
         echo ">> Creating/updating Lmod RC file (${lmod_rc_file})..."
         python3 $TOPDIR/create_lmodrc.py ${EASYBUILD_INSTALLPATH}
         check_exit_code $? "$lmod_rc_file created" "Failed to create $lmod_rc_file"
@@ -483,7 +567,7 @@ else
     # The only way to then trigger a redeploy is if we do something like
     # python3 $TOPDIR/create_lmodrc.py $TMDPIR
     # foo=$(diff $lmod_rc_file $TMPDIR/.lmod/lmodrc.lua)
-    # if [ -z $foo ]; then
+    # if [[ -z $foo ]]; then
     #     python3 $TOPDIR/create_lmodrc.py ${EASYBUILD_INSTALLPATH}
     # fi
     # in order to detect if our deployed lmodrc.lua is different from the one that _would_ be newly generated
@@ -500,7 +584,7 @@ if [[ -z "${EESSI_SITE_INSTALL}" ]]; then
         echo "Path to SitePackage.lua changed to '${lmod_sitepackage_file}'"
     fi
     sitepackage_changed=$(cat ${pr_diff} | grep '^+++' | cut -f2 -d' ' | sed 's@^[a-z]/@@g' | grep '^create_lmodsitepackage.py$' > /dev/null; echo $?)
-    if [ ! -f "$lmod_sitepackage_file" ] || [ "${sitepackage_changed}" == '0' ]; then
+    if [[ ! -f "$lmod_sitepackage_file" ]] || [[ "${sitepackage_changed}" == '0' ]]; then
         echo ">> Creating/updating Lmod SitePackage.lua (${lmod_sitepackage_file})..."
         python3 $TOPDIR/create_lmodsitepackage.py ${EASYBUILD_INSTALLPATH}
         check_exit_code $? "$lmod_sitepackage_file created" "Failed to create $lmod_sitepackage_file"
