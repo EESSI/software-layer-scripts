@@ -1850,7 +1850,7 @@ def pre_configure_hook_IDG_riscv_target_cpu(self, *args, **kwargs):
         cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
         if cpu_target == CPU_TARGET_RISCV_GENERIC:
             # the value contains a space, so it has to stay quoted in the shell command
-            target_cpu_opt = '-DTARGET_CPU="rv64gc -mabi=lp64d"'
+            target_cpu_opt = '-DTARGET_CPU=rv64gc'
 
             if '-DTARGET_CPU' in self.cfg['configopts']:
                 # existing value may be double-quoted, single-quoted or unquoted
