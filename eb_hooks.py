@@ -1849,19 +1849,17 @@ def pre_configure_hook_IDG_riscv_target_cpu(self, *args, **kwargs):
     if self.name == 'IDG':
         cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
         if cpu_target == CPU_TARGET_RISCV_GENERIC:
-            # the value contains a space, so it has to stay quoted in the shell command
             target_cpu_opt = '-DTARGET_CPU=rv64gc'
 
             if '-DTARGET_CPU' in self.cfg['configopts']:
-                # existing value may be double-quoted, single-quoted or unquoted
-                # We use a non-capturing group (?:<something>) with two ORs (|) to match those three scenarios
-                # We use a lambda function as replacement so backslashes/quotes aren't interpreted
+                # replace the existing value
                 self.cfg['configopts'] = re.sub(
-                    r"""-DTARGET_CPU=(?:"[^"]*"|'[^']*'|\S*)""",
-                    lambda _: target_cpu_opt,
+                    r'-DTARGET_CPU=\S*',
+                    target_cpu_opt,
                     self.cfg['configopts'],
                 )
             else:
+                # -DTARGET_CPU wasn't set before, just append it
                 self.cfg.update('configopts', target_cpu_opt)
             print_msg("Using custom configure options for %s: %s", self.name, self.cfg['configopts'])
     else:
