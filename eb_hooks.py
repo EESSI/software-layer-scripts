@@ -1841,29 +1841,48 @@ def pre_configure_hook_cmake_system(self, *args, **kwargs):
         raise EasyBuildError("CMake-specific hook triggered for non-CMake easyconfig?!")
 
 
+# Create reusable function, because multiple packages use aocommon's SetTargetCPU.cmake
+def set_aocommon_target_cpu_riscv_generic(self):
+    """
+    add or replace DTARGET_CPU option for aocommon with rv64gc
+    """
+    cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+    if cpu_target == CPU_TARGET_RISCV_GENERIC:
+        target_cpu_opt = '-DTARGET_CPU=rv64gc'
+    
+        if '-DTARGET_CPU' in self.cfg['configopts']:
+            # replace the existing value
+            self.cfg['configopts'] = re.sub(
+                r'-DTARGET_CPU=\S*',
+                target_cpu_opt,
+                self.cfg['configopts'],
+            )
+        else:
+            # -DTARGET_CPU wasn't set before, just append it
+            self.cfg.update('configopts', target_cpu_opt)
+        print_msg("Using custom configure options for %s: %s", self.name, self.cfg['configopts'])
+
+
 def pre_configure_hook_IDG_riscv_target_cpu(self, *args, **kwargs):
     """
     pre-configure hook for IDG:
     - set TARGET_CPU for the generic RISC-V target, replacing any existing -DTARGET_CPU
     """
     if self.name == 'IDG':
-        cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
-        if cpu_target == CPU_TARGET_RISCV_GENERIC:
-            target_cpu_opt = '-DTARGET_CPU=rv64gc'
-
-            if '-DTARGET_CPU' in self.cfg['configopts']:
-                # replace the existing value
-                self.cfg['configopts'] = re.sub(
-                    r'-DTARGET_CPU=\S*',
-                    target_cpu_opt,
-                    self.cfg['configopts'],
-                )
-            else:
-                # -DTARGET_CPU wasn't set before, just append it
-                self.cfg.update('configopts', target_cpu_opt)
-            print_msg("Using custom configure options for %s: %s", self.name, self.cfg['configopts'])
+        set_aocommon_target_cpu_riscv_generic(self)
     else:
         raise EasyBuildError("IDG-specific hook triggered for non-IDG easyconfig?!")
+
+
+def pre_configure_hook_AOFlagger_riscv_target_cpu(self, *args, **kwargs):
+    """
+    pre-configure hook for AOFlagger:
+    - set TARGET_CPU for the generic RISC-V target, replacing any existing -DTARGET_CPU
+    """
+    if self.name == 'AOFlagger':
+        set_aocommon_target_cpu_riscv_generic(self)
+    else:
+        raise EasyBuildError("AOFlagger-specific hook triggered for non-AOFlagger easyconfig?!")
 
 
 def pre_configure_hook_visit(self, *args, **kwargs):
