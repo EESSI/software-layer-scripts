@@ -2839,6 +2839,7 @@ POST_PREPARE_HOOKS = {
 }
 
 PRE_CONFIGURE_HOOKS = {
+    'AOFlagger': pre_configure_hook_AOFlagger_riscv_target_cpu,
     'BLIS': pre_configure_hook_BLIS,
     'CMake': pre_configure_hook_cmake_system,
     'CUDA-Samples': pre_configure_hook_CUDA_Samples_test_remove,
