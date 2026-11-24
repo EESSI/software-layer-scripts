@@ -1,21 +1,30 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 # This script can be used to configure JupyterHub with a hardware-optimised python
 # installation from EasyBuild, and is required since EasyBuild uses a site.cfg for Python
 # extensions which the JupyterHub kernel should be aware of.
 
-# Make EESSI environment script silent
-export EESSI_SILENT=1
+script_dir=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+eessi_prefix=${EESSI_PREFIX:-${script_dir}/../..}
 
-# Gather all the EESSI environment variables
-# (we are careful with the path as this file may be symlinked, the below will not work
-# for MacOS due to the use of `readlink`)
-source $(dirname "$(readlink -f "$BASH_SOURCE")")/../eessi_environment_variables
+arch_script="${eessi_prefix}/init/eessi_archdetect.sh"
+if [[ ! -x "$arch_script" ]]; then
+  echo "ERROR: Cannot find executable archdetect script at ${arch_script}" >&2
+  exit 1
+fi
 
-eessi_python=$(ls ${EESSI_SOFTWARE_PATH}/software/Python/3*GCCcore*/bin/python | sed 1q)
-if [ -f "$eessi_python" ]; then
-  $eessi_python "$@"
+arch=$("$arch_script" cpupath)
+
+shopt -s nullglob
+pythons=("${eessi_prefix}/software/linux/${arch}"/software/Python/3*GCCcore*/bin/python)
+shopt -u nullglob
+
+if (( ${#pythons[@]} > 0 )); then
+  # Pick the highest version using natural version sorting
+  eessi_python=$(printf '%s\n' "${pythons[@]}" | sort -V | tail -n 1)
+  exec "$eessi_python" "$@"
 else
-  echo "ERROR: No EESSI Python 3 available."
-  false
+  echo "ERROR: No EESSI Python 3 available for architecture '${arch}'." >&2
+  exit 1
 fi
