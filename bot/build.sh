@@ -212,6 +212,10 @@ EESSI_SOFTWARE_SUBDIR_OVERRIDE=${EESSI_SOFTWARE_SUBDIR_OVERRIDE:-${CPU_TARGET}}
 export EESSI_SOFTWARE_SUBDIR_OVERRIDE
 echo "bot/build.sh: EESSI_SOFTWARE_SUBDIR_OVERRIDE='${EESSI_SOFTWARE_SUBDIR_OVERRIDE}'"
 
+# Set timezone (TZ) to avoid issues like https://github.com/EESSI/software-layer/pull/1930#issuecomment-7101975801
+# Note that both GLIBC and GLib respect TZ
+export EESSI_PROPAGATE_INTO_PREFIX_TZ=${EESSI_PROPAGATE_INTO_PREFIX_TZ:-UTC}
+
 # Log the full lscpu, ulimits, and os-release info:
 lscpu > _bot_job${SLURM_JOB_ID}.lscpu
 ulimit -a > _bot_job${SLURM_JOB_ID}.ulimits
