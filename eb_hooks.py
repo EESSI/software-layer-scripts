@@ -21,7 +21,7 @@ from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
 from easybuild.tools.config import build_option, install_path, update_build_option
 from easybuild.tools.config import ERROR
-from easybuild.tools.filetools import apply_regex_substitutions, copy_dir, copy_file, remove_file, symlink, which
+from easybuild.tools.filetools import apply_regex_substitutions, copy_dir, copy_file, remove_dir, remove_file, symlink, which
 from easybuild.tools.modules import get_software_root, get_software_root_env_var_name
 from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import AARCH64, POWER, X86_64, det_parallelism, get_cpu_architecture, get_cpu_features, get_gpu_info
@@ -56,6 +56,9 @@ CPU_TARGET_ZEN2 = 'x86_64/amd/zen2'
 CPU_TARGET_ZEN3 = 'x86_64/amd/zen3'
 CPU_TARGET_ZEN4 = 'x86_64/amd/zen4'
 CPU_TARGET_ZEN5 = 'x86_64/amd/zen5'
+
+# RISCV64 targets
+CPU_TARGET_RISCV_GENERIC = 'riscv64/generic'
 
 EESSI_RPATH_OVERRIDE_ATTR = 'orig_rpath_override_dirs'
 EESSI_MODULE_ONLY_ATTR = 'orig_module_only'
@@ -787,6 +790,9 @@ def pre_fetch_hook(self, *args, **kwargs):
     # Always check the software installation path
     pre_fetch_hook_check_installation_path(self, *args, **kwargs)
 
+    # Always check if this is a rebuild and if the existing installation directory should be removed
+    pre_fetch_hook_remove_install_dir_for_rebuilds(self, *args, **kwargs)
+
 
 # Check the installation path so we verify that accelerator software always gets installed into the correct location
 def pre_fetch_hook_check_installation_path(self, *args, **kwargs):
@@ -823,6 +829,27 @@ def pre_fetch_hook_check_installation_path(self, *args, **kwargs):
                     "module, this means reloading that module with EESSI_ACCELERATOR_INSTALL unset:\n"
                     "  unset EESSI_ACCELERATOR_INSTALL && module load EESSI-extend"
                     )
+
+
+def pre_fetch_hook_remove_install_dir_for_rebuilds(self, *args, **kwargs):
+    """
+    Rebuilds of an existing installation may pick up files from the original installation in e.g. the test step,
+    because the installation directory only gets removed/wiped at the install step.
+    To prevent such issues, we do a hard removal early on, unless this is explicitly disabled.
+    Also see https://github.com/easybuilders/easybuild-framework/issues/5362.
+    """
+    if build_option('rebuild') and os.path.exists(self.installdir) and len(os.listdir(self.installdir)) > 0:
+        if os.getenv('EESSI_FORCE_EARLY_REMOVAL_OF_INSTALL_DIR'):
+            print_msg(f'Removing existing installation directory {self.installdir}...')
+            remove_dir(self.installdir)
+        else:
+            warning_msg = 'You are rebuilding software, and the installation directory already exists and is non-empty. '
+            warning_msg += 'Be aware that the build may pick up files from the existing installation, because RPATH is enabled and '
+            warning_msg += 'the existing installation only gets wiped at the install step. Set $EESSI_FORCE_EARLY_REMOVAL_OF_INSTALL_DIR '
+            warning_msg += 'to a non-zero value to make sure that the existing installation is wiped at the start of the rebuild. '
+            warning_msg += 'Do note that it may mean that the installation is gone for a while if you are building on a '
+            warning_msg += 'writable shared filesystem without e.g. an overlay or bubblewrap!'
+            print_warning(warning_msg)
 
 
 class UnsupportedModule(NamedTuple):
@@ -1164,6 +1191,28 @@ def pre_prepare_hook_llvm_a64fx(self, *args, **kwargs):
             update_build_option('optarch', 'march=armv8.2-a')
 
 
+def pre_prepare_hook_coordgenlibs_a64fx(self, *args, **kwargs):
+    """
+    Solve issues with compiling coordgenlibs on a64fx with the 2026.1 stack. The specific error is:
+    ```
+    immediate offset out of range 0 to 31 at operand 3 -- `st1b z30.d,p7,[z31.d,#40]'
+    ```
+    - https://github.com/EESSI/software-layer/pull/1829#issuecomment-6510125464
+    This was also observed previously with LLVM and Rust+LLVM builds on older stacks. See eg:
+    - https://github.com/EESSI/software-layer/issues/1213
+    - https://github.com/EESSI/software-layer/issues/1213
+    - https://github.com/EESSI/software-layer/pull/1177
+    """
+    if self.name == 'CoordgenLibs':
+        eessi_version = get_eessi_envvar('EESSI_VERSION')
+        cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+        if eessi_version == '2026.06' and cpu_target == CPU_TARGET_A64FX:
+            self.orig_optarch = build_option('optarch')
+            update_build_option('optarch', '-march=armv8.2-a')
+    else:
+        raise EasyBuildError("CoordgenLibs-specific hook triggered for non-CoordgenLibs easyconfig?!")
+
+
 def pre_prepare_hook_pytorch(self, *args, **kwargs):
     """
     Solve PyTorch test failures due to:
@@ -1286,10 +1335,26 @@ def post_prepare_hook_llvm_a64fx(self, *args, **kwargs):
             update_build_option('optarch', self.orig_optarch)
 
 
+def post_prepare_hook_coordgenlibs_a64fx(self, *args, **kwargs):
+    """
+    Reset the optarch build option for coordgenlibs on a64fx with the 2026.1 stack.
+    """
+    if self.name == 'CoordgenLibs':
+        eessi_version = get_eessi_envvar('EESSI_VERSION')
+        cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+        if eessi_version == '2026.06' and cpu_target == CPU_TARGET_A64FX:
+            update_build_option('optarch', self.orig_optarch)
+    else:
+        raise EasyBuildError("CoordgenLibs-specific hook triggered for non-CoordgenLibs easyconfig?!")
+
+
 def pre_configure_hook(self, *args, **kwargs):
     """Main pre-configure hook: trigger custom functions based on software name."""
     if self.name in PRE_CONFIGURE_HOOKS:
         PRE_CONFIGURE_HOOKS[self.name](self, *args, **kwargs)
+
+    # Run this both for extensions and pure CargoPythonPackages installs
+    pre_cargo_python_package_2025(self, *args, **kwargs)
 
     # workaround for a Zlib macro being renamed in Gentoo, see https://bugs.gentoo.org/383179
     # (solves "expected initializer before 'OF'" errors)
@@ -1776,6 +1841,31 @@ def pre_configure_hook_cmake_system(self, *args, **kwargs):
         raise EasyBuildError("CMake-specific hook triggered for non-CMake easyconfig?!")
 
 
+def pre_configure_hook_IDG_riscv_target_cpu(self, *args, **kwargs):
+    """
+    pre-configure hook for IDG:
+    - set TARGET_CPU for the generic RISC-V target, replacing any existing -DTARGET_CPU
+    """
+    if self.name == 'IDG':
+        cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+        if cpu_target == CPU_TARGET_RISCV_GENERIC:
+            target_cpu_opt = '-DTARGET_CPU=rv64gc'
+
+            if '-DTARGET_CPU' in self.cfg['configopts']:
+                # replace the existing value
+                self.cfg['configopts'] = re.sub(
+                    r'-DTARGET_CPU=\S*',
+                    target_cpu_opt,
+                    self.cfg['configopts'],
+                )
+            else:
+                # -DTARGET_CPU wasn't set before, just append it
+                self.cfg.update('configopts', target_cpu_opt)
+            print_msg("Using custom configure options for %s: %s", self.name, self.cfg['configopts'])
+    else:
+        raise EasyBuildError("IDG-specific hook triggered for non-IDG easyconfig?!")
+
+
 def pre_configure_hook_visit(self, *args, **kwargs):
     """
     Pre-configure hook for Visit
@@ -2086,10 +2176,69 @@ def pre_test_hook_Siesta_ignore_failure_with_crosscompilation(self, *args, **kwa
                     self.cfg['testopts'] = re.sub(r"-E '(.*)'", rf"-E '\1|{extra_testopts}'", testopts)
 
 
+
+def pre_cargo_python_package_2025(self, *args, **kwargs):
+    """Ensure that Cargo builds in python packages use the correct cpu-target for the current EESSI CPU family.
+    Also mitigate the issue described in https://gitlab.com/eessi/support/-/work_items/270 where random
+    SIGSEGV 11 errors are seen in cargo builds."""
+    eessi_version = get_eessi_envvar('EESSI_VERSION')
+    if eessi_version != '2025.06':
+        return
+    from easybuild.easyblocks.generic.cargopythonpackage import CargoPythonPackage
+    rust_cpu_target_map = {
+        CPU_TARGET_HASWELL: 'haswell',
+    }
+    if isinstance(self, CargoPythonPackage):
+        print_msg(f"Running pre_cargo_python_package_2025 for {self.name} {self.version}")
+        cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+        env_vars = {}
+        def set_env_var(var_name, var_value):
+            env.setvar(var_name, var_value)
+            env_vars[var_name] = var_value
+        if cpu_target in rust_cpu_target_map:
+            print_msg(
+                f"Setting RUSTFLAGS for Cargo build of {self.name} {self.version} to use cpu-target {cpu_target}"
+            )
+            rust_target = rust_cpu_target_map[cpu_target]
+            old_rustflags = os.getenv('RUSTFLAGS', '')
+            rustflags = old_rustflags
+            if '-C target-cpu=' not in rustflags:
+                rustflags += f' -C target-cpu={rust_target}'
+            else:
+                rustflags = re.sub(r'-C target-cpu=[^ "]+', f'-C target-cpu={rust_target}', rustflags)
+            set_env_var('RUSTFLAGS', rustflags)
+
+        self.cfg.update('installopts', '-Cbuild-args=--verbose')
+
+        if env_vars:
+            new_opts = [f"export {k}='{v}'" for k, v in env_vars.items()] + ['']
+            new_opts_str = ' && '.join(new_opts)
+            self.cfg['preinstallopts'] = new_opts_str + self.cfg.get('preinstallopts', '')
+
+        # On haswell with the 2025.06 EESSI release we have observed random SIGSEGV 11 errors in cargo builds
+        # here we add a preinstallopt to retry the build 10 times before failing, to mitigate this issue
+        # Other attempts like increasing the `RUST_MIN_STACK`, disabling LTO, or reducing the optimization level did 
+        # not fix the issue
+        if cpu_target == CPU_TARGET_HASWELL:
+            print_msg(
+                f"Adding retry() function to preinstallopts for Cargo build of {self.name} {self.version} "
+                f"on {cpu_target} to mitigate random SIGSEGV 11 errors"
+            )
+            self.cfg.update(
+                'preinstallopts',
+                'retry() { '
+                    'for i in $(seq 1 10); do "$@" && return 0 || echo "Retry $i failed, retrying..."; done; '
+                    'echo "All retries failed!"; return 1; '
+                '}; retry '
+            )
+
+
 def pre_single_extension_hook(ext, *args, **kwargs):
     """Main pre-extension: trigger custom functions based on software name."""
     if ext.name in PRE_SINGLE_EXTENSION_HOOKS:
         PRE_SINGLE_EXTENSION_HOOKS[ext.name](ext, *args, **kwargs)
+
+    pre_cargo_python_package_2025(ext, *args, **kwargs)
 
 
 def post_single_extension_hook(ext, *args, **kwargs):
@@ -2106,6 +2255,22 @@ def pre_single_extension_isoband(ext, *args, **kwargs):
         # use constant value instead of SIGSTKSZ for stack size in vendored testthat included in isoband sources,
         # cfr. https://github.com/r-lib/isoband/commit/6984e6ce8d977f06e0b5ff73f5d88e5c9a44c027
         ext.cfg['preinstallopts'] = "sed -i 's/SIGSTKSZ/32768/g' src/testthat/vendor/catch.h && "
+
+
+def pre_single_extension_mzr(ext, *args, **kwargs):
+    """
+    Pre-extension hook for mzR R package.
+    Fixes the following error on A64FX for the included Boost 1.76.0:
+    Error: selected processor does not support `ldapr w0,[x0]
+    Error: selected processor does not support `ldapr w0,[x20]'
+    """
+    cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+    if ext.name == 'mzR' and ext.version == '2.46.0':
+        if cpu_target == CPU_TARGET_A64FX:
+            # Prevent that BOOST_ATOMIC_DETAIL_AARCH64_HAS_RCPC is being defined,
+            # as the RCpc extension is not supported on A64FX
+            sed_cmd = 'sed -i "s|#define BOOST_ATOMIC_DETAIL_AARCH64_HAS_RCPC|// #define BOOST_ATOMIC_DETAIL_AARCH64_HAS_RCPC|g" src/boost/atomic/detail/caps_arch_gcc_aarch64.hpp && '
+            ext.cfg['preinstallopts'] = sed_cmd + ext.cfg.get('preinstallopts', '')
 
 
 def pre_single_extension_numpy(ext, *args, **kwargs):
@@ -2639,12 +2804,14 @@ PRE_PREPARE_HOOKS = {
     'Highway': pre_prepare_hook_highway_handle_test_compilation_issues,
     'LAMMPS': pre_prepare_hook_LAMMPS_kokkos_CUDA_families,
     'LLVM': pre_prepare_hook_llvm_a64fx,
+    'CoordgenLibs': pre_prepare_hook_coordgenlibs_a64fx,
     'PyTorch': pre_prepare_hook_pytorch,
     'Rust': pre_prepare_hook_llvm_a64fx,
     'uv': pre_prepare_hook_uv_source_date_epoch,
 }
 
 POST_PREPARE_HOOKS = {
+    'CoordgenLibs': post_prepare_hook_coordgenlibs_a64fx,
     'GCCcore': post_prepare_hook_gcc_prefixed_ld_rpath_wrapper,
     'Highway': post_prepare_hook_highway_handle_test_compilation_issues,
     'LLVM': post_prepare_hook_llvm_a64fx,
@@ -2661,6 +2828,7 @@ PRE_CONFIGURE_HOOKS = {
     'GObject-Introspection': pre_configure_hook_gobject_introspection,
     'Graphviz': pre_configure_hook_graphviz,
     'GRASS': pre_configure_hook_grass,
+    'IDG': pre_configure_hook_IDG_riscv_target_cpu,
     'LAMMPS': pre_configure_hook_LAMMPS_zen4_and_aarch64_cuda,
     'libfabric': pre_configure_hook_libfabric_disable_psm3_x86_64_generic,
     'LLVM': pre_configure_hook_llvm,
@@ -2695,6 +2863,7 @@ PRE_TEST_HOOKS = {
 
 PRE_SINGLE_EXTENSION_HOOKS = {
     'isoband': pre_single_extension_isoband,
+    'mzR': pre_single_extension_mzr,
     'numpy': pre_single_extension_numpy,
     'orjson': pre_single_extension_orjson,
     'testthat': pre_single_extension_testthat,
@@ -2742,8 +2911,15 @@ PARALLELISM_LIMITS = {
     'hipBLASLt': {
         '*': (set_maximum, 8),
     },
-    'libxc': {
+    'Highway': {
+        # compiling the Highway tests runs out of memory on aarch64/generic,
+        # see https://github.com/EESSI/software-layer/pull/1692;
+        # keep the A64FX default, since a '*' entry here would override it
         '*': (divide_by_factor, 2),
+        CPU_TARGET_A64FX: (divide_by_factor, 4),
+    },
+    'libxc': {
+        '*': (set_maximum, 4),
         CPU_TARGET_A64FX: (set_maximum, 6),
     },
     'LLVM': {

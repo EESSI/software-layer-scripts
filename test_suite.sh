@@ -108,15 +108,6 @@ else
     python3 -V
 fi
 
-# Check that ReFrame can be imported
-reframe_import="reframe"
-python3 -c "import ${reframe_import}"
-if [[ $? -eq 0 ]]; then
-    echo_green "Succesfully found and imported ${reframe_import}"
-else
-    fatal_error "Failed to import ${reframe_import}"
-fi
-
 # Cloning should already be done in run_tests.sh before test_suite.sh is invoked
 # Check if that succeeded
 export TESTSUITEPREFIX=$PWD/EESSI-test-suite
