@@ -290,6 +290,12 @@ if isFile(ca_bundle_file_rhel) then
     eessiDebug("Setting CURL_CA_BUNDLE,REQUESTS_CA_BUNDLE,SSL_CERT_FILE to " .. ca_bundle_file_rhel)
 end
 
+-- Avoid locale related problems by (temporarily) overwriting the locale with one we know exists ('locale -a')
+pushenv ("LANG", "C.utf8")
+pushenv ("LC_ALL", "C.utf8")
+pushenv ("LC_CTYPE", "C.utf8")
+pushenv ("LC_MESSAGES", "C.utf8")
+
 if mode() == "load" then
     if not os.getenv("EESSI_MODULE_QUIET_LOAD") then
         LmodMessage(load_message)
