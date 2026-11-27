@@ -1885,6 +1885,17 @@ def pre_configure_hook_AOFlagger_riscv_target_cpu(self, *args, **kwargs):
         raise EasyBuildError("AOFlagger-specific hook triggered for non-AOFlagger easyconfig?!")
 
 
+def pre_configure_hook_EveryBeam_riscv_target_cpu(self, *args, **kwargs):
+    """
+    pre-configure hook for EveryBeam:
+    - set TARGET_CPU for the generic RISC-V target, replacing any existing -DTARGET_CPU
+    """
+    if self.name == 'EveryBeam':
+        set_aocommon_target_cpu_riscv_generic(self)
+    else:
+        raise EasyBuildError("EveryBeam-specific hook triggered for non-EveryBeam easyconfig?!")
+
+
 def pre_configure_hook_visit(self, *args, **kwargs):
     """
     Pre-configure hook for Visit
@@ -2845,6 +2856,7 @@ PRE_CONFIGURE_HOOKS = {
     'CUDA-Samples': pre_configure_hook_CUDA_Samples_test_remove,
     'Dyninst': pre_configure_hook_dyninst,
     'Extrae': pre_configure_hook_extrae,
+    'EveryBeam': pre_configure_hook_EveryBeam_riscv_target_cpu,
     'GObject-Introspection': pre_configure_hook_gobject_introspection,
     'Graphviz': pre_configure_hook_graphviz,
     'GRASS': pre_configure_hook_grass,
