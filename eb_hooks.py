@@ -2964,6 +2964,9 @@ PARALLELISM_LIMITS = {
         '*': (divide_by_factor, 2),
         CPU_TARGET_A64FX: (set_maximum, 8),
     },
+    'QEMU': {
+        '*': (divide_by_factor, 2),
+    },
     'Qt5': {
         CPU_TARGET_A64FX: (set_maximum, 8),
     },
