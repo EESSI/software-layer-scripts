@@ -1896,6 +1896,19 @@ def pre_configure_hook_EveryBeam_riscv_target_cpu(self, *args, **kwargs):
         raise EasyBuildError("EveryBeam-specific hook triggered for non-EveryBeam easyconfig?!")
 
 
+def pre_configure_hook_LofarStMan_riscv_target_cpu(self, *args, **kwargs):
+    """
+    pre-configure hook for LofarStMan:
+    - Set -DPORTABLE=True on RISC-V generic targets
+    """
+    if self.name == "LofarStMan":
+        cpu_target = get_eessi_envvar('EESSI_SOFTWARE_SUBDIR')
+        if cpu_target == CPU_TARGET_RISCV_GENERIC:
+            self.cfg.update('configopts', '-DPORTABLE=True')
+    else:
+        raise EasyBuildError("LofarStMan-specific hook triggered for non-LofarStMan easyconfig?!")
+
+
 def pre_configure_hook_visit(self, *args, **kwargs):
     """
     Pre-configure hook for Visit
@@ -2864,6 +2877,7 @@ PRE_CONFIGURE_HOOKS = {
     'LAMMPS': pre_configure_hook_LAMMPS_zen4_and_aarch64_cuda,
     'libfabric': pre_configure_hook_libfabric_disable_psm3_x86_64_generic,
     'LLVM': pre_configure_hook_llvm,
+    'LofarStMan': pre_configure_hook_LofarStMan_riscv_target_cpu,
     'MetaBAT': pre_configure_hook_metabat_filtered_zlib_dep,
     'OpenBLAS': pre_configure_hook_openblas_optarch_generic,
     'OpenMPI': pre_configure_hook_openmpi_ipv6,
